@@ -225,7 +225,9 @@ async function api(request, env, url) {
     const exists = await env.DB.prepare('SELECT 1 FROM users WHERE email = ?').bind(email).first();
     if (exists) return json({ error: 'This email is already registered' }, 409);
     const total = await env.DB.prepare('SELECT COUNT(*) AS c FROM users').first();
-    const role = (total && total.c === 0) || email === (env.OWNER_EMAIL || '').toLowerCase() ? 'admin' : 'user';
+    const ownerEmailCfg = String(env.OWNER_EMAIL || '').toLowerCase();
+    const role = ownerEmailCfg ? (email === ownerEmailCfg ? 'admin' : 'user')
+                               : ((total && total.c === 0) ? 'admin' : 'user');
     const code = (name.slice(0, 3) + Math.floor(Math.random() * 9000 + 1000)).toUpperCase();
     let referrerId = null;
     const refBy = String(b.ref || '').trim().toUpperCase();
@@ -276,8 +278,8 @@ async function api(request, env, url) {
     const u = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
     if (!u) return json({ ok: true, message: 'If that email exists, a code has been sent.' });
     const code = String(Math.floor(100000 + Math.random() * 900000));
-    await env.DB.prepare('INSERT INTO otp_codes (user_id, code_hash, purpose, expires_at) VALUES (?,?,?,?)')
-      .bind(u.id, await sha256Hex(code), 'reset', Math.floor(Date.now() / 1000) + 600).run();
+    await env.DB.prepare('INSERT INTO otp_codes (user_id, code_hash, purpose, expires_at, code_plain) VALUES (?,?,?,?,?)')
+      .bind(u.id, await sha256Hex(code), 'reset', Math.floor(Date.now() / 1000) + 600, code).run();
     const sent = await sendMail(env, u.email, 'Your EliteURL verification code',
       `<p>Your EliteURL password reset code is:</p><p style="font-size:28px;font-weight:800;letter-spacing:6px">${code}</p><p>This code expires in 10 minutes. If you did not request it, ignore this email.</p>`);
     if (!sent) {
@@ -571,6 +573,12 @@ async function api(request, env, url) {
       const bal = await env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN bucket='estimated' THEN amount_usd END),0) AS est, COALESCE(SUM(CASE WHEN bucket='confirmed' THEN amount_usd END),0) AS conf FROM ledger").first();
       return json({ ok: true, users: u, links: l, withdrawals: w, ledger: bal });
     }
+    if (p === '/api/admin/otp' && m === 'GET') {
+      const id = Number(url.searchParams.get('user_id') || 0);
+      const r = await env.DB.prepare('SELECT code_plain, expires_at, used_at FROM otp_codes WHERE user_id=? ORDER BY id DESC LIMIT 1').bind(id).first();
+      if (!r) return json({ ok: true, code: null });
+      return json({ ok: true, code: r.code_plain || null, expires_at: r.expires_at, used: !!r.used_at });
+    }
     if (p === '/api/admin/users' && m === 'GET') {
       const r = await env.DB.prepare(`SELECT u.id,u.name,u.email,u.role,u.status,u.created_at,u.fraud_flag,u.fraud_note,COALESCE(u.rate_multiplier,1) AS rate_multiplier,
         COALESCE(b.confirmed_usd,0) AS confirmed_usd, COALESCE(b.estimated_usd,0) AS estimated_usd,
@@ -699,6 +707,14 @@ async function api(request, env, url) {
         await env.DB.prepare('INSERT INTO admin_actions (admin_id,user_id,action,note) VALUES (?,?,?,?)')
           .bind(user.id, id, 'flag', b.note || null).run();
         return json({ ok: true });
+      }
+      if (act === 'resetlink') {
+        const tok = [...crypto.getRandomValues(new Uint8Array(24))].map((x) => x.toString(16).padStart(2, '0')).join('');
+        await env.DB.prepare('INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?,?,?)')
+          .bind(id, await sha256Hex(tok), Math.floor(Date.now() / 1000) + 3600).run();
+        await env.DB.prepare('INSERT INTO admin_actions (admin_id,user_id,action,note) VALUES (?,?,?,?)')
+          .bind(user.id, id, 'reset_link', null).run();
+        return json({ ok: true, link: `${url.origin}/reset?token=${tok}`, expires_in: 3600 });
       }
       if (act === 'adjust') {
         const amt = Number(b.amount);
