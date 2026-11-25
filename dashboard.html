@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard — EliteURL</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/app.css">
+<style>
+@media(max-width:640px){
+  .cards{grid-template-columns:repeat(2,1fr);gap:10px}
+  .kpi{padding:14px}.kpi b{font-size:20px}.kpi span{font-size:10px}
+  .panel{padding:16px}.tabs button{padding:9px 10px;font-size:13px}h1.page{font-size:22px}
+}
+.kpi b,.kpi span{overflow-wrap:anywhere;word-break:break-word}
+#list table,#wd-list table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+td,th{white-space:nowrap}.td-url{max-width:170px}
+.hello{background:linear-gradient(135deg,#0b0d1a,#242a5c);color:#fff;border-radius:18px;padding:26px;margin-bottom:20px;position:relative;overflow:hidden}
+.hello::after{content:"";position:absolute;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(123,92,255,.5),transparent 65%);right:-90px;top:-90px}
+.hello h2{margin:0 0 6px;font-size:19px;letter-spacing:-.02em}
+.hello p{margin:0;color:#b9bdd6;font-size:13.5px}
+.hello .bal{position:relative;z-index:1;margin-top:18px;display:flex;gap:26px;flex-wrap:wrap}
+.hello .bal div span{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:#9ea3bb;font-weight:700}
+.hello .bal div b{font-size:22px;letter-spacing:-.02em}
+.hello .bal div b.acc{color:#a8a6ff}
+.opts{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px;color:#3f4459;cursor:pointer;font-weight:600}
+.chk input{width:16px;height:16px;accent-color:#3b3ff2;cursor:pointer}
+.rowbtn{display:flex;gap:6px;flex-wrap:wrap}
+</style>
+</head><body>
+
+<header><div class="wrap nav">
+  <a class="brand" href="/">ELITEURL</a>
+  <div class="nav-right">
+    <span class="who" id="who"></span>
+    <a href="/admin" id="adminlink" class="hide">Admin</a>
+    <a href="#" id="logout">Sign out</a>
+  </div>
+</div></header>
+
+<main><div class="wrap">
+  <h1 class="page">Dashboard</h1>
+  <p class="page-sub">Create links, track verified views and withdraw your earnings.</p>
+
+  <div class="hello">
+    <h2 id="hello-name">Welcome back</h2>
+    <p>Here is how your links are performing.</p>
+    <div class="bal">
+      <div><span>Estimated</span><b class="acc" id="b-est">$0.0000</b></div>
+      <div><span>Confirmed</span><b id="b-conf">$0.0000</b></div>
+      <div><span>Valid views</span><b id="b-valid">0</b></div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="on" data-tab="overview">Overview</button>
+    <button data-tab="links">My links</button>
+    <button data-tab="withdraw">Withdrawals</button>
+    <button data-tab="account">Account</button>
+  </div>
+
+  <div id="tab-overview">
+    <div class="cards">
+      <div class="kpi"><span>Links</span><b id="k-links">0</b></div>
+      <div class="kpi"><span>Clicks</span><b id="k-clicks">0</b></div>
+      <div class="kpi"><span>Valid views</span><b id="k-valid">0</b></div>
+      <div class="kpi"><span>Invalid</span><b id="k-invalid">0</b></div>
+    </div>
+    <div class="panel">
+      <h2>Create a new short link</h2>
+      <div class="row">
+        <input id="url" type="url" placeholder="https://example.com/your-long-page" autocomplete="off">
+        <input id="alias" placeholder="Custom alias (optional)" style="flex:0 1 190px" autocomplete="off">
+        <button class="btn btn-primary" id="create">Shorten</button>
+      </div>
+      <div class="opts">
+        <label class="chk"><input type="checkbox" id="useExp"> <span>Set an expiry date</span></label>
+        <label class="chk"><input type="checkbox" id="usePw"> <span>Password protect this link</span></label>
+      </div>
+      <div class="row hide" id="expRow" style="gap:14px;margin-top:10px">
+        <div class="field" style="flex:1 1 200px"><label>Link expires after (days)</label><input id="expdays" type="number" min="1" max="365" placeholder="e.g. 7"></div>
+      </div>
+      <div class="row hide" id="pwRow" style="gap:14px;margin-top:10px">
+        <div class="field" style="flex:1 1 220px"><label>Password for this link</label><input id="linkpw" type="text" placeholder="Minimum 4 characters"></div>
+      </div>
+      <div class="out" id="out"><a id="short" href="#" target="_blank" rel="noopener"></a></div>
+      <div class="msg" id="msg"></div>
+    </div>
+    <div class="panel">
+      <h2>Last 7 days</h2>
+      <div id="chart" style="display:flex;align-items:flex-end;gap:10px;height:120px;padding-top:8px"></div>
+    </div>
+    <div class="panel">
+      <h2>Refer &amp; earn</h2>
+      <p class="page-sub" style="margin:0 0 12px">Share your link. You earn <b id="ref-reward">10%</b> of everything your friends make — for life.</p>
+      <div class="row" style="gap:10px">
+        <input id="ref-link" readonly>
+        <button class="btn btn-ghost" id="ref-copy">Copy</button>
+      </div>
+      <div class="cards" style="margin:16px 0 0">
+        <div class="kpi"><span>Friends joined</span><b id="ref-count">0</b></div>
+        <div class="kpi"><span>Commission earned</span><b id="ref-earned">$0.00</b></div>
+      </div>
+    </div>
+    <div class="panel"><h2>Recent links</h2><div id="list"><div class="empty">Loading…</div></div></div>
+  </div>
+
+  <div id="tab-links" class="hide">
+    <div class="panel"><h2>All your links</h2><div id="list2"><div class="empty">Loading…</div></div></div>
+  </div>
+
+  <div id="tab-withdraw" class="hide">
+    <div class="panel">
+      <h2>Request a withdrawal</h2>
+      <div class="row" style="gap:14px">
+        <div class="field" style="flex:1 1 150px"><label>Amount (USD)</label><input id="w-amount" type="number" min="1" placeholder="5.00"></div>
+        <div class="field" style="flex:1 1 170px"><label>Method</label>
+          <select id="w-method">
+            <option value="paypal">PayPal</option>
+            <option value="upi">UPI (India)</option>
+            <option value="bank">Bank account</option>
+          </select></div>
+      </div>
+      <div class="row" style="gap:14px">
+        <div class="field" style="flex:1 1 260px"><label id="lbl-account">UPI ID</label><input id="w-account" placeholder="yourname@upi"></div>
+        <div class="field hide" id="f-ifsc" style="flex:1 1 170px"><label>IFSC code</label><input id="w-ifsc" placeholder="HDFC0001234"></div>
+        <div class="field hide" id="f-holder" style="flex:1 1 220px"><label>Account holder name</label><input id="w-holder" placeholder="Full name"></div>
+      </div>
+      <p class="page-sub" style="margin:0 0 14px" id="w-hint"></p>
+      <button class="btn btn-primary" id="w-submit">Submit request</button>
+      <div class="msg" id="w-msg"></div>
+    </div>
+    <div class="panel"><h2>Your withdrawal history</h2><div id="wd-list"><div class="empty">Loading…</div></div></div>
+  </div>
+
+  <div id="tab-account" class="hide">
+    <div class="panel">
+      <h2>Profile</h2>
+      <div class="row" style="gap:14px">
+        <div class="field" style="flex:1 1 220px"><label>Display name</label><input id="a-name" placeholder="Your name"></div>
+        <div class="field" style="flex:1 1 220px"><label>Email (cannot be changed)</label><input id="a-email" readonly></div>
+      </div>
+      <div class="field"><label>Your referral code</label><input id="a-ref" readonly></div>
+      <button class="btn btn-primary" id="save-name">Save name</button>
+      <div class="msg" id="n-msg"></div>
+    </div>
+
+    <div class="panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <h2 style="margin:0">Password</h2>
+          <p class="page-sub" style="margin:4px 0 0">Keep your account secure with a strong password.</p>
+        </div>
+        <button class="btn btn-ghost" id="pw-toggle">Change password</button>
+      </div>
+      <div id="pw-box" class="hide" style="margin-top:18px;border-top:1px solid #eef0f7;padding-top:18px">
+        <div class="row" style="gap:14px">
+          <div class="field" style="flex:1 1 220px"><label>Current password</label><input id="p-cur" type="password" autocomplete="current-password"></div>
+          <div class="field" style="flex:1 1 220px"><label>New password</label><input id="p-new" type="password" autocomplete="new-password" placeholder="At least 8 characters"></div>
+        </div>
+        <button class="btn btn-primary" id="save-pass">Update password</button>
+        <button class="btn btn-ghost" id="pw-cancel" style="margin-left:8px">Cancel</button>
+        <div class="msg" id="p-msg"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Support</h2>
+      <p class="page-sub" style="margin:0 0 12px">Questions about payouts, links or your account? Message us directly.</p>
+      <p style="margin:0 0 14px;font-size:14px">Email: <a id="sup-email" href="#" style="color:#3b3ff2;font-weight:650">—</a></p>
+      <a class="btn btn-ghost" href="/help">Open Help Center</a>
+    </div>
+
+    <div class="panel">
+      <h2>Session</h2>
+      <p class="page-sub" style="margin:0 0 14px">Signing out removes this session from this device.</p>
+      <button class="btn btn-ghost" id="logout2">Sign out</button>
+    </div>
+  </div>
+</div></main>
+
+<div class="foot">© 2026 EliteURL · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></div>
+
+<script>
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function money(n){return '$'+Number(n||0).toFixed(4);}
+function show(el,t,ok){el.textContent=t;el.className='msg show '+(ok?'ok':'err');}
+function hide(id){document.getElementById(id).classList.add('hide');}
+function unhide(id){document.getElementById(id).classList.remove('hide');}
+
+document.querySelectorAll('.tabs button').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('.tabs button').forEach(function(x){x.classList.remove('on');});
+    b.classList.add('on');
+    ['overview','links','withdraw','account'].forEach(function(t){hide('tab-'+t);});
+    unhide('tab-'+b.getAttribute('data-tab'));
+  });
+});
+
+var ME=null;
+fetch('/api/me').then(function(r){
+  if(r.status===401){ location.href='/login'; return null; }
+  return r.json().then(function(d){ return {s:r.status, d:d}; });
+}).then(function(x){
+  if(!x) return;
+  var d=x.d;
+  if(!d || !d.ok){ document.getElementById('hello-name').textContent='Could not load your account'; return; }
+  ME=d;
+  document.getElementById('who').textContent=d.user.name;
+  document.getElementById('hello-name').textContent='Welcome back, '+d.user.name.split(' ')[0];
+  if(d.user.role==='admin')document.getElementById('adminlink').classList.remove('hide');
+  document.getElementById('k-links').textContent=d.links||0;
+  document.getElementById('k-clicks').textContent=d.clicks||0;
+  document.getElementById('k-valid').textContent=d.valid_views||0;
+  document.getElementById('k-invalid').textContent=d.invalid_views||0;
+  document.getElementById('b-est').textContent=money(d.estimated_usd);
+  document.getElementById('b-conf').textContent=money(d.confirmed_usd);
+  document.getElementById('b-valid').textContent=d.valid_views||0;
+  document.getElementById('a-name').value=d.user.name;
+  document.getElementById('a-email').value=d.user.email;
+  document.getElementById('a-ref').value=d.user.referral_code||'—';
+  var se=d.support_email||'support@eliteofficial.in';
+  var el=document.getElementById('sup-email'); el.textContent=se; el.href='mailto:'+se;
+}).catch(function(){
+  var el=document.getElementById('hello-name'); if(el) el.textContent='Network problem — please refresh';
+});
+
+function renderLinks(boxId){
+  fetch('/api/links').then(function(r){return r.json();}).then(function(d){
+    var box=document.getElementById(boxId);
+    if(!d.links||!d.links.length){box.innerHTML='<div class="empty">No links yet. Create your first one.</div>';return;}
+    var h='<table><tr><th>Short link</th><th>Destination</th><th>Clicks</th><th>Valid</th><th>Status</th><th>Actions</th></tr>';
+    d.links.forEach(function(l){
+      var full=location.origin+'/'+l.slug;
+      h+='<tr>'
+       +'<td><a href="'+full+'" target="_blank" rel="noopener" style="color:#3b3ff2;font-weight:700;word-break:break-all">'+esc(full)+'</a>'
+       +(l.locked?' <span class="pill">locked</span>':'')
+       +(l.expires_at?' <span class="pill">expires</span>':'')+'</td>'
+       +'<td class="td-url">'+esc(l.destination_url)+'</td><td>'+l.clicks+'</td><td>'+l.valid_views+'</td>'
+       +'<td><span class="pill'+(l.status==='active'?'':' off')+'">'+esc(l.status)+'</span></td>'
+       +'<td><div class="rowbtn">'
+       +'<button class="btn btn-primary btn-sm" data-copy="'+esc(full)+'">Copy</button>'
+       +'<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data='+encodeURIComponent(full)+'">QR</a>'
+       +'<button class="btn btn-ghost btn-sm" data-del="'+esc(l.slug)+'">Disable</button>'
+       +'</div></td></tr>';
+    });
+    box.innerHTML=h+'</table>';
+    box.querySelectorAll('[data-del]').forEach(function(b){
+      b.addEventListener('click',function(){
+        fetch('/api/links/'+b.getAttribute('data-del'),{method:'DELETE'}).then(function(){renderLinks(boxId);});
+      });
+    });
+    box.querySelectorAll('[data-copy]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var t=b.getAttribute('data-copy'), old=b.textContent;
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(t).then(function(){ b.textContent='Copied!'; setTimeout(function(){b.textContent=old;},1200); });
+        } else {
+          var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select();
+          try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta);
+          b.textContent='Copied!'; setTimeout(function(){b.textContent=old;},1200);
+        }
+      });
+    });
+  });
+}
+renderLinks('list');renderLinks('list2');
+
+fetch('/api/stats/daily').then(function(r){return r.json();}).then(function(d){
+  var box=document.getElementById('chart'); if(!d.ok)return;
+  var days=d.days||[], max=1;
+  days.forEach(function(x){ if((x.valid||0)>max) max=x.valid; });
+  if(!days.length){ box.innerHTML='<div class="empty">No traffic yet.</div>'; return; }
+  box.innerHTML=days.map(function(x){
+    var hgt=Math.max(6, Math.round((x.valid||0)/max*100));
+    return '<div style="flex:1;text-align:center"><div style="height:'+hgt+'px;background:linear-gradient(180deg,#3b3ff2,#7b5cff);border-radius:6px 6px 0 0"></div><div style="font-size:10px;color:#6b7086;margin-top:6px">'+(x.day||'').slice(5)+'</div><div style="font-size:11px;font-weight:700">'+(x.valid||0)+'</div></div>';
+  }).join('');
+});
+
+fetch('/api/referrals').then(function(r){return r.json();}).then(function(d){
+  if(!d.ok)return;
+  var link=location.origin+'/register?ref='+(d.code||'');
+  document.getElementById('ref-link').value=link;
+  document.getElementById('ref-count').textContent=d.count||0;
+  document.getElementById('ref-earned').textContent='$'+Number(d.earned_usd||0).toFixed(2);
+  document.getElementById('ref-reward').textContent=Math.round(Number(d.commission||0.1)*100)+'%';
+});
+document.getElementById('ref-copy').addEventListener('click',function(){
+  var i=document.getElementById('ref-link'); i.select(); try{navigator.clipboard.writeText(i.value);}catch(e){}
+  this.textContent='Copied'; var b=this; setTimeout(function(){b.textContent='Copy';},1200);
+});
+
+document.getElementById('useExp').addEventListener('change',function(){
+  document.getElementById('expRow').classList.toggle('hide', !this.checked);
+});
+document.getElementById('usePw').addEventListener('change',function(){
+  document.getElementById('pwRow').classList.toggle('hide', !this.checked);
+});
+
+document.getElementById('create').addEventListener('click',function(){
+  var b=this,u=document.getElementById('url'),a=document.getElementById('alias'),m=document.getElementById('msg');
+  m.className='msg';
+  if(!u.value.trim()){show(m,'Paste a link first.',false);return;}
+  b.disabled=true;b.textContent='Creating…';
+  fetch('/api/links',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:u.value.trim(),alias:a.value.trim(),expires_in_days:document.getElementById('useExp').checked?document.getElementById('expdays').value:'',password:document.getElementById('usePw').checked?document.getElementById('linkpw').value:''})})
+    .then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
+    .then(function(x){
+      b.disabled=false;b.textContent='Shorten';
+      if(x.s===200){var o=document.getElementById('out'),s=document.getElementById('short');
+        s.textContent=x.d.short;s.href=x.d.short;o.classList.add('show');u.value='';a.value='';document.getElementById('expdays').value='';document.getElementById('linkpw').value='';document.getElementById('useExp').checked=false;document.getElementById('usePw').checked=false;document.getElementById('expRow').classList.add('hide');document.getElementById('pwRow').classList.add('hide');
+        renderLinks('list');renderLinks('list2');
+
+fetch('/api/stats/daily').then(function(r){return r.json();}).then(function(d){
+  var box=document.getElementById('chart'); if(!d.ok)return;
+  var days=d.days||[], max=1;
+  days.forEach(function(x){ if((x.valid||0)>max) max=x.valid; });
+  if(!days.length){ box.innerHTML='<div class="empty">No traffic yet.</div>'; return; }
+  box.innerHTML=days.map(function(x){
+    var hgt=Math.max(6, Math.round((x.valid||0)/max*100));
+    return '<div style="flex:1;text-align:center"><div style="height:'+hgt+'px;background:linear-gradient(180deg,#3b3ff2,#7b5cff);border-radius:6px 6px 0 0"></div><div style="font-size:10px;color:#6b7086;margin-top:6px">'+(x.day||'').slice(5)+'</div><div style="font-size:11px;font-weight:700">'+(x.valid||0)+'</div></div>';
+  }).join('');
+});
+
+fetch('/api/referrals').then(function(r){return r.json();}).then(function(d){
+  if(!d.ok)return;
+  var link=location.origin+'/register?ref='+(d.code||'');
+  document.getElementById('ref-link').value=link;
+  document.getElementById('ref-count').textContent=d.count||0;
+  document.getElementById('ref-earned').textContent='$'+Number(d.earned_usd||0).toFixed(2);
+  document.getElementById('ref-reward').textContent=Math.round(Number(d.commission||0.1)*100)+'%';
+});
+document.getElementById('ref-copy').addEventListener('click',function(){
+  var i=document.getElementById('ref-link'); i.select(); try{navigator.clipboard.writeText(i.value);}catch(e){}
+  this.textContent='Copied'; var b=this; setTimeout(function(){b.textContent='Copy';},1200);
+});}
+      else show(m,x.d.error||'Could not create the link.',false);
+    })
+    .catch(function(){b.disabled=false;b.textContent='Shorten';show(m,'Network error.',false);});
+});
+
+document.getElementById('w-method').addEventListener('change',function(){
+  var v=this.value, bank=v==='bank';
+  document.getElementById('lbl-account').textContent = bank?'Account number' : (v==='paypal'?'PayPal email':'UPI ID');
+  document.getElementById('w-account').placeholder = bank?'Your bank account number' : (v==='paypal'?'you@example.com':'yourname@upi');
+  if(bank){unhide('f-ifsc');unhide('f-holder');}else{hide('f-ifsc');hide('f-holder');}
+});
+
+function loadWithdrawals(){
+  fetch('/api/withdrawals').then(function(r){return r.json();}).then(function(d){
+    if(!d.ok)return;
+    document.getElementById('w-hint').textContent='Available to withdraw: '+money(d.available_usd)+' · Minimum '+money(d.min_withdrawal_usd)+' · Paid within 12 hours to PayPal, UPI or bank account.';
+    var box=document.getElementById('wd-list');
+    if(!d.withdrawals.length){box.innerHTML='<div class="empty">No withdrawal requests yet.</div>';return;}
+    var h='<table><tr><th>Amount</th><th>Method</th><th>To</th><th>Status</th><th>Reference</th></tr>';
+    d.withdrawals.forEach(function(w){
+      h+='<tr><td>'+money(w.amount_usd)+'</td><td>'+esc(w.method).toUpperCase()+'</td><td>••••'+esc(w.payee_last4||'')+'</td>'
+       +'<td><span class="pill">'+esc(w.status)+'</span></td><td>'+esc(w.txn_ref||'—')+'</td></tr>';
+    });
+    box.innerHTML=h+'</table>';
+  });
+}
+loadWithdrawals();
+
+document.getElementById('w-submit').addEventListener('click',function(){
+  var b=this,m=document.getElementById('w-msg');
+  m.className='msg';
+  var body={amount:document.getElementById('w-amount').value,method:document.getElementById('w-method').value,
+    account:document.getElementById('w-account').value.trim(),
+    ifsc:document.getElementById('w-ifsc').value.trim(),holder:document.getElementById('w-holder').value.trim()};
+  b.disabled=true;b.textContent='Submitting…';
+  fetch('/api/withdrawals',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
+    .then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
+    .then(function(x){
+      b.disabled=false;b.textContent='Submit request';
+      if(x.s===200){show(m,x.d.message||'Request submitted.',true);document.getElementById('w-amount').value='';loadWithdrawals();}
+      else show(m,x.d.error||'Could not submit.',false);
+    })
+    .catch(function(){b.disabled=false;b.textContent='Submit request';show(m,'Network error.',false);});
+});
+
+function doLogout(){fetch('/api/auth/logout',{method:'POST'}).then(function(){location.href='/';});}
+document.getElementById('logout').addEventListener('click',function(e){e.preventDefault();doLogout();});
+document.getElementById('logout2').addEventListener('click',doLogout);
+
+document.getElementById('save-name').addEventListener('click',function(){
+  var b=this,m=document.getElementById('n-msg');m.className='msg';
+  b.disabled=true;b.textContent='Saving…';
+  fetch('/api/account/profile',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({name:document.getElementById('a-name').value.trim()})})
+    .then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
+    .then(function(x){b.disabled=false;b.textContent='Save name';
+      m.textContent=x.s===200?'Name updated.':(x.d.error||'Could not save.');
+      m.className='msg show '+(x.s===200?'ok':'err');
+      if(x.s===200){document.getElementById('who').textContent=x.d.name;document.getElementById('hello-name').textContent='Welcome back, '+x.d.name.split(' ')[0];}})
+    .catch(function(){b.disabled=false;b.textContent='Save name';});
+});
+
+document.getElementById('pw-toggle').addEventListener('click',function(){
+  document.getElementById('pw-box').classList.remove('hide');
+  this.style.display='none';
+});
+document.getElementById('pw-cancel').addEventListener('click',function(){
+  document.getElementById('pw-box').classList.add('hide');
+  document.getElementById('pw-toggle').style.display='inline-block';
+  document.getElementById('p-cur').value='';document.getElementById('p-new').value='';
+});
+document.getElementById('save-pass').addEventListener('click',function(){
+  var b=this,m=document.getElementById('p-msg');m.className='msg';
+  b.disabled=true;b.textContent='Updating…';
+  fetch('/api/account/password',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({current:document.getElementById('p-cur').value,password:document.getElementById('p-new').value})})
+    .then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
+    .then(function(x){b.disabled=false;b.textContent='Update password';
+      m.textContent=x.s===200?'Password updated.':(x.d.error||'Could not update.');
+      m.className='msg show '+(x.s===200?'ok':'err');
+      if(x.s===200){document.getElementById('p-cur').value='';document.getElementById('p-new').value='';}})
+    .catch(function(){b.disabled=false;b.textContent='Update password';});
+});
+</script>
+</body></html>

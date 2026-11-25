@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /s/
+Disallow: /go/
+Disallow: /dashboard
+Disallow: /admin
+
+Sitemap: https://eliteofficial.in/sitemap.xml

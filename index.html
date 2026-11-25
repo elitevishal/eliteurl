@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EliteURL — Free URL Shortener That Pays You | Earn Money From Links in India</title>
+<meta name="description" content="EliteURL is a paid URL shortener that pays creators for verified traffic. Keep 95% of ad revenue, track every view and withdraw by UPI, PhonePe or bank transfer.">
+<meta name="theme-color" content="#0e1020">
+<link rel="canonical" href="https://eliteofficial.in/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/site.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="EliteURL">
+<meta property="og:url" content="https://eliteofficial.in/">
+<meta property="og:title" content="EliteURL — Shorten links. Earn from every verified view.">
+<meta property="og:description" content="Turn the links you already share into income. Keep 95% of ad revenue and withdraw straight to UPI.">
+<meta property="og:image" content="https://eliteofficial.in/favicon.svg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="EliteURL — Shorten links. Earn from every verified view.">
+<meta name="twitter:description" content="Turn the links you already share into income. Keep 95% of ad revenue and withdraw straight to UPI.">
+<meta name="twitter:image" content="https://eliteofficial.in/favicon.svg">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://eliteofficial.in/#org",
+      "name": "EliteURL",
+      "url": "https://eliteofficial.in/",
+      "logo": "https://eliteofficial.in/favicon.svg",
+      "description": "A link shortening platform that pays creators for verified traffic.",
+      "areaServed": "IN"
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://eliteofficial.in/#site",
+      "url": "https://eliteofficial.in/",
+      "name": "EliteURL",
+      "publisher": { "@id": "https://eliteofficial.in/#org" }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How much can I earn with EliteURL?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Your income is your verified views multiplied by the rate for that visitor's country. Creators keep 95% of the advertising revenue. There is no fixed figure and no guaranteed income." }
+        },
+        {
+          "@type": "Question",
+          "name": "When can I withdraw my earnings?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Once your confirmed balance crosses Rs 100. Earnings stay estimated until they are reconciled against the advertising network's report, which usually takes 30 to 45 days." }
+        },
+        {
+          "@type": "Question",
+          "name": "Which payment methods does EliteURL support?",
+          "acceptedAnswer": { "@type": "Answer", "text": "PayPal, UPI and direct bank transfer. Every payout carries a transaction reference." }
+        },
+        {
+          "@type": "Question",
+          "name": "What traffic is not allowed?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Automated or incentivised traffic, self-clicks, proxies and VPNs, and links to malware, phishing, adult content, gambling or pirated material." }
+        }
+      ]
+    }
+  ]
+}
+</script>
+<style>
+:root{--ink:#0b0d1a;--body:#41465c;--muted:#6b7086;--accent:#3b3ff2;--accent-2:#7b5cff;--line:#e8eaf3;--bg:#ffffff;--soft:#f7f8fc;--dark:#0b0d1a}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{overflow-x:hidden;margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1140px;margin:0 auto;padding:0 24px}
+
+/* nav */
+header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.82);backdrop-filter:saturate(180%) blur(14px);-webkit-backdrop-filter:saturate(180%) blur(14px);border-bottom:1px solid var(--line)}
+.nav{display:flex;align-items:center;justify-content:space-between;height:66px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:-.02em;font-size:16px;color:var(--ink)}
+.mark{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:#fff;font-size:13px;font-weight:900}
+.nav-links{display:flex;align-items:center;gap:30px}
+.nav-links a{font-size:14px;color:var(--body);font-weight:500}
+.nav-links a:hover{color:var(--ink)}
+.nav-cta{display:flex;align-items:center;gap:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;border-radius:11px;font-size:14px;font-weight:650;border:0;cursor:pointer;font-family:inherit;transition:transform .12s ease,background .15s ease,border-color .15s ease}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--ink);color:#fff}
+.btn-primary:hover{background:#1c2036}
+.btn-accent{background:var(--accent);color:#fff}
+.btn-accent:hover{background:#2f33d9}
+.btn-outline{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn-outline:hover{border-color:#c9cce0;background:#fcfcff}
+.btn-lg{padding:15px 26px;font-size:15px;border-radius:13px}
+
+/* hero */
+.hero{padding:80px 0 0;text-align:center;position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:-30% 30% auto;height:520px;background:radial-gradient(60% 60% at 50% 40%,rgba(123,92,255,.16),transparent 70%);pointer-events:none}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;background:#f0f1ff;color:#3b3ff2;font-size:12px;font-weight:700;letter-spacing:.04em;padding:7px 14px;border-radius:99px;margin-bottom:24px;border:1px solid #e0e2ff}
+.dot{width:6px;height:6px;border-radius:50%;background:#3b3ff2;box-shadow:0 0 0 3px rgba(59,63,242,.15)}
+h1{font-size:clamp(36px,6.4vw,66px);line-height:1.03;letter-spacing:-.04em;margin:0 0 22px;font-weight:800}
+h1 .grad{background:linear-gradient(100deg,#3b3ff2,#7b5cff 55%,#b44cff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:clamp(15px,2.1vw,18px);color:var(--body);max-width:610px;margin:0 auto 34px;line-height:1.65}
+.cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.fine{font-size:12.5px;color:var(--muted);margin-top:16px}
+
+/* product mockup */
+.mock{margin:56px auto 0;max-width:940px;border-radius:20px;border:1px solid var(--line);background:#fff;box-shadow:0 40px 90px -50px rgba(15,18,50,.5),0 2px 8px rgba(15,18,50,.05);overflow:hidden;text-align:left}
+.mock-bar{height:38px;display:flex;align-items:center;gap:7px;padding:0 16px;border-bottom:1px solid var(--line);background:#fbfbfe}
+.mock-bar i{width:9px;height:9px;border-radius:50%;background:#e0e2ee;display:block}
+.mock-bar i:nth-child(1){background:#ffd1d1}.mock-bar i:nth-child(2){background:#ffe9b8}.mock-bar i:nth-child(3){background:#c9f0d8}
+.mock-body{display:grid;grid-template-columns:190px 1fr;min-height:330px}
+.mock-side{border-right:1px solid var(--line);padding:18px 14px;background:#fcfcff}
+.ms-item{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:9px;font-size:12.5px;color:var(--muted);font-weight:550}
+.ms-item.on{background:#eef0ff;color:#3b3ff2;font-weight:700}
+.ms-dot{width:14px;height:14px;border-radius:4px;background:#e6e8f2}
+.ms-item.on .ms-dot{background:#3b3ff2}
+.mock-main{padding:22px}
+.mk-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.mk-kpi{border:1px solid var(--line);border-radius:11px;padding:12px}
+.mk-kpi span{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.mk-kpi b{display:block;font-size:19px;letter-spacing:-.02em;margin-top:5px}
+.mk-kpi b.acc{color:#3b3ff2}
+.mk-row{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:11px;padding:11px 13px;margin-bottom:9px;font-size:12.5px}
+.mk-slug{font-weight:700;color:#3b3ff2}
+.mk-url{color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mk-pill{font-size:10px;font-weight:800;background:#eafaf2;color:#0d6b47;padding:3px 8px;border-radius:99px}
+.mk-chart{display:flex;align-items:flex-end;gap:5px;height:64px;margin-top:14px}
+.mk-chart i{flex:1;background:linear-gradient(180deg,#7b5cff,#3b3ff2);border-radius:4px 4px 2px 2px;opacity:.85}
+
+/* strip */
+.strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--soft);margin-top:70px}
+.strip-in{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--line)}
+.stat{background:var(--soft);padding:30px 18px;text-align:center}
+.stat b{display:block;font-size:26px;letter-spacing:-.03em;font-weight:800}
+.stat span{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;font-weight:650;margin-top:6px;display:block}
+
+/* sections */
+section{padding:86px 0}
+.sec-head{max-width:640px;margin-bottom:48px}
+.kicker{font-size:12px;font-weight:750;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+h2{font-size:clamp(26px,3.6vw,38px);letter-spacing:-.035em;margin:0 0 14px;font-weight:800;line-height:1.12}
+.sub{color:var(--body);font-size:16px;margin:0;line-height:1.65}
+
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(270px,1fr))}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px;transition:border-color .18s,transform .18s,box-shadow .18s}
+.card:hover{border-color:#d6d9ec;transform:translateY(-3px);box-shadow:0 20px 40px -30px rgba(15,18,50,.4)}
+.ico{width:40px;height:40px;border-radius:11px;background:#f0f1ff;display:grid;place-items:center;margin-bottom:18px}
+.ico svg{width:20px;height:20px;stroke:#3b3ff2;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.card h3{margin:0 0 9px;font-size:16px;letter-spacing:-.015em;font-weight:700}
+.card p{margin:0;color:var(--body);font-size:14px;line-height:1.62}
+
+.steps{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.step{background:#fff;border:1px solid var(--line);border-radius:18px;padding:28px;position:relative}
+.num{width:30px;height:30px;border-radius:9px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:800;margin-bottom:16px}
+.step h3{margin:0 0 9px;font-size:16px;font-weight:700;letter-spacing:-.015em}
+.step p{margin:0;color:var(--body);font-size:14px;line-height:1.62}
+
+/* rates */
+.rates{background:var(--soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.rtable{width:100%;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden;border:1px solid var(--line);font-size:14px}
+.rtable th{background:var(--dark);color:#fff;text-align:left;padding:15px 20px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+.rtable td{padding:15px 20px;border-top:1px solid var(--line);color:var(--body)}
+.rtable td:last-child{font-weight:750;color:var(--accent);white-space:nowrap}
+.rtable tr:hover td{background:#fcfcff}
+
+/* faq */
+details{border-bottom:1px solid var(--line);padding:20px 0}
+details summary{cursor:pointer;font-weight:650;font-size:15.5px;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:16px}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"+";font-size:20px;color:var(--muted);font-weight:400}
+details[open] summary::after{content:"–"}
+details p{margin:14px 0 0;color:var(--body);font-size:14.5px;line-height:1.7;max-width:720px}
+
+/* cta */
+.band{background:var(--dark);color:#fff;text-align:center;padding:88px 0;position:relative;overflow:hidden}
+.band::before{content:"";position:absolute;inset:auto 20% -40% ;height:400px;background:radial-gradient(50% 50% at 50% 50%,rgba(123,92,255,.35),transparent 70%);pointer-events:none}
+.band h2{color:#fff;margin-bottom:16px;position:relative}
+.band p{color:#9ea3bb;max-width:520px;margin:0 auto 32px;font-size:16px;line-height:1.65;position:relative}
+.band .btn{position:relative}
+
+footer{border-top:1px solid var(--line);padding:56px 0 40px;color:var(--muted);font-size:13.5px;background:#fff}
+.fgrid{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:36px;margin-bottom:40px}
+.fgrid h4{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink);margin:0 0 14px;font-weight:750}
+.fgrid a{display:block;color:var(--muted);margin-bottom:10px}
+.fgrid a:hover{color:var(--ink)}
+.fbot{border-top:1px solid var(--line);padding-top:24px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:12.5px}
+@media(max-width:860px){ .mock-body{grid-template-columns:1fr} .mock-side{display:none} .nav-links{display:none} .fgrid{grid-template-columns:1fr 1fr} }
+@media(max-width:520px){ .fgrid{grid-template-columns:1fr} .hero{padding-top:56px} section{padding:64px 0} }
+
+/* ---- visual punch ---- */
+.hero{position:relative;overflow:visible}
+.hero::before{content:"";position:absolute;inset:-140px -60px auto -60px;height:520px;
+  background:radial-gradient(60% 60% at 50% 0%,rgba(59,63,242,.16),transparent 70%),
+             radial-gradient(40% 50% at 85% 10%,rgba(123,92,255,.14),transparent 70%);
+  z-index:-1;pointer-events:none}
+.grad{background:linear-gradient(100deg,#3b3ff2,#7b5cff,#3b3ff2);background-size:200% auto;
+  -webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 6s linear infinite}
+@keyframes shine{to{background-position:200% center}}
+.eyebrow .dot{box-shadow:0 0 0 0 rgba(22,163,74,.6);animation:pulse 2.2s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 8px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+.band{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:44px 0 8px}
+.band .b{background:linear-gradient(180deg,#fff,#fbfbff);border:1px solid var(--line);border-radius:16px;padding:20px 16px;text-align:center;transition:.25s}
+.band .b:hover{transform:translateY(-3px);box-shadow:0 18px 36px -26px rgba(20,24,80,.55);border-color:#cfd3ee}
+.band b{display:block;font-size:26px;letter-spacing:-.03em;background:linear-gradient(100deg,#3b3ff2,#7b5cff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.band span{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.card{transition:.25s}
+.card:hover{transform:translateY(-3px);box-shadow:0 20px 40px -30px rgba(20,24,80,.6);border-color:#cfd3ee}
+.card .ico{transition:.25s}
+.card:hover .ico{transform:scale(1.08) rotate(-4deg)}
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
+.reveal.in{opacity:1;transform:none}
+@media(max-width:760px){.band{grid-template-columns:repeat(2,1fr)}}
+@media(prefers-reduced-motion:reduce){.grad,.eyebrow .dot{animation:none}.reveal{opacity:1;transform:none}}
+
+</style>
+<style>
+.shorten{margin:34px auto 0;max-width:640px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 24px 50px -34px rgba(15,18,50,.45)}
+.shorten form{display:flex;gap:10px;flex-wrap:wrap}
+.shorten input{flex:1 1 260px;min-width:0;padding:15px 16px;font-size:15px;font-family:inherit;border:1px solid var(--line);border-radius:12px;background:#fbfbfe;outline:none;color:var(--ink)}
+.shorten input:focus{border-color:#a9abff;box-shadow:0 0 0 4px #eeeefe;background:#fff}
+.shorten button{padding:15px 24px;font-size:15px;font-weight:700;border:0;border-radius:12px;background:var(--accent);color:#fff;cursor:pointer;font-family:inherit}
+.shorten button:disabled{background:#c8cbe0}
+.sh-result{margin-top:14px;display:none}
+.sh-result.show{display:block}
+.sh-result a{display:block;background:#eafaf2;border:1px solid #c9ecd9;color:#0d6b47;font-weight:750;padding:14px;border-radius:12px;text-decoration:none;word-break:break-all;text-align:center;font-size:15px}
+.sh-note{font-size:12.5px;color:var(--muted);margin-top:10px;text-align:center}
+.sh-note a{color:var(--accent);font-weight:650}
+.sh-err{color:#b3261e;font-size:13px;margin-top:10px;text-align:center}
+</style>
+</head>
+<body>
+
+<header><div class="wrap nav">
+  <a class="brand" href="/"><span class="mark">E</span>EliteURL</a>
+  <nav class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#features">Features</a>
+    <a href="#rates">Rates</a>
+    <a href="#faq">FAQ</a>
+  </nav>
+  <div class="nav-cta">
+    <a class="btn btn-outline" href="/login">Sign in</a>
+    <a class="btn btn-primary" href="/register">Get started</a>
+  </div>
+</div></header>
+
+<div class="wrap hero">
+  <div class="eyebrow"><span class="dot"></span>Creators keep 95% of ad revenue</div>
+  <h1>Shorten links.<br><span class="grad">Get paid for every view.</span></h1>
+  <p class="lead">EliteURL turns the links you already share into income. Every verified visit earns you a share of the advertising revenue — paid out to PayPal, UPI or your bank account.</p>
+  <div class="cta">
+    <a class="btn btn-accent btn-lg" href="/register">Create a free account</a>
+    <a class="btn btn-outline btn-lg" href="#how">See how it works</a>
+  </div>
+  <div class="shorten" style="display:none"></div>
+  </div>
+  <p class="fine">No approvals · No minimum traffic · Withdraw from $5</p>
+
+  <div class="mock">
+    <div class="mock-bar"><i></i><i></i><i></i></div>
+    <div class="mock-body">
+      <div class="mock-side">
+        <div class="ms-item on"><span class="ms-dot"></span>Overview</div>
+        <div class="ms-item"><span class="ms-dot"></span>My links</div>
+        <div class="ms-item"><span class="ms-dot"></span>Earnings</div>
+        <div class="ms-item"><span class="ms-dot"></span>PayPal · UPI · Bank</div>
+        <div class="ms-item"><span class="ms-dot"></span>Settings</div>
+      </div>
+      <div class="mock-main">
+        <div class="mk-kpis">
+          <div class="mk-kpi"><span>Valid views</span><b>12,480</b></div>
+          <div class="mk-kpi"><span>Today</span><b class="acc">$1.84</b></div>
+          <div class="mk-kpi"><span>Available</span><b>$29.40</b></div>
+        </div>
+        <div class="mk-row"><span class="mk-slug">/Ab123X</span><span class="mk-url">youtube.com/watch?v=…</span><span class="mk-pill">active</span></div>
+        <div class="mk-row"><span class="mk-slug">/Xy789K</span><span class="mk-url">drive.google.com/file/…</span><span class="mk-pill">active</span></div>
+        <div class="mk-row"><span class="mk-slug">/Qm44Rt</span><span class="mk-url">instagram.com/reel/…</span><span class="mk-pill">active</span></div>
+        <div class="mk-chart">
+          <i style="height:38%"></i><i style="height:52%"></i><i style="height:44%"></i><i style="height:68%"></i>
+          <i style="height:58%"></i><i style="height:82%"></i><i style="height:72%"></i><i style="height:96%"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="strip"><div class="wrap"><div class="strip-in">
+  <div class="stat"><b>95%</b><span>Creator share</span></div>
+  <div class="stat"><b>$5</b><span>Minimum payout</span></div>
+  <div class="stat"><b>3</b><span>Payout methods</span></div>
+  <div class="stat"><b>&lt;50ms</b><span>Edge redirect</span></div>
+</div></div></div>
+
+
+ </div>
+<section id="how" class="reveal"><div class="wrap">
+  <div class="sec-head">
+    <div class="kicker">How it works</div>
+    <h2>Three steps to your first payout</h2>
+    <p class="sub">Create an account and start sharing in under a minute. No applications, no waiting lists.</p>
+  </div>
+  <div class="steps">
+    <div class="step"><div class="num">1</div><h3>Paste your link</h3><p>Drop any long URL into your dashboard. We generate a clean, memorable short link instantly.</p></div>
+    <div class="step"><div class="num">2</div><h3>Share it anywhere</h3><p>WhatsApp, Telegram, YouTube, Instagram — wherever your audience already follows you.</p></div>
+    <div class="step"><div class="num">3</div><h3>Withdraw by PayPal, UPI or bank</h3><p>Watch verified views accumulate in real time and withdraw to PayPal, UPI or your bank once you cross $5.</p></div>
+  </div>
+</div></section>
+
+<section id="features" class="reveal" style="padding-top:0"><div class="wrap">
+  <div class="sec-head">
+    <div class="kicker">Built properly</div>
+    <h2>Everything a link platform should be</h2>
+    <p class="sub">Fast redirects, honest numbers and payouts that actually arrive.</p>
+  </div>
+  <div class="grid">
+    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></div>
+      <h3>Edge-served redirects</h3><p>Links resolve from 300+ locations worldwide, so your audience never waits.</p></div>
+    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+      <h3>Only verified views count</h3><p>Bots, VPNs, duplicate refreshes and self-clicks are filtered out before they reach your stats.</p></div>
+    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+      <h3>Append-only ledger</h3><p>Every rupee is written to a ledger that can never be edited or deleted. Fully auditable.</p></div>
+    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+      <h3>Payouts on schedule</h3><p>Withdrawals are reviewed and processed with a transaction reference every single time.</p></div>
+    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg></div>
+      <h3>Country-level reporting</h3><p>See exactly where your traffic comes from and what each region is worth.</p></div>
+    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+      <h3>Built for clean traffic</h3><p>No forced clicks, no misleading buttons. Advertisers keep coming back, so rates stay healthy.</p></div>
+  </div>
+</div></section>
+
+<section id="rates" class="rates reveal"><div class="wrap">
+  <div class="sec-head">
+    <div class="kicker">Rates</div>
+    <h2>What a verified view is worth</h2>
+    <p class="sub">Revenue depends on where your visitor is and current advertiser demand. Figures are indicative, not guaranteed.</p>
+  </div>
+  <table class="rtable">
+    <tr><th>Traffic tier</th><th>Countries</th><th>Indicative CPM</th></tr>
+    <tr><td><strong>Tier 1</strong></td><td>United States, United Kingdom, Canada, Australia, Germany</td><td>$7 – $22</td></tr>
+    <tr><td><strong>Tier 2</strong></td><td>Brazil, Mexico, UAE, Spain, Italy, Netherlands</td><td>$2.50 – $7</td></tr>
+    <tr><td><strong>Tier 3</strong></td><td>India, Pakistan, Bangladesh, Indonesia, Philippines</td><td>$0.50 – $2</td></tr>
+  </table>
+  <p class="fine">We do not guarantee earnings. What you make depends entirely on your traffic, its geography and network demand.</p>
+</div></section>
+
+<section id="faq" class="reveal"><div class="wrap" style="max-width:820px">
+  <div class="sec-head"><div class="kicker">FAQ</div><h2>Questions creators ask</h2></div>
+  <details open><summary>How much can I earn?</summary>
+    <p>Your income is your verified views multiplied by the rate for that visitor's country, and creators keep 95% of it. Indian traffic typically earns a fraction of US traffic. There is no fixed figure and no guarantee.</p></details>
+  <details><summary>When can I withdraw?</summary>
+    <p>Once your confirmed balance crosses $5. Earnings stay in an estimated state until they are reconciled against the advertising network's report, which usually takes 30 to 45 days.</p></details>
+  <details><summary>Which payment methods do you support?</summary>
+    <p>PayPal, UPI and direct bank transfer. Every payout carries a transaction reference you can verify.</p></details>
+  <details><summary>What traffic is not allowed?</summary>
+    <p>Automated or incentivised traffic, self-clicks, proxies and VPNs, and links to malware, phishing, adult content, gambling or pirated material. Violations result in suspension and forfeiture of unpaid balances.</p></details>
+  <details><summary>Do you show ads to my audience?</summary>
+    <p>Yes. Visitors see a short sponsored step before reaching the destination, with a visible countdown and a clearly labelled continue button. This is what generates the revenue you earn from.</p></details>
+</div></section>
+
+<div class="band reveal"><div class="wrap">
+  <h2>Start earning from your links today</h2>
+  <p>Free to join, no minimum traffic, and withdrawals straight to your UPI.</p>
+  <a class="btn btn-accent btn-lg" href="/register">Create a free account</a>
+</div></div>
+
+<footer><div class="wrap">
+  <div class="fgrid">
+    <div>
+      <a class="brand" href="/" style="margin-bottom:14px"><span class="mark">E</span>EliteURL</a>
+      <p style="margin:0;max-width:300px;line-height:1.7">A link shortening platform that pays creators for verified traffic. Operated from India.</p>
+    </div>
+    <div><h4>Product</h4>
+      <a href="/how-it-works">How it works</a><a href="/earnings">Earnings</a><a href="/register">Create account</a><a href="/login">Sign in</a></div>
+    <div><h4>Company</h4>
+      <a href="/about">About</a><a href="/contact">Contact</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></div>
+  </div>
+  <div class="fbot"><span>© 2026 EliteURL · eliteofficial.in</span><span>Made for creators</span></div>
+</div><div class="wrap"><p style="text-align:center;font-size:12px;padding-bottom:20px"><a href="/blog" style="color:#5b6076">Read our blog</a></p></div></footer>
+
+
+<script>
+fetch('/api/me').then(function(r){return r.json();}).then(function(d){
+  if(!d.ok) return;
+  var btns=document.querySelectorAll('a[href="/login"], a[href="/register"]');
+  btns.forEach(function(b){ if(/sign in|log in/i.test(b.textContent)){ b.textContent='Dashboard'; b.href='/dashboard'; } });
+  var cta=document.querySelectorAll('a[href="/register"]');
+  cta.forEach(function(b){ b.textContent='Go to dashboard'; b.href='/dashboard'; });
+}).catch(function(){});
+</script>
+<script>
+(function(){
+  var els=document.querySelectorAll('.reveal');
+  if(!('IntersectionObserver' in window)){els.forEach(function(e){e.classList.add('in');});return;}
+  var io=new IntersectionObserver(function(en){en.forEach(function(x){if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target);}});},{threshold:.12});
+  els.forEach(function(e){io.observe(e);});
+})();
+</script>
+</body>
+</html>

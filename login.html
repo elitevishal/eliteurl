@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in — EliteURL</title>
+<meta name="description" content="Sign in to your EliteURL account to manage short links, track verified views and withdraw your earnings.">
+<link rel="canonical" href="https://eliteofficial.in/login">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="robots" content="noindex,follow">
+<style>
+:root{--ink:#0b0d1a;--body:#41465c;--muted:#6b7086;--accent:#3b3ff2;--line:#e8eaf3;--bg:#f7f8fc}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+a{text-decoration:none;color:inherit}
+.shell{display:grid;grid-template-columns:1.05fr 1fr;min-height:100vh}
+/* left brand panel */
+.side{background:#0b0d1a;color:#fff;padding:52px 48px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+.side::before{content:"";position:absolute;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(123,92,255,.45),transparent 65%);top:-160px;right:-160px}
+.side::after{content:"";position:absolute;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(59,63,242,.35),transparent 65%);bottom:-180px;left:-120px}
+.brand{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:16px;letter-spacing:-.02em;position:relative;z-index:1}
+.mark{width:28px;height:28px;border-radius:9px;background:linear-gradient(135deg,#3b3ff2,#7b5cff);display:grid;place-items:center;font-size:13px;font-weight:900}
+.side-mid{position:relative;z-index:1;margin:40px 0}
+.side h2{font-size:clamp(24px,2.6vw,34px);line-height:1.18;letter-spacing:-.035em;margin:0 0 26px;font-weight:800;max-width:400px}
+.side h2 em{font-style:normal;background:linear-gradient(100deg,#8f8dff,#c48bff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.benefit{display:flex;gap:12px;margin-bottom:18px;align-items:flex-start}
+.tick{width:22px;height:22px;border-radius:7px;background:rgba(255,255,255,.12);display:grid;place-items:center;flex:0 0 22px;margin-top:1px}
+.tick svg{width:12px;height:12px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.benefit div{font-size:14px;color:#c3c7dd;line-height:1.55}
+.benefit b{color:#fff;display:block;margin-bottom:2px;font-size:14px}
+.quote{position:relative;z-index:1;border-top:1px solid rgba(255,255,255,.12);padding-top:22px;font-size:13.5px;color:#9ea3bb;line-height:1.6}
+.quote b{color:#fff}
+/* right form */
+.main{display:flex;align-items:center;justify-content:center;padding:44px 24px}
+.card{width:100%;max-width:400px}
+.card h1{font-size:27px;letter-spacing:-.03em;margin:0 0 8px;font-weight:800}
+.card .sub{color:var(--body);font-size:14.5px;margin:0 0 30px;line-height:1.55}
+.field{margin-bottom:18px}
+label{display:block;font-size:12.5px;font-weight:650;color:var(--body);margin-bottom:8px}
+.inp{position:relative}
+input{width:100%;padding:14px 15px;font-size:15px;font-family:inherit;border:1px solid var(--line);border-radius:12px;background:#fff;outline:none;color:var(--ink);transition:border-color .15s,box-shadow .15s}
+input:focus{border-color:#a9abff;box-shadow:0 0 0 4px #eeeefe}
+input::placeholder{color:#a8adc2}
+.toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--muted);font-size:12px;font-weight:650;cursor:pointer;padding:6px;font-family:inherit}
+.btn{width:100%;padding:15px;font-size:15px;font-weight:700;border:0;border-radius:12px;background:var(--accent);color:#fff;cursor:pointer;font-family:inherit;transition:background .15s,transform .1s;margin-top:4px}
+.btn:hover{background:#2f33d9}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{background:#c8cbe0;cursor:not-allowed}
+.msg{font-size:13.5px;margin-top:16px;padding:12px 14px;border-radius:11px;display:none;line-height:1.5}
+.msg.show{display:block}
+.msg.err{background:#fdeeee;color:#b3261e}
+.msg.ok{background:#eafaf2;color:#0d6b47}
+.alt{text-align:center;font-size:14px;color:var(--body);margin-top:26px}
+.alt a{color:var(--accent);font-weight:700}
+.legal{text-align:center;font-size:12px;color:var(--muted);margin-top:26px;line-height:1.6}
+.legal a{color:var(--muted);text-decoration:underline}
+@media(max-width:880px){
+  .shell{grid-template-columns:1fr}
+  .side{padding:26px 24px;flex-direction:row;align-items:center;justify-content:space-between}
+  .side-mid,.quote{display:none}
+  .main{padding:34px 20px 56px;align-items:flex-start}
+}
+</style>
+</head><body>
+<div class="shell">
+  <aside class="side">
+    <a class="brand" href="/"><span class="mark">E</span>EliteURL</a>
+    <div class="side-mid">
+      <h2>Welcome back to <em>your earnings.</em></h2>
+      <div class="benefit"><span class="tick"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <div><b>Keep 95% of revenue</b>The highest creator share we offer.</div></div>
+      <div class="benefit"><span class="tick"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <div><b>Only verified views</b>Bots, VPNs and duplicate clicks never count.</div></div>
+      <div class="benefit"><span class="tick"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <div><b>Withdraw by PayPal, UPI or bank</b>From $5, straight to your account.</div></div>
+    </div>
+    <div class="quote">“Link shortening that actually pays on time.”<br><b>— built for creators, not advertisers</b></div>
+  </aside>
+
+  <main class="main">
+    <div class="card">
+      <h1>Sign in</h1>
+      <p class="sub">Enter your details to manage your links and earnings.</p>
+      <form id="f" novalidate>
+        <div class="field">
+          <label for="email">Email address</label>
+          <div class="inp"><input id="email" type="email" autocomplete="email" placeholder="you@example.com" required></div>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="inp">
+            <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" required style="padding-right:64px">
+            <button type="button" class="toggle" id="toggle">Show</button>
+          </div>
+        </div>
+        <div style="text-align:right;margin:-6px 0 12px"><a href="/forgot" style="font-size:13px;color:#3b3ff2;font-weight:600;text-decoration:none">Forgot password?</a></div>
+        <button class="btn" id="btn">Sign in</button>
+        <div class="msg" id="msg"></div>
+      </form>
+      <p class="alt">New to EliteURL? <a href="/register">Create an account</a></p>
+      <p class="legal">By signing in you agree to our <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>
+    </div>
+  </main>
+</div>
+<script>
+var f=document.getElementById('f'),btn=document.getElementById('btn'),msg=document.getElementById('msg');
+document.getElementById('toggle').addEventListener('click',function(){
+  var p=document.getElementById('password');
+  if(p.type==='password'){p.type='text';this.textContent='Hide';}else{p.type='password';this.textContent='Show';}
+});
+function show(t,ok){msg.textContent=t;msg.className='msg show '+(ok?'ok':'err');}
+f.addEventListener('submit',function(e){
+  e.preventDefault();
+  var em=document.getElementById('email').value.trim(),pw=document.getElementById('password').value;
+  if(!em||!pw){show('Please enter your email and password.',false);return;}
+  msg.className='msg';btn.disabled=true;btn.textContent='Signing in…';
+  fetch('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:em,password:pw})})
+    .then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
+    .then(function(x){
+      btn.disabled=false;btn.textContent='Sign in';
+      if(x.s===200){show('Signed in. Redirecting…',true);location.href=x.d.role==='admin'?'/admin':'/dashboard';}
+      else{show(x.d.error||'Something went wrong. Please try again.',false);}
+    })
+    .catch(function(){btn.disabled=false;btn.textContent='Sign in';show('Network error. Check your connection.',false);});
+});
+</script>
+</body></html>

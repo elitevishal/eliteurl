@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin — EliteURL</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/app.css">
+<style>
+@media(max-width:640px){
+  .cards{grid-template-columns:repeat(2,1fr);gap:10px}
+  .kpi{padding:14px}.kpi b{font-size:20px}.kpi span{font-size:10px}
+  .panel{padding:16px}.tabs button{padding:9px 10px;font-size:13px}h1.page{font-size:22px}
+}
+.kpi b,.kpi span{overflow-wrap:anywhere;word-break:break-word}
+#u-list table,#l-list table,#z-list table,#w-list table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+td,th{white-space:nowrap}.td-url{max-width:170px}
+.pill.approved{background:#eafaf2;color:#0d6b47}
+.pill.pending{background:#fff5e0;color:#8a5b00}
+.pill.paid{background:#eef0ff;color:#3b3ff2}
+.pill.rejected{background:#fdeeee;color:#b3261e}
+.rowbtn{display:flex;gap:6px}
+.rowbtn .btn{padding:6px 10px;font-size:12px;border-radius:8px}
+</style>
+</head><body>
+
+<header><div class="wrap nav">
+  <a class="brand" href="/">ELITEURL</a>
+  <div class="nav-right">
+    <span class="who">Admin</span>
+    <a href="/dashboard">My dashboard</a>
+    <a href="#" id="logout">Sign out</a>
+  </div>
+</div></header>
+
+<main><div class="wrap">
+  <h1 class="page">Admin panel</h1>
+  <p class="page-sub">Platform overview, users, links, payouts and ad configuration.</p>
+
+  <div class="tabs">
+    <button class="on" data-tab="overview">Overview</button>
+    <button data-tab="users">Users</button>
+    <button data-tab="links">Links</button>
+    <button data-tab="payouts">Payouts</button>
+    <button data-tab="settings">Settings</button>
+    <button data-tab="zones">Ad zones</button>
+  </div>
+
+  <div id="tab-overview">
+    <div class="cards">
+      <div class="kpi"><span>Users</span><b id="o-users">0</b></div>
+      <div class="kpi"><span>Links</span><b id="o-links">0</b></div>
+      <div class="kpi"><span>Clicks</span><b id="o-clicks">0</b></div>
+      <div class="kpi"><span>Valid views</span><b id="o-valid">0</b></div>
+      <div class="kpi"><span>Invalid</span><b id="o-invalid">0</b></div>
+      <div class="kpi"><span>Pending payouts</span><b id="o-pending">0</b></div>
+    </div>
+    <div class="panel">
+      <h2>Creator balances (platform-wide)</h2>
+      <div class="cards" style="margin:0">
+        <div class="kpi"><span>Estimated</span><b class="money" id="o-est">$0.0000</b></div>
+        <div class="kpi"><span>Confirmed</span><b id="o-conf">$0.0000</b></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-users" class="hide"><div class="panel"><h2>Registered users <button class="btn btn-ghost btn-sm" id="csvUsers" style="float:right">Export CSV</button></h2><div id="u-list"><div class="empty">Loading…</div></div></div></div>
+  <div id="tab-links" class="hide"><div class="panel"><h2>All links <button class="btn btn-ghost btn-sm" id="csvLinks" style="float:right">Export CSV</button></h2><div id="l-list"><div class="empty">Loading…</div></div></div></div>
+  <div id="tab-payouts" class="hide"><div class="panel"><h2>Withdrawal requests <button class="btn btn-ghost btn-sm" id="csvWd" style="float:right">Export CSV</button></h2><div id="w-list"><div class="empty">Loading…</div></div><div class="msg" id="w-msg"></div></div></div>
+
+  <div id="tab-settings" class="hide"><div class="panel">
+    <h2>Platform settings</h2>
+    <div class="row" style="gap:16px">
+      <div class="field" style="flex:1 1 170px"><label>Ad steps (1–8)</label><input id="s-steps" type="number" min="1" max="8"></div>
+      <div class="field" style="flex:1 1 170px"><label>Countdown (seconds)</label><input id="s-count" type="number" min="3" max="60"></div>
+      <div class="field" style="flex:1 1 170px"><label>Creator share (0–1)</label><input id="s-share" type="number" step="0.01" min="0" max="1"></div>
+      <div class="field" style="flex:1 1 170px"><label>Min withdrawal (USD)</label><input id="s-min" type="number" min="0"></div>
+      <div class="field" style="flex:1 1 210px"><label>Show destination on step pages</label>
+        <select id="s-dest"><option value="0">No (recommended)</option><option value="1">Yes</option></select></div>
+      <div class="field" style="flex:1 1 240px"><label>Support email (shown to users)</label>
+        <input id="s-support" type="email" placeholder="support@eliteofficial.in"></div>
+      <div class="field" style="flex:1 1 150px"><label>Payout window (hours)</label>
+        <input id="s-payout" type="number" min="1" max="168" placeholder="12"></div>
+    </div>
+    <button class="btn btn-primary" id="save-settings">Save settings</button>
+    <div class="msg" id="s-msg"></div>
+  </div></div>
+
+  <div id="tab-zones" class="hide">
+    <div class="panel">
+      <h2>Add an ad zone</h2>
+      <div class="row" style="gap:16px">
+        <div class="field" style="flex:1 1 150px"><label>Network</label>
+          <select id="z-network"><option>adsterra</option><option>monetag</option><option>propellerads</option><option>admaven</option><option value="house">house (our own promo)</option></select></div>
+        <div class="field" style="flex:1 1 150px"><label>Format</label>
+          <select id="z-format"><option>socialbar</option><option>interstitial</option><option>banner</option><option>popunder</option><option>vignette</option><option>inpage</option></select></div>
+        <div class="field" style="flex:1 1 110px"><label>Step (1–8)</label><input id="z-step" type="number" min="1" max="8" value="1"></div>
+        <div class="field" style="flex:1 1 160px"><label>Label</label><input id="z-label" placeholder="Step 1 social bar"></div>
+      </div>
+      <div class="field"><label>Ad code (paste the network's script tag)</label>
+        <textarea id="z-snippet" rows="4" placeholder="Ad network: paste the &lt;script&gt; tag.  House promo: paste HTML like &lt;a href=&quot;https://eliteofficial.in&quot;&gt;&lt;img src=&quot;https://...&quot; alt=&quot;EliteURL&quot;&gt;&lt;/a&gt;"></textarea></div>
+      <button class="btn btn-primary" id="add-zone">Add zone</button>
+      <div class="msg" id="z-msg"></div>
+    </div>
+    <div class="panel"><h2>Existing zones</h2><div id="z-list"><div class="empty">Loading…</div></div></div>
+  </div>
+</div></main>
+
+<div class="foot">© 2026 EliteURL · admin</div>
+
+<script>
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function money(n){return '$'+Number(n||0).toFixed(4);}
+function API(p,o){return fetch(p,o).then(function(r){return r.json().then(function(d){if(r.status===403){location.href='/dashboard';}return d;});});}
+function hide(id){document.getElementById(id).classList.add('hide');}
+
+document.querySelectorAll('.tabs button').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('.tabs button').forEach(function(x){x.classList.remove('on');});
+    b.classList.add('on');
+    ['overview','users','links','payouts','settings','zones'].forEach(function(t){hide('tab-'+t);});
+    document.getElementById('tab-'+b.getAttribute('data-tab')).classList.remove('hide');
+  });
+});
+
+API('/api/admin/overview').then(function(d){
+  if(!d.ok)return;
+  document.getElementById('o-users').textContent=d.users.total||0;
+  document.getElementById('o-links').textContent=d.links.links||0;
+  document.getElementById('o-clicks').textContent=d.links.clicks||0;
+  document.getElementById('o-valid').textContent=d.links.valid_views||0;
+  document.getElementById('o-invalid').textContent=d.links.invalid_views||0;
+  document.getElementById('o-pending').textContent=d.withdrawals.pending||0;
+  document.getElementById('o-est').textContent=money(d.ledger.est);
+  document.getElementById('o-conf').textContent=money(d.ledger.conf);
+});
+
+function loadUsers(){
+  API('/api/admin/users').then(function(d){
+    if(!d.ok)return;
+    var box=document.getElementById('u-list');
+    var h='<table><tr><th>User</th><th>Status</th><th>Valid / Invalid</th><th>Balance</th><th>Actions</th></tr>';
+    d.users.forEach(function(u){
+      var total=(u.valid_views||0)+(u.invalid_views||0);
+      var badPct = total>3 ? Math.round((u.invalid_views||0)*100/total) : 0;
+      var warn = badPct>=40 ? '<div style="color:#b3261e;font-weight:700;font-size:11px">⚠ '+badPct+'% invalid traffic</div>' : '';
+      if(u.fraud_flag) warn += '<div style="color:#8a5b00;font-weight:700;font-size:11px">⚑ flagged: '+esc(u.fraud_flag)+'</div>';
+      h+='<tr><td><strong>'+esc(u.name)+'</strong><br><span style="color:#6b7086;font-size:11.5px">'+esc(u.email)+'</span></td>'
+       +'<td><span class="pill'+(u.status==='active'?'':' off')+'">'+esc(u.status)+'</span></td>'
+       +'<td>'+ (u.valid_views||0) +' / '+ (u.invalid_views||0) + warn +'</td>'
+       +'<td>'+money(u.confirmed_usd)+'</td>'
+       +'<td><div style="font-size:11px;color:#6b7086">rate ×'+(u.rate_multiplier||1)+'</div><div class="rowbtn">'
+       + (u.status==='active'
+            ? '<button class="btn btn-ghost" data-u="'+u.id+'" data-a="block">Block</button>'
+            : '<button class="btn btn-primary" data-u="'+u.id+'" data-a="activate">Unblock</button>')
+       + '<button class="btn btn-ghost" data-u="'+u.id+'" data-a="adjust">Balance</button>'
+       + '<button class="btn btn-ghost" data-u="'+u.id+'" data-a="rate">Rate</button>'
+       + '<button class="btn btn-ghost" data-u="'+u.id+'" data-a="flag">Flag</button>'
+       + '</div></td></tr>';
+    });
+    box.innerHTML=h+'</table>';
+    box.querySelectorAll('[data-u]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var id=b.getAttribute('data-u'), act=b.getAttribute('data-a'), body={id:id,action:act};
+        if(act==='adjust'){
+          var amt=prompt('Amount in USD (positive to add, negative to deduct):');
+          if(amt===null)return; body.amount=amt;
+          var note=prompt('Reason (optional):')||''; body.note=note;
+        }
+        if(act==='rate'){
+          var v=prompt('Earning rate for this user (1 = normal, 0.5 = half, 2 = double):','1');
+          if(v===null)return; body.value=v;
+        }
+        if(act==='flag'){ var fl=prompt('Flag label (e.g. fake traffic):','fake traffic'); if(fl===null)return; body.flag=fl; body.note=fl; }
+        if(act==='block'){ var n=prompt('Reason (optional):')||''; body.note=n; }
+        API('/api/admin/users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
+          .then(function(r){ if(!r.ok) alert(r.error||'Action failed'); loadUsers(); });
+      });
+    });
+  });
+}
+loadUsers();
+
+API('/api/admin/links').then(function(d){
+  if(!d.ok)return;
+  if(!d.links.length){document.getElementById('l-list').innerHTML='<div class="empty">No links yet.</div>';return;}
+  var h='<table><tr><th>Slug</th><th>Owner</th><th>Destination</th><th>Clicks</th><th>Valid</th></tr>';
+  d.links.forEach(function(l){
+    h+='<tr><td>/'+esc(l.slug)+'</td><td>'+esc(l.email)+'</td><td class="td-url">'+esc(l.destination_url)+'</td>'
+      +'<td>'+l.clicks+'</td><td>'+l.valid_views+'</td></tr>';
+  });
+  document.getElementById('l-list').innerHTML=h+'</table>';
+});
+
+function loadPayouts(){
+  API('/api/admin/withdrawals').then(function(d){
+    if(!d.ok)return;
+    var box=document.getElementById('w-list');
+    if(!d.withdrawals.length){box.innerHTML='<div class="empty">No withdrawal requests yet.</div>';return;}
+    var h='<table><tr><th>User</th><th>Amount</th><th>Method</th><th>Payout details</th><th>Status</th><th>Action</th></tr>';
+    d.withdrawals.forEach(function(w){
+      h+='<tr><td>'+esc(w.email)+'</td><td>'+money(w.amount_usd)+'</td><td>'+esc(w.method).toUpperCase()+'</td>'
+       +'<td><div style="max-width:220px;word-break:break-all;font-size:12px;font-weight:600">'+esc(w.payee_enc||'—')+'</div><button class="btn btn-ghost btn-sm" data-pay="'+esc(w.payee_enc||'')+'" style="margin-top:4px">Copy</button></td>'
+       +'<td><span class="pill '+esc(w.status)+'">'+esc(w.status)+'</span></td><td><div class="rowbtn">';
+      if(w.status==='pending'){
+        h+='<button class="btn btn-primary" data-wd="'+w.id+'" data-act="approve">Approve</button>'
+         +'<button class="btn btn-ghost" data-wd="'+w.id+'" data-act="reject">Reject</button>';
+      } else if(w.status==='approved'){
+        h+='<button class="btn btn-primary" data-wd="'+w.id+'" data-act="paid">Mark paid</button>';
+      } else { h+='<span style="color:#6b7086">—</span>'; }
+      h+='</div></td></tr>';
+    });
+    box.innerHTML=h+'</table>';
+    box.querySelectorAll('[data-pay]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var t=b.getAttribute('data-pay'), old=b.textContent;
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(t).then(function(){ b.textContent='Copied!'; setTimeout(function(){b.textContent=old;},1200); });
+        } else {
+          var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select();
+          try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta);
+          b.textContent='Copied!'; setTimeout(function(){b.textContent=old;},1200);
+        }
+      });
+    });
+    box.querySelectorAll('[data-wd]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var act=b.getAttribute('data-act'),id=b.getAttribute('data-wd');
+        var body={id:id,action:act};
+        if(act==='paid'){var ref=prompt('Transaction reference (UTR / UPI ref):');if(ref===null)return;body.txn_ref=ref;}
+        if(act==='reject'){var note=prompt('Reason (optional):')||'';body.note=note;}
+        API('/api/admin/withdrawals',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
+          .then(function(){loadPayouts();});
+      });
+    });
+  });
+}
+loadPayouts();
+
+API('/api/admin/settings').then(function(d){
+  if(!d.ok)return;
+  var m={};d.settings.forEach(function(s){m[s.key]=s.value;});
+  document.getElementById('s-steps').value=m.steps_count||7;
+  document.getElementById('s-count').value=m.countdown_seconds||15;
+  document.getElementById('s-share').value=m.creator_share||0.95;
+  document.getElementById('s-min').value=m.min_withdrawal_usd||5;
+  document.getElementById('s-dest').value=m.show_destination||'0';
+  document.getElementById('s-support').value=m.support_email||'support@eliteofficial.in';
+  document.getElementById('s-payout').value=m.payout_hours||12;
+});
+
+document.getElementById('save-settings').addEventListener('click',function(){
+  var m=document.getElementById('s-msg');m.className='msg';
+  API('/api/admin/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
+    steps_count:document.getElementById('s-steps').value,
+    countdown_seconds:document.getElementById('s-count').value,
+    creator_share:document.getElementById('s-share').value,
+    min_withdrawal_usd:document.getElementById('s-min').value,
+    show_destination:document.getElementById('s-dest').value,
+    support_email:document.getElementById('s-support').value,
+    payout_hours:document.getElementById('s-payout').value
+  })}).then(function(d){
+    m.textContent=d.ok?'Settings saved.':'Could not save.';
+    m.className='msg show '+(d.ok?'ok':'err');
+  });
+});
+
+function loadZones(){
+  API('/api/admin/zones').then(function(d){
+    if(!d.ok)return;
+    if(!d.zones.length){document.getElementById('z-list').innerHTML='<div class="empty">No ad zones yet.</div>';return;}
+    var h='<table><tr><th>Step</th><th>Network</th><th>Format</th><th>Label</th><th>Status</th></tr>';
+    d.zones.forEach(function(z){
+      h+='<tr><td>'+z.step_no+'</td><td>'+esc(z.network)+'</td><td>'+esc(z.format)+'</td><td>'+esc(z.label)+'</td><td>'+esc(z.status)+'</td></tr>';
+    });
+    document.getElementById('z-list').innerHTML=h+'</table>';
+  });
+}
+loadZones();
+
+document.getElementById('add-zone').addEventListener('click',function(){
+  var m=document.getElementById('z-msg');m.className='msg';
+  var body={network:document.getElementById('z-network').value,format:document.getElementById('z-format').value,
+    step_no:document.getElementById('z-step').value,label:document.getElementById('z-label').value,
+    snippet:document.getElementById('z-snippet').value};
+  if(!body.snippet.trim()){m.textContent='Paste the ad code first.';m.className='msg show err';return;}
+  API('/api/admin/zones',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}).then(function(d){
+    m.textContent=d.ok?'Zone added.':'Could not add zone.';
+    m.className='msg show '+(d.ok?'ok':'err');
+    if(d.ok){document.getElementById('z-snippet').value='';loadZones();}
+  });
+});
+
+
+function toCSV(rows, cols){
+  var head=cols.join(','), lines=[head];
+  rows.forEach(function(r){ lines.push(cols.map(function(c){ var v=r[c]; if(v===null||v===undefined)v=''; v=String(v).replace(/"/g,'""'); return '"'+v+'"'; }).join(',')); });
+  return lines.join('\n');
+}
+function download(name, text){
+  var b=new Blob([text],{type:'text/csv;charset=utf-8;'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click();
+}
+var CACHE={};
+var _api=API;
+API=function(p,o){ return _api(p,o).then(function(d){ CACHE[p]=d; return d; }); };
+document.getElementById('csvUsers').addEventListener('click',function(){
+  var d=CACHE['/api/admin/users']; if(!d||!d.users)return alert('Load the Users tab first');
+  download('eliteurl-users.csv', toCSV(d.users,['id','name','email','role','status','confirmed_usd','estimated_usd','valid_views','invalid_views','rate_multiplier']));
+});
+document.getElementById('csvLinks').addEventListener('click',function(){
+  var d=CACHE['/api/admin/links']; if(!d||!d.links)return alert('Load the Links tab first');
+  download('eliteurl-links.csv', toCSV(d.links,['slug','email','destination_url','clicks','valid_views','status']));
+});
+document.getElementById('csvWd').addEventListener('click',function(){
+  var d=CACHE['/api/admin/withdrawals']; if(!d||!d.withdrawals)return alert('Load the Payouts tab first');
+  download('eliteurl-payouts.csv', toCSV(d.withdrawals,['id','email','amount_usd','method','status','txn_ref','requested_at']));
+});
+
+document.getElementById('logout').addEventListener('click',function(e){
+  e.preventDefault();fetch('/api/auth/logout',{method:'POST'}).then(function(){location.href='/';});
+});
+</script>
+</body></html>
