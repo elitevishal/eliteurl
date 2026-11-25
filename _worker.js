@@ -4,6 +4,7 @@
 // ============================================================
 
 const enc = new TextEncoder();
+const ownerEmailOf = (env) => String(env.OWNER_EMAIL || '').trim().toLowerCase();
 const COOKIE = 'eu_session';
 const SESSION_DAYS = 30;
 
@@ -135,7 +136,7 @@ async function currentUser(request, env) {
   }
   const key = request.headers.get('x-api-key');
   if (key && key === env.API_KEY) {
-    return env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(env.OWNER_EMAIL || 'owner@eliteofficial.in').first();
+    return env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(ownerEmailOf(env) || 'owner@eliteofficial.in').first();
   }
   return null;
 }
@@ -225,7 +226,7 @@ async function api(request, env, url) {
     const exists = await env.DB.prepare('SELECT 1 FROM users WHERE email = ?').bind(email).first();
     if (exists) return json({ error: 'This email is already registered' }, 409);
     const total = await env.DB.prepare('SELECT COUNT(*) AS c FROM users').first();
-    const ownerEmailCfg = String(env.OWNER_EMAIL || '').toLowerCase();
+    const ownerEmailCfg = ownerEmailOf(env);
     const role = ownerEmailCfg ? (email === ownerEmailCfg ? 'admin' : 'user')
                                : ((total && total.c === 0) ? 'admin' : 'user');
     const code = (name.slice(0, 3) + Math.floor(Math.random() * 9000 + 1000)).toUpperCase();
@@ -243,7 +244,9 @@ async function api(request, env, url) {
     }
     const u = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
     const tok = await createSession(env, u.id);
-    return json({ ok: true, role: u.role }, 200, { 'set-cookie': cookieHeader(tok) });
+    const roleOut = (ownerEmailOf(env) && String(u.email || '').trim().toLowerCase() === ownerEmailOf(env)) ? 'admin' : u.role;
+    if (roleOut === 'admin' && u.role !== 'admin') { try { await env.DB.prepare("UPDATE users SET role='admin' WHERE id=?").bind(u.id).run(); } catch (e) {} }
+    return json({ ok: true, role: roleOut }, 200, { 'set-cookie': cookieHeader(tok) });
   }
 
   if (p === '/api/auth/login' && m === 'POST') {
@@ -257,7 +260,9 @@ async function api(request, env, url) {
       return json({ error: 'Incorrect email or password' }, 401);
     if (u.status !== 'active') return json({ error: 'This account has been suspended' }, 403);
     const tok = await createSession(env, u.id);
-    return json({ ok: true, role: u.role }, 200, { 'set-cookie': cookieHeader(tok) });
+    const roleOut = (ownerEmailOf(env) && String(u.email || '').trim().toLowerCase() === ownerEmailOf(env)) ? 'admin' : u.role;
+    if (roleOut === 'admin' && u.role !== 'admin') { try { await env.DB.prepare("UPDATE users SET role='admin' WHERE id=?").bind(u.id).run(); } catch (e) {} }
+    return json({ ok: true, role: roleOut }, 200, { 'set-cookie': cookieHeader(tok) });
   }
 
   if (p === '/api/auth/logout' && m === 'POST') {
@@ -366,7 +371,9 @@ async function api(request, env, url) {
     ).bind(user.id).first()), { links: 0, clicks: 0, valid_views: 0, invalid_views: 0 });
     const bal = await safe(async () => env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id = ?').bind(user.id).first(), null);
     return json({ ok: true,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, referral_code: user.referral_code },
+      user: { id: user.id, name: user.name, email: user.email,
+        role: (ownerEmailOf(env) && String(user.email || '').trim().toLowerCase() === ownerEmailOf(env)) ? 'admin' : user.role,
+        referral_code: user.referral_code },
       links: agg ? agg.links : 0, clicks: agg ? agg.clicks : 0,
       valid_views: agg ? agg.valid_views : 0, invalid_views: agg ? agg.invalid_views : 0,
       estimated_usd: bal ? (bal.estimated_usd || 0) : 0,
@@ -390,6 +397,9 @@ async function api(request, env, url) {
       const u = await env.DB.prepare('SELECT id,email,status,role FROM users WHERE id = ?').bind(s.user_id).first();
       out.user = u || null;
       out.reason = !u ? 'user_missing' : (u.status !== 'active' ? 'user_status_' + u.status : 'ok');
+      out.is_owner = !!u && ownerEmailOf(env) !== '' && String(u.email||'').trim().toLowerCase() === ownerEmailOf(env);
+      out.owner_configured = ownerEmailOf(env) !== '';
+      out.your_email = u ? u.email : null;
     } catch (e) { out.reason = 'error: ' + String(e.message || e); }
     return json(out);
   }
@@ -419,7 +429,7 @@ async function api(request, env, url) {
     const b = await request.json().catch(() => ({}));
     const dest = validUrl(b.url || '');
     if (!dest) return json({ error: 'Enter a valid http or https URL' }, 400);
-    const owner = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(String(env.OWNER_EMAIL || '').toLowerCase()).first();
+    const owner = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(ownerEmailOf(env)).first();
     if (!owner) return json({ error: 'Owner account not found' }, 500);
     let s2 = null;
     for (let i = 0; i < 6; i++) { s2 = slug(6); if (!(await env.DB.prepare('SELECT 1 FROM links WHERE slug = ?').bind(s2).first())) break; s2 = null; }
@@ -562,9 +572,12 @@ async function api(request, env, url) {
 
   // ---- admin ----
   if (p.startsWith('/api/admin/')) {
-    const ownerEmail = String(env.OWNER_EMAIL || '').toLowerCase();
-    if (user.role !== 'admin' || (ownerEmail && user.email.toLowerCase() !== ownerEmail))
-      return json({ error: 'forbidden' }, 403);
+    const ownerEmail = ownerEmailOf(env);
+    const isOwner = ownerEmail !== '' && String(user.email || '').trim().toLowerCase() === ownerEmail;
+    if (!isOwner) return json({ error: 'forbidden' }, 403);
+    if (user.role !== 'admin') {
+      try { await env.DB.prepare("UPDATE users SET role='admin' WHERE id=?").bind(user.id).run(); user.role = 'admin'; } catch (e) {}
+    }
 
     if (p === '/api/admin/overview') {
       const u = await env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN status='active' THEN 1 ELSE 0 END) AS active FROM users").first();
@@ -668,7 +681,7 @@ async function api(request, env, url) {
       const id = Number(b.id);
       const u = await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(id).first();
       if (!u) return json({ error: 'User not found' }, 404);
-      if (u.email.toLowerCase() === String(env.OWNER_EMAIL || '').toLowerCase())
+      if (String(u.email || '').trim().toLowerCase() === ownerEmailOf(env))
         return json({ error: 'You cannot modify the owner account' }, 400);
       const now = Math.floor(Date.now() / 1000);
       const act = String(b.action || '');
