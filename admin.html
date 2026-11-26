@@ -123,7 +123,7 @@ tbody tr:hover{background:#fafbff}
   </div>
 </div></main>
 
-<div class="foot">© 2026 EliteURL · admin</div>
+<div class="foot">© 2026 EliteURL · admin · <span id="buildtag" style="opacity:.6">build ?</span></div>
 
 <script>
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -335,14 +335,18 @@ function loadZones(){
   API('/api/admin/zones').then(function(d){
     if(!d.ok)return;
     if(!d.zones.length){document.getElementById('z-list').innerHTML='<div class="empty">No ad zones yet.</div>';return;}
-    var h='<table><tr><th>Step</th><th>Network</th><th>Format</th><th>Label</th><th>Status</th></tr>';
+    var h='<table><tr><th>Step</th><th>Network</th><th>Format</th><th>Label</th><th>Status</th><th>Code</th></tr>';
     d.zones.forEach(function(z){
-      h+='<tr><td>'+z.step_no+'</td><td>'+esc(z.network)+'</td><td>'+esc(z.format)+'</td><td>'+esc(z.label)+'</td><td>'+esc(z.status)+'</td></tr>';
+      var code = z.has_script
+        ? '<span style="color:#12833b;font-weight:800">✓ '+z.len+'</span>'
+        : '<span style="color:#b3261e;font-weight:800">✗ EMPTY</span>';
+      h+='<tr><td>'+z.step_no+'</td><td>'+esc(z.network)+'</td><td>'+esc(z.format)+'</td><td>'+esc(z.label)+'</td><td>'+esc(z.status)+'</td><td>'+code+'</td></tr>';
     });
     document.getElementById('z-list').innerHTML=h+'</table>';
   });
 }
 loadZones();
+API('/api/admin/zones').then(function(d){ var b=document.getElementById('buildtag'); if(b&&d&&d.build) b.textContent='build '+d.build; });
 
 document.getElementById('add-zone').addEventListener('click',function(){
   var m=document.getElementById('z-msg');m.className='msg';
