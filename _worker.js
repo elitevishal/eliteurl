@@ -512,7 +512,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-29-v21-tapfix', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-29-v23-layout', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -787,7 +787,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-29-v21-tapfix',
+        build: '2026-11-29-v23-layout',
         total: zones.length,
         active: active.length,
         zones,
@@ -854,7 +854,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-29-v21-tapfix', zones });
+      return json({ ok: true, build: '2026-11-29-v23-layout', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1108,10 +1108,16 @@ async function stepPage(request, env, url) {
 
   const sess = await env.DB.prepare('SELECT * FROM click_sessions WHERE id=?').bind(sid).first();
   if (!sess) return html(messagePage('Session not found', ''), 404);
-  // 3 minute se purani session -> shuru se restart
-  const age = Math.floor(Date.now() / 1000) - (sess.created_at || 0);
+  // idle timeout: 3 minute tak koi step na ho to restart (created_at nahi, last activity)
+  const nowTs = Math.floor(Date.now() / 1000);
+  let lastAct = sess.created_at || 0;
+  try {
+    const le = await env.DB.prepare('SELECT MAX(created_at) AS t FROM step_events WHERE session_id=?').bind(sid).first();
+    if (le && le.t && le.t > lastAct) lastAct = le.t;
+  } catch (e) {}
+  const idle = nowTs - lastAct;
   const timeout = Math.max(60, await numSetting(env, 'session_timeout_seconds', 180));
-  if (sess.status === 'started' && age > timeout) {
+  if (sess.status === 'started' && idle > timeout) {
     const lk = await env.DB.prepare('SELECT slug FROM links WHERE id=?').bind(sess.link_id).first();
     if (lk) return Response.redirect(`${new URL(request.url).origin}/d/${lk.slug}`, 302);
   }
@@ -1174,8 +1180,8 @@ async function apiStep(request, env) {
   if (sess.steps_completed !== step - 1) return json({ error: 'out_of_order' }, 409);
   if (Math.floor(Date.now() / 1000) - sess.created_at > 7200) return json({ error: 'expired' }, 410);
 
-  await env.DB.prepare('INSERT OR IGNORE INTO step_events (session_id,step_no,ad_fired,dwell_ms) VALUES (?,?,?,?)')
-    .bind(b.sid, step, 1, 0).run();
+  await env.DB.prepare('INSERT INTO step_events (session_id,step_no,ad_fired,dwell_ms,created_at) VALUES (?,?,?,?,?) ON CONFLICT(session_id,step_no) DO UPDATE SET created_at=excluded.created_at, ad_fired=1')
+    .bind(b.sid, step, 1, 0, Math.floor(Date.now() / 1000)).run();
   await env.DB.prepare('UPDATE click_sessions SET steps_completed=? WHERE id=?').bind(step, b.sid).run();
 
   const origin = new URL(request.url).origin;
@@ -1312,12 +1318,9 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
   const counts = {};
   const CAPS = { popunder: 1, socialbar: 1, banner: 6, inpage: 6, native: 6 };
   const pick = (fmt) => {
-    const cands = pool.filter((z) => (fmt ? z.format === fmt : true));
+    // format diya hai to sirf wahi format — fallback nahi (warna slot badal jata hai)
+    const cands = fmt ? pool.filter((z) => z.format === fmt) : pool;
     for (const c of cands) {
-      const cap = CAPS[c.format] || 1;
-      if ((counts[c.id] || 0) < cap) return c;
-    }
-    for (const c of pool) {
       const cap = CAPS[c.format] || 1;
       if ((counts[c.id] || 0) < cap) return c;
     }
@@ -1362,7 +1365,7 @@ body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Robo
 .ad svg,.ad img{display:block;max-width:100%;height:auto;margin:0 auto}
 .ad iframe{display:block;border:0;max-width:100%;margin:0 auto}
 .adlabel{position:absolute;top:4px;left:6px;font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:#98a0b8;font-weight:800;background:rgba(255,255,255,.92);padding:2px 5px;border-radius:3px;pointer-events:none;z-index:2}
-.ad.small{background:#fafbff;padding:8px 0}
+.ad.small{height:0;padding:0;margin:0;overflow:hidden;background:transparent;border:0}
 .line{padding:20px 16px;text-align:center;font-size:16px;line-height:1.55;font-weight:800;background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .line small{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-top:5px}
 .nextwrap{padding:16px;text-align:center;background:#fff;border-bottom:1px solid var(--line)}
