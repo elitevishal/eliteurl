@@ -14,6 +14,14 @@ const BUILTIN_ADS = [
     snippet: '<script data-cfasync="false" src="https://abscloud.org/1/1d1e7a2fdb812eccc8b85b69f9a019c5"></script>' },
   { id: 'p4', network: 'adsterra', format: 'popunder', label: 'Popunder 4', step: 1,
     snippet: '<script data-cfasync="false" src="https://abscloud.org/1/e5eccf81a60b3390f3aaf5d8b34ac590"></script>' },
+  { id: 'm1', network: 'monetag', format: 'popunder', label: 'Monetag 1', step: 1,
+    snippet: '<script>(function(s){s.dataset.zone="12360995",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
+  { id: 'm2', network: 'monetag', format: 'popunder', label: 'Monetag 2', step: 1,
+    snippet: '<script>(function(s){s.dataset.zone="12361009",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
+  { id: 'm3', network: 'monetag', format: 'popunder', label: 'Monetag 3', step: 1,
+    snippet: '<script>(function(s){s.dataset.zone="12361015",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
+  { id: 'm4', network: 'monetag', format: 'popunder', label: 'Monetag 4', step: 1,
+    snippet: '<script>(function(s){s.dataset.zone="12361023",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
   { id: 'b1', network: 'adsterra', format: 'banner', label: 'Banner 300x250', step: 1,
     snippet: `<script type="text/javascript">
   atOptions = {
@@ -504,7 +512,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-28-v17-sw', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-29-v19-4mon', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -779,7 +787,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-28-v17-sw',
+        build: '2026-11-29-v19-4mon',
         total: zones.length,
         active: active.length,
         zones,
@@ -846,7 +854,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-28-v17-sw', zones });
+      return json({ ok: true, build: '2026-11-29-v19-4mon', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1107,8 +1115,13 @@ async function stepPage(request, env, url) {
     const lk = await env.DB.prepare('SELECT slug FROM links WHERE id=?').bind(sess.link_id).first();
     if (lk) return Response.redirect(`${new URL(request.url).origin}/d/${lk.slug}`, 302);
   }
-  // ads: builtin codes hamesha use honge (admin panel optional)
-  let zoneRows = BUILTIN_ADS.slice();
+  // ads: step ke hisaab se network alternate hota hai (odd=adsterra, even=monetag)
+  const adNetwork = (n % 2 === 1) ? 'adsterra' : 'monetag';
+  let zoneRows = BUILTIN_ADS.filter((z) => z.network === adNetwork);
+  // page bhara rahe — dusre network ke banner fillers ke roop mein
+  const fillers = BUILTIN_ADS.filter((z) => z.network !== adNetwork && z.format === 'banner');
+  zoneRows = zoneRows.concat(fillers);
+  if (!zoneRows.length) zoneRows = BUILTIN_ADS.slice();
   try {
     const src = await setting(env, 'ads_source', 'builtin');
     if (src === 'db') {
