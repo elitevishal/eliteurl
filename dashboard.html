@@ -66,6 +66,11 @@ body{overflow-x:hidden}
 .lk-act{display:flex;gap:7px;flex-wrap:wrap}
 .lk-act .btn{flex:1 1 auto;min-width:76px;margin:0;padding:9px 12px;font-size:12.5px}
 @media(max-width:400px){.lk-act .btn{min-width:0;flex:1 1 30%}}
+.st{font-size:10px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;padding:5px 11px;border-radius:99px;border:1px solid transparent}
+.st-pending{background:#fff6e5;color:#b45309;border-color:#fde3ae}
+.st-approved{background:#eef1ff;color:#3b3ff2;border-color:#d6dbff}
+.st-paid{background:#e8f9ef;color:#12833b;border-color:#c7eed8}
+.st-rejected{background:#fdecec;color:#b3261e;border-color:#f7c9c9}
 </style>
 </head><body>
 
@@ -422,7 +427,7 @@ function loadWithdrawals(){
     d.withdrawals.forEach(function(w){
       h+='<div class="lk-card">'
        +'<div class="lk-top"><span class="lk-amt">'+money(w.amount_usd)+'</span>'
-       +'<span class="pill'+(w.status==='paid'?'':'')+'">'+esc(w.status)+'</span></div>'
+       +'<span class="st st-'+(w.status||'pending')+'">'+esc(w.status)+'</span></div>'
        +'<div class="lk-dest">'+esc(w.method).toUpperCase()+' · ••••'+esc(w.payee_last4||'')+'</div>'
        +'<div class="lk-meta"><span>Ref: <b>'+esc(w.txn_ref||'—')+'</b></span></div>'
        +'</div>';
