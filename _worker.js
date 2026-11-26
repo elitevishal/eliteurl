@@ -497,7 +497,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-28-v14-6b4p', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-28-v15-fix', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -772,7 +772,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-28-v14-6b4p',
+        build: '2026-11-28-v15-fix',
         total: zones.length,
         active: active.length,
         zones,
@@ -839,7 +839,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-28-v14-6b4p', zones });
+      return json({ ok: true, build: '2026-11-28-v15-fix', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1417,15 +1417,16 @@ ${P4}
 
 <div class="blocked" id="blocked">
   <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div>
-  <h2>Ad blocker detected</h2>
-  <p>This page is supported by ads. Please turn off your ad blocker to continue.</p>
+  <h2>Please disable your ad blocker</h2>
+  <p>This page is supported by ads. Ads could not load, so we cannot verify this visit.</p>
   <div class="steps">
-    <b>How to fix:</b><br>
-    1. Tap your browser menu (⋮)<br>
-    2. Settings → Site settings → Ads<br>
-    3. Allow ads on this site<br>
+    <b>To continue, please:</b><br>
+    1. Turn off your ad blocker or ad-blocking browser<br>
+    2. Disable any VPN, proxy or private DNS<br>
+    3. Use a real browser (Chrome, Safari, Edge)<br>
     4. Reload this page
   </div>
+  <p style="margin-top:14px;font-size:12px;opacity:.7">No earning is counted for this visit.</p>
 </div>
 
 <script>
@@ -1472,13 +1473,13 @@ ${P4}
       left--;
       if (left <= 0) {
         clearInterval(timer);
-        adline.classList.add('hide');
-        nextWrap.classList.remove('hide');
-        btn.className = 'bigbtn on';
-        btn.textContent = ${JSON.stringify(label)};
-        document.getElementById('spinrow').style.display = 'none';
-        ready = true;
-        setTimeout(function(){ if (!adsRendered()) showBlocked(); }, 2500);
+        // 15 second poore -> pehle check karo ads aaye ya nahi
+        setTimeout(function(){
+          if (!adsRendered()) { showBlocked(); return; }
+          // ads theek hain -> Next dikhao
+          adline.classList.add('hide');
+          nextWrap.classList.remove('hide');
+        }, 1800);
       }
     }, 1000);
   }
@@ -1492,11 +1493,21 @@ ${P4}
   } else { arm(); }
 
   nextBtn.addEventListener('click', function(){
+    if (!adsRendered()) { showBlocked(); return; }
+    nextWrap.classList.add('hide');
     if (bottomEl) bottomEl.scrollIntoView({ behavior:'smooth', block:'center' });
+    // Continue sirf Next ke baad enable hota hai
+    setTimeout(function(){
+      btn.className = 'bigbtn on';
+      btn.textContent = ${JSON.stringify(label)};
+      document.getElementById('spinrow').style.display = 'none';
+      ready = true;
+    }, 600);
   });
 
   btn.addEventListener('click', function(){
     if (!ready) return;
+    if (!adsRendered()) { showBlocked(); return; }
     btn.textContent = 'Loading…';
     fetch('/api/step', { method:'POST', headers:{'content-type':'application/json'},
       body: JSON.stringify({ sid:${JSON.stringify(sid)}, n:${n}, t:${JSON.stringify(stepToken)} }) })
