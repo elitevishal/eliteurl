@@ -479,13 +479,14 @@ async function api(request, env, url) {
     const creatorName = adv ? String(b.creator_name || '').slice(0, 40) : null;
     const toolName = adv ? String(b.tool_name || '').slice(0, 60) : null;
     const pwHint = String(b.pw_hint || '').slice(0, 120) || null;
-    await env.DB.prepare('INSERT INTO links (user_id,slug,destination_url,title,expires_at,password_hash,advanced,creator_name,tool_name,pw_hint) VALUES (?,?,?,?,?,?,?,?,?,?)')
-      .bind(user.id, s, dest, b.title || null, expAt, pwHash, adv, creatorName, toolName, pwHint).run();
+    const videoUrl = adv ? (validUrl(b.video_url || '') || null) : null;
+    await env.DB.prepare('INSERT INTO links (user_id,slug,destination_url,title,expires_at,password_hash,advanced,creator_name,tool_name,pw_hint,video_url) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+      .bind(user.id, s, dest, b.title || null, expAt, pwHash, adv, creatorName, toolName, pwHint, videoUrl).run();
     return json({ ok: true, slug: s, short: `${url.origin}/${s}`, destination: dest });
   }
 
   if (p === '/api/links' && m === 'GET') {
-    const rows = await env.DB.prepare('SELECT slug,destination_url,clicks,valid_views,invalid_views,status,created_at,expires_at,(password_hash IS NOT NULL) AS locked,COALESCE(advanced,0) AS advanced,creator_name,tool_name FROM links WHERE user_id = ? ORDER BY id DESC LIMIT 200').bind(user.id).all();
+    const rows = await env.DB.prepare('SELECT slug,destination_url,clicks,valid_views,invalid_views,status,created_at,expires_at,(password_hash IS NOT NULL) AS locked,COALESCE(advanced,0) AS advanced,creator_name,tool_name,video_url FROM links WHERE user_id = ? ORDER BY id DESC LIMIT 200').bind(user.id).all();
     return json({ ok: true, links: rows.results });
   }
 
@@ -867,7 +868,7 @@ async function directGo(request, env, rawSlug) {
     if (!ok) return html(passwordPage(s, !!given, link.pw_hint || ''), 401);
   }
   await env.DB.prepare('UPDATE links SET clicks=clicks+1 WHERE id=?').bind(link.id).run();
-  return Response.redirect(link.destination_url, 302);
+  return Response.redirect(link.video_url || link.destination_url, 302);
 }
 
 // ---------- step page ----------
@@ -1212,61 +1213,94 @@ ${fsAd}
 function landingPage(link, origin) {
   const tool = link.tool_name || 'Your file';
   const creator = link.creator_name || '';
-  const host = origin.replace(/^https?:\/\//, '');
-  return `<!doctype html><html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  const initial = (creator || 'E').charAt(0).toUpperCase();
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<title>${tool} — download</title>
+<meta name="theme-color" content="#070b16">
+<title>${tool} — EliteURL</title>
 <style>
-*{box-sizing:border-box}
-body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-  background:radial-gradient(80% 60% at 50% 0%,#eef0ff 0%,#f7f8fc 55%,#f2f4fa 100%);
-  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px 16px;color:#0b0d1a}
-.card{width:100%;max-width:430px;background:#fff;border:1px solid #e8eaf3;border-radius:24px;
-  box-shadow:0 30px 70px -40px rgba(20,24,80,.45);overflow:hidden}
-.top{display:flex;align-items:center;justify-content:center;gap:7px;padding:12px;background:linear-gradient(100deg,#3b3ff2,#7b5cff);color:#fff}
-.top .shield{width:15px;height:15px;fill:#fff}
-.top span{font-size:11.5px;font-weight:800;letter-spacing:.05em}
-.body{padding:28px 22px 24px;text-align:center}
-.icon{width:74px;height:74px;margin:0 auto 16px;border-radius:22px;
-  background:linear-gradient(135deg,#3b3ff2,#7b5cff);display:grid;place-items:center;
-  box-shadow:0 16px 34px -18px rgba(59,63,242,.9)}
-.icon svg{width:34px;height:34px;fill:#fff}
-h1{font-size:25px;margin:0 0 6px;letter-spacing:-.03em;word-break:break-word}
-.by{font-size:13px;color:#6b7086;margin:0 0 22px}
-.by b{color:#3b3ff2;font-weight:800}
-.btn{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:16px;
-  border-radius:14px;font-size:15.5px;font-weight:800;text-decoration:none;border:0;
-  font-family:inherit;cursor:pointer;transition:.18s;margin-bottom:11px}
-.btn svg{width:18px;height:18px;fill:currentColor}
-.b1{background:linear-gradient(100deg,#16a34a,#12833b);color:#fff;box-shadow:0 14px 30px -16px rgba(22,163,74,.95)}
-.b1:hover{filter:brightness(1.07)}
-.b2{background:#f1f2f8;color:#0b0d1a;border:1px solid #e2e5f0}
-.b2:hover{background:#e9ebf6}
-.note{font-size:11.5px;color:#8b90a6;margin:14px 0 0;line-height:1.6}
-.foot{border-top:1px solid #eef0f7;padding:12px;text-align:center;font-size:10.5px;color:#a2a6bd}
+:root{color-scheme:dark;--bg:#070b16;--surface:#0f1424;--line:rgba(255,255,255,.09);--gline:rgba(240,190,80,.35);--txt:#f5f6fb;--mut:#98a0bd;--gold1:#ffe08a;--gold2:#f0b429;--gold3:#b9800d;--green:#4ade80}
+html{scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:radial-gradient(90% 50% at 50% 0%,#14204a,#0a1020 55%,#070b16);color:var(--txt);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overflow-x:hidden;min-height:100vh;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.fx{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.glow{position:absolute;border-radius:50%;filter:blur(90px);animation:drift 12s ease-in-out infinite}
+.g1{width:280px;height:280px;background:rgba(240,180,41,.22);top:60px;left:-100px}
+.g2{width:260px;height:260px;background:rgba(70,90,220,.28);top:380px;right:-110px;animation-delay:-6s}
+@keyframes drift{50%{transform:translate(36px,30px) scale(1.12)}}
+.fx b{position:absolute;bottom:-10px;width:3px;height:3px;border-radius:50%;background:var(--gold1);opacity:0;animation:up linear infinite}
+@keyframes up{0%{transform:translateY(0);opacity:0}15%{opacity:.8}100%{transform:translateY(-105vh);opacity:0}}
+.wrap{position:relative;z-index:1;max-width:430px;margin:0 auto;padding:14px 16px 32px}
+.rise{opacity:0;transform:translateY(18px);animation:rise .7s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.brand{display:flex;align-items:center;gap:8px;font-weight:900;font-size:16px;letter-spacing:-.02em}
+.brand i{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--gold1),var(--gold2) 60%,var(--gold3));display:grid;place-items:center;color:#2a1c00;font-style:normal;font-size:13px;box-shadow:0 8px 20px -8px var(--gold2)}
+.pill{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;letter-spacing:.04em;color:var(--green);background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.28);padding:6px 11px;border-radius:99px}
+.pill b{width:7px;height:7px;border-radius:50%;background:var(--green);animation:ping 1.6s infinite}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(74,222,128,.6)}100%{box-shadow:0 0 0 9px rgba(74,222,128,0)}}
+.card{position:relative;background:linear-gradient(180deg,#141a30,#0e1324);border:1px solid var(--line);border-radius:28px;padding:32px 18px 20px;text-align:center;box-shadow:0 40px 70px -40px rgba(0,0,0,.9),0 0 0 1px rgba(240,180,41,.06);overflow:hidden}
+.card::before{content:"";position:absolute;left:12%;right:12%;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold1),transparent);animation:glint 3.5s ease-in-out infinite}
+@keyframes glint{50%{opacity:.35}}
+.ico{position:relative;width:100px;height:100px;margin:0 auto 18px;display:grid;place-items:center}
+.ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(var(--gold1),var(--gold3),var(--gold1),var(--gold2),var(--gold1));animation:spin 6s linear infinite}
+.ring::after{content:"";position:absolute;inset:3px;border-radius:50%;background:#10162b}
+.aura{position:absolute;inset:-12px;border-radius:50%;background:radial-gradient(circle,rgba(240,180,41,.35),transparent 68%);animation:breathe 3s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes breathe{50%{transform:scale(1.15);opacity:.7}}
+.ico svg{position:relative;z-index:2;width:40px;height:40px;fill:url(#gg);animation:bob 2.2s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(5px)}}
+h1{margin:0 0 10px;font-size:25px;font-weight:900;letter-spacing:-.035em;word-break:break-word}
+.by{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--mut);background:rgba(255,255,255,.05);border:1px solid var(--line);padding:5px 13px 5px 6px;border-radius:99px;margin-bottom:20px}
+.by u{width:19px;height:19px;border-radius:50%;background:linear-gradient(135deg,var(--gold1),var(--gold2));display:grid;place-items:center;color:#2a1c00;font-size:9.5px;font-weight:900;text-decoration:none}
+.by b{color:var(--gold1)}
+.btn{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:16px;border-radius:15px;font-size:15.5px;font-weight:800;text-decoration:none;font-family:inherit;margin-bottom:11px;transition:transform .15s}
+.btn:active{transform:scale(.97)}
+.btn svg{width:19px;height:19px;fill:currentColor}
+.b1{color:#2a1c00;background:linear-gradient(100deg,var(--gold2),var(--gold1),var(--gold2));background-size:200% 100%;box-shadow:0 18px 36px -14px rgba(240,180,41,.75);animation:flow 4s linear infinite,pulse 2.6s ease-in-out infinite}
+@keyframes flow{to{background-position:200% 0}}
+@keyframes pulse{50%{transform:scale(1.02)}}
+.b1::after{content:"";position:absolute;top:0;left:-70%;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.6),transparent);transform:skewX(-20deg);animation:sweep 3s infinite}
+@keyframes sweep{to{left:150%}}
+.b2{color:var(--gold1);background:rgba(240,180,41,.06);border:1.5px solid var(--gline)}
+.trust{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:6px}
+.trust div{display:flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:var(--mut)}
+.trust svg{width:12px;height:12px;fill:var(--gold2)}
+.how{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px}
+.how h4{margin:0 0 12px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold2)}
+.how p{margin:0 0 11px;font-size:13px;color:#d6d9ea;padding-left:32px;position:relative;line-height:1.5}
+.how p:last-child{margin:0}
+.how p b{position:absolute;left:0;top:0;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--gline);color:var(--gold1);font-size:11px;display:grid;place-items:center;background:rgba(240,180,41,.08)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;opacity:1!important;transform:none!important}}
 </style></head><body>
-<div class="card">
-  <div class="top">
-    <svg class="shield" viewBox="0 0 24 24"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
-    <span>${host} · Best trusted URL shortener</span>
-  </div>
-  <div class="body">
-    <div class="icon"><svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg></div>
+<svg width="0" height="0" style="position:absolute"><defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#f0b429"/></linearGradient></defs></svg>
+<div class="fx"><div class="glow g1"></div><div class="glow g2"></div><div id="d"></div></div>
+<div class="wrap">
+  <div class="top rise"><div class="brand"><i>E</i>EliteURL</div><div class="pill"><b></b>SERVER ONLINE</div></div>
+  <div class="card rise" style="animation-delay:.1s">
+    <div class="ico"><div class="aura"></div><div class="ring"></div><svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg></div>
     <h1>${tool}</h1>
-    ${creator ? `<p class="by">Created by <b>${creator}</b></p>` : '<p class="by">Ready to download</p>'}
-    <a class="btn b1" href="/v/${link.slug}">
-      <svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
-      Download Video
-    </a>
-    <a class="btn b2" href="/d/${link.slug}">
-      <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7a5 5 0 0 0 0 10h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4a5 5 0 0 0 0-10z"/></svg>
-      Download Link
-    </a>
-    <p class="note">Download Video opens the file directly.<br>Download Link verifies first, then opens the same file.</p>
+    ${creator ? `<div class="by"><u>${initial}</u>Created by <b>${creator}</b></div>` : '<div class="by"><u>E</u>Verified file</div>'}
+    <a class="btn b1" href="/v/${link.slug}"><svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>Download Video</a>
+    <a class="btn b2" href="/d/${link.slug}"><svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7a5 5 0 0 0 0 10h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4a5 5 0 0 0 0-10z"/></svg>Download Link</a>
+    <div class="trust">
+      <div><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>Virus scanned</div>
+      <div><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>No sign-up</div>
+      <div><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>Direct link</div>
+    </div>
   </div>
-  <div class="foot">Protected by EliteURL · ${host}</div>
-</div></body></html>`;
+  <div class="how rise" style="animation-delay:.25s"><h4>How to download</h4>
+    <p><b>1</b>Tap <strong>Download Video</strong> to open the file instantly.</p>
+    <p><b>2</b>Or tap <strong>Download Link</strong> and complete the short verification.</p>
+    <p><b>3</b>Save the file from your browser.</p>
+  </div>
+</div>
+<script>
+var d=document.getElementById('d');
+for(var i=0;i<18;i++){var e=document.createElement('b');e.style.left=Math.random()*100+'%';e.style.animationDuration=(8+Math.random()*8)+'s';e.style.animationDelay=(-Math.random()*10)+'s';d.appendChild(e);}
+</script>
+</body></html>`;
 }
 
 function passwordPage(slug, wrong, hint) {
