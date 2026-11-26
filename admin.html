@@ -33,6 +33,11 @@ td,th{white-space:nowrap}.td-url{max-width:170px}
 tbody tr{transition:background .15s}
 tbody tr:hover{background:#fafbff}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.st{font-size:10px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;padding:5px 11px;border-radius:99px;border:1px solid transparent;display:inline-block}
+.st-pending{background:#fff6e5;color:#b45309;border-color:#fde3ae}
+.st-approved{background:#eef1ff;color:#3b3ff2;border-color:#dbdfff}
+.st-paid{background:#e8f9ef;color:#12833b;border-color:#c7eed8}
+.st-rejected{background:#fdecec;color:#b3261e;border-color:#f7c9c9}
 </style>
 </head><body>
 
@@ -248,13 +253,19 @@ function loadPayouts(){
     d.withdrawals.forEach(function(w){
       h+='<tr><td>'+esc(w.email)+'</td><td>'+money(w.amount_usd)+'</td><td>'+esc(w.method).toUpperCase()+'</td>'
        +'<td><div style="max-width:220px;word-break:break-all;font-size:12px;font-weight:600">'+esc(w.payee_enc||'—')+'</div><button class="btn btn-ghost btn-sm" data-pay="'+esc(w.payee_enc||'')+'" style="margin-top:4px">Copy</button></td>'
-       +'<td><span class="pill '+esc(w.status)+'">'+esc(w.status)+'</span></td><td><div class="rowbtn">';
+       +'<td><span class="st st-'+esc(w.status||'pending')+'">'+esc(w.status)+'</span></td><td><div class="rowbtn">';
+      var can = function(s){ return w.status!==s && w.status!=='paid'; };
       if(w.status==='pending'){
-        h+='<button class="btn btn-primary" data-wd="'+w.id+'" data-act="approve">Approve</button>'
-         +'<button class="btn btn-ghost" data-wd="'+w.id+'" data-act="reject">Reject</button>';
+        h+='<button class="btn btn-primary btn-sm" data-wd="'+w.id+'" data-act="approve">Approve</button>'
+         +'<button class="btn btn-ghost btn-sm" data-wd="'+w.id+'" data-act="reject">Reject</button>';
       } else if(w.status==='approved'){
-        h+='<button class="btn btn-primary" data-wd="'+w.id+'" data-act="paid">Mark paid</button>';
-      } else { h+='<span style="color:#6b7086">—</span>'; }
+        h+='<button class="btn btn-primary btn-sm" data-wd="'+w.id+'" data-act="paid">Mark paid</button>'
+         +'<button class="btn btn-ghost btn-sm" data-wd="'+w.id+'" data-set="pending">Back to pending</button>'
+         +'<button class="btn btn-ghost btn-sm" data-wd="'+w.id+'" data-act="reject">Reject</button>';
+      } else if(w.status==='rejected'){
+        h+='<button class="btn btn-primary btn-sm" data-wd="'+w.id+'" data-set="pending">Restore to pending</button>'
+         +'<button class="btn btn-ghost btn-sm" data-wd="'+w.id+'" data-set="approved">Approve</button>';
+      } else { h+='<span style="color:#6b7086">Paid ✓</span>'; }
       h+='</div></td></tr>';
     });
     box.innerHTML=h+'</table>';
@@ -268,6 +279,14 @@ function loadPayouts(){
           try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta);
           b.textContent='Copied!'; setTimeout(function(){b.textContent=old;},1200);
         }
+      });
+    });
+    box.querySelectorAll('[data-set]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var st=b.getAttribute('data-set'), id=b.getAttribute('data-wd');
+        var note=prompt('Note (optional):')||'';
+        API('/api/admin/withdrawals',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:Number(id),action:'setstatus',status:st,note:note})})
+          .then(function(d){ if(d&&d.ok){ loadPayouts(); } else alert((d&&d.error)||'Could not change the status'); });
       });
     });
     box.querySelectorAll('[data-wd]').forEach(function(b){
