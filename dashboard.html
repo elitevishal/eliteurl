@@ -422,6 +422,15 @@ function loadWithdrawals(){
     if(!d||!d.ok){ if(box0) box0.innerHTML='<div class="empty">No withdrawal requests yet.</div>'; return; }
     document.getElementById('w-hint').textContent='Available to withdraw: '+money(d.available_usd)+' · Minimum '+money(d.min_withdrawal_usd)+' · Paid within 12 hours to PayPal, UPI or bank account.';
     var box=document.getElementById('wd-list');
+    var hasPending = (d.withdrawals||[]).some(function(x){return x.status==='pending';});
+    var note=document.getElementById('w-pending-note');
+    var form=document.getElementById('w-submit');
+    var amt=document.getElementById('w-amount');
+    if(note) note.classList.toggle('hide', !hasPending);
+    if(form) form.disabled = hasPending;
+    if(form) form.style.opacity = hasPending ? '.45' : '1';
+    if(form) form.style.cursor = hasPending ? 'not-allowed' : 'pointer';
+    if(amt) amt.disabled = hasPending;
     if(!d.withdrawals||!d.withdrawals.length){box.innerHTML='<div class="empty">No withdrawal requests yet. Once you request a payout it will appear here.</div>';return;}
     var h='<div class="lk">';
     d.withdrawals.forEach(function(w){
@@ -440,8 +449,11 @@ function loadWithdrawals(){
 }
 loadWithdrawals();
 
+var _wBusy=false;
 document.getElementById('w-submit').addEventListener('click',function(){
   var b=this,m=document.getElementById('w-msg');
+  if(_wBusy) return;
+  _wBusy=true;
   m.className='msg';
   var body={amount:document.getElementById('w-amount').value,method:document.getElementById('w-method').value,
     account:document.getElementById('w-account').value.trim(),
@@ -451,10 +463,11 @@ document.getElementById('w-submit').addEventListener('click',function(){
     .then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
     .then(function(x){
       b.disabled=false;b.textContent='Submit request';
+      _wBusy=false;
       if(x.s===200){show(m,x.d.message||'Request submitted.',true);document.getElementById('w-amount').value='';loadWithdrawals();}
       else show(m,x.d.error||'Could not submit.',false);
     })
-    .catch(function(){b.disabled=false;b.textContent='Submit request';show(m,'Network error.',false);});
+    .catch(function(){b.disabled=false;b.textContent='Submit request';_wBusy=false;show(m,'Network error.',false);});
 });
 
 function doLogout(){fetch('/api/auth/logout',{method:'POST'}).then(function(){location.href='/';});}
