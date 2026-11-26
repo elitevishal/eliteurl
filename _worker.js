@@ -1270,27 +1270,13 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
   });
   const pool = sorted.length ? sorted : (house.length ? house : []);
 
-  // popunder / socialbar ek hi baar — banner repeat ho sakte hain
-  const onceFormats = ['popunder', 'socialbar', 'interstitial', 'vignette'];
+  // HAR zone ek hi baar — Adsterra same script do baar nahi chalata
   const usedOnce = new Set();
-  const maxPer = { popunder: 2, socialbar: 1, interstitial: 1, vignette: 1 };
-  const counts = {};
-  const banners = pool.filter((z) => !onceFormats.includes(z.format));
-  let bannerIdx = 0;
   const adBlock = (i) => {
     let z = null;
-    if (pool.length) {
-      if (i < pool.length) {
-        const cand = pool[i];
-        if (onceFormats.includes(cand.format)) {
-          const cap = maxPer[cand.format] || 1;
-          const c = counts[cand.format] || 0;
-          if (usedOnce.has(cand.id) || c >= cap) { z = null; }
-          else { usedOnce.add(cand.id); counts[cand.format] = c + 1; z = cand; }
-        } else z = cand;
-      } else if (banners.length) {
-        z = banners[bannerIdx++ % banners.length];
-      }
+    if (pool.length && i < pool.length) {
+      const cand = pool[i];
+      if (!usedOnce.has(cand.id)) { usedOnce.add(cand.id); z = cand; }
     }
     if (!z) return `<div class="ad" style="min-height:0;height:0;padding:0;overflow:hidden"></div>`;
     // inline hamesha — Adsterra iframe ke andar ad nahi deta
