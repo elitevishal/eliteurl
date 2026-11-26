@@ -8,8 +8,6 @@ const enc = new TextEncoder();
 const BUILTIN_ADS = [
   { id: 'b1', network: 'adsterra', format: 'popunder', label: 'Popunder', step: 1,
     snippet: '<script data-cfasync="false" src="https://abscloud.org/1/fa75f132cba6bcce98edce33150aba84"></script>' },
-  { id: 'b2', network: 'adsterra', format: 'socialbar', label: 'Social Bar', step: 1,
-    snippet: '<script data-cfasync="false" src="https://bauval.org/14/1559487c2342f91846cc572078c289be"></script>' },
   { id: 'b3', network: 'adsterra', format: 'banner', label: 'Banner 300x250', step: 1,
     snippet: `<script type="text/javascript">
   atOptions = {
@@ -493,7 +491,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-28-v8-adblock', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-28-v11-final', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -768,7 +766,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-28-v8-adblock',
+        build: '2026-11-28-v11-final',
         total: zones.length,
         active: active.length,
         zones,
@@ -835,7 +833,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-28-v8-adblock', zones });
+      return json({ ok: true, build: '2026-11-28-v11-final', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1279,16 +1277,31 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
   const house = zones.filter((z) => z.network === 'house');
   const sorted = inline.slice().sort((a, b) => (VISIBLE.includes(a.format) ? 0 : 1) - (VISIBLE.includes(b.format) ? 0 : 1));
   const pool = sorted.length ? sorted : house;
-  const used = new Set();
-  const adSlot = () => {
-    if (!pool.length) return '';
-    let z = null;
-    for (const c of pool) { if (!used.has(c.id)) { used.add(c.id); z = c; break; } }
-    if (!z) return '';
-    return `<div class="ad"><span class="adlabel">sponsored</span>${z.snippet}</div>`;
+  const counts = {};
+  const CAPS = { popunder: 1, socialbar: 1, banner: 6, inpage: 6, native: 6 };
+  const pick = (fmt) => {
+    const cands = pool.filter((z) => (fmt ? z.format === fmt : true));
+    for (const c of cands) {
+      const cap = CAPS[c.format] || 1;
+      if ((counts[c.id] || 0) < cap) return c;
+    }
+    for (const c of pool) {
+      const cap = CAPS[c.format] || 1;
+      if ((counts[c.id] || 0) < cap) return c;
+    }
+    return null;
   };
-  const A1 = adSlot(), A2 = adSlot(), A3 = adSlot(), A4 = adSlot();
-  const S1 = adSlot(), S2 = adSlot();
+  const adSlot = (fmt) => {
+    const z = pick(fmt);
+    if (!z) return '';
+    counts[z.id] = (counts[z.id] || 0) + 1;
+    const small = (z.format === 'popunder' || z.format === 'socialbar');
+    return `<div class="ad${small ? ' small' : ''}"><span class="adlabel">sponsored</span>${z.snippet}</div>`;
+  };
+  const B1 = adSlot('banner'), B2 = adSlot('banner');
+  const P1 = adSlot('popunder');
+  const B3 = adSlot('banner'), B4 = adSlot('banner');
+  const S1 = adSlot('banner'), S2 = adSlot('banner');
 
   const c1 = STEP_CONTENT[(n - 1) % STEP_CONTENT.length];
   const c2 = STEP_CONTENT[n % STEP_CONTENT.length];
@@ -1356,8 +1369,8 @@ body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Robo
 .blocked b{color:#fff}
 </style></head><body>
 
-${A1}
-${A2}
+${B1}
+${B2}
 
 <div class="line" id="adline">
   Click the ad above 👆 and wait ${countdown} seconds
@@ -1368,8 +1381,10 @@ ${A2}
   <button class="nextbtn" id="nextbtn">${nextLabel} ↓</button>
 </div>
 
-${A3}
-${A4}
+${B3}
+${B4}
+
+${P1}
 
 <div class="wrap"><div class="sec"><h2>${c1.h}</h2>${c1.b}</div></div>
 
