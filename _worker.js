@@ -162,6 +162,14 @@ export default {
     try {
       if (p === '/api/step') return await apiStep(request, env);
       if (p.startsWith('/api/')) return await api(request, env, url);
+      if (p.startsWith('/adz/')) {
+        const zid = Number(p.slice(5).replace(/[^0-9]/g, ''));
+        if (!zid) return new Response('', { status: 404 });
+        const z = await env.DB.prepare("SELECT snippet FROM ad_zones WHERE id=? AND status='active'").bind(zid).first();
+        if (!z) return new Response('', { status: 404 });
+        return new Response(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;padding:0;background:transparent;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:100%}img,iframe{max-width:100%;display:block}</style></head><body>${z.snippet}</body></html>`,
+          { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
+      }
       if (p.startsWith('/v/')) return await directGo(request, env, p.slice(3));
       if (p.startsWith('/d/')) return await openShortLink(request, env, p.slice(3), true);
       if (p.startsWith('/s/')) return await stepPage(request, env, url);
@@ -1210,6 +1218,14 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
       }
     }
     if (!z) return `<div class="ad" style="min-height:0;height:0;overflow:hidden"></div>`;
+    const needsFrame = !['popunder', 'socialbar', 'interstitial', 'vignette'].includes(z.format);
+    if (needsFrame) {
+      const h = /height['"]?\s*:\s*(\d+)/i.test(z.snippet) ? Number(RegExp.$1) : 250;
+      const hh = h >= 200 ? 260 : (h >= 80 ? 110 : 70);
+      return `<div class="ad"><span class="adlabel">sponsored</span>
+        <iframe src="/adz/${z.id}" width="100%" height="${hh}" style="border:0;width:100%;height:${hh}px;display:block" scrolling="no" loading="lazy" title="ad"></iframe>
+      </div>`;
+    }
     return `<div class="ad"><span class="adlabel">sponsored</span>${z.snippet}</div>`;
   };
 
