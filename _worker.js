@@ -581,19 +581,39 @@ async function api(request, env, url) {
     if (amount < min) return json({ error: `Minimum withdrawal is $${min}` }, 400);
     if (!account || account.length < 5) return json({ error: 'Enter your PayPal email, UPI ID or account number' }, 400);
     if (method === 'bank' && (!ifsc || !holder)) return json({ error: 'Bank name, account number and IFSC are required' }, 400);
-    const bal = await env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id=?').bind(user.id).first();
-    const available = bal ? Number(bal.confirmed_usd) : 0;
+    let available = 0;
+    try {
+      const bal = await env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id=?').bind(user.id).first();
+      available = bal ? Number(bal.confirmed_usd || 0) : 0;
+    } catch (e) {
+      const u2 = await env.DB.prepare('SELECT balance_conf_inr AS b FROM users WHERE id=?').bind(user.id).first();
+      available = u2 ? Number(u2.b || 0) : 0;
+    }
     if (amount > available) return json({ error: `You can withdraw up to $${available.toFixed(2)}` }, 400);
     const pending = await env.DB.prepare("SELECT COUNT(*) AS c FROM withdrawals WHERE user_id=? AND status='pending'").bind(user.id).first();
     if (pending && pending.c >= 2) return json({ error: 'You already have pending withdrawal requests' }, 409);
 
     const payee = method === 'bank' ? `${holder} | ${account} | ${ifsc}` : account;
-    await env.DB.prepare('INSERT INTO withdrawals (user_id,amount_usd,method,payee_enc,payee_last4,status) VALUES (?,?,?,?,?,?)')
-      .bind(user.id, amount, method, payee, account.slice(-4), 'pending').run();
     const after = available - amount;
-    await env.DB.prepare("INSERT INTO ledger (user_id,type,bucket,amount_usd,balance_after_usd,ref_table,reason) VALUES (?,'withdrawal_hold','confirmed',?,?,'withdrawals','withdrawal requested')")
-      .bind(user.id, -amount, after).run();
-    await env.DB.prepare('UPDATE users SET balance_conf_usd=? WHERE id=?').bind(after, user.id).run();
+    try {
+      await env.DB.prepare('INSERT INTO withdrawals (user_id,amount_usd,method,payee_enc,payee_last4,status) VALUES (?,?,?,?,?,?)')
+        .bind(user.id, amount, method, payee, account.slice(-4), 'pending').run();
+      await env.DB.prepare("INSERT INTO ledger (user_id,type,bucket,amount_usd,balance_after_usd,ref_table,reason) VALUES (?,'withdrawal_hold','confirmed',?,?,'withdrawals','withdrawal requested')")
+        .bind(user.id, -amount, after).run();
+      await env.DB.prepare('UPDATE users SET balance_conf_usd=? WHERE id=?').bind(after, user.id).run();
+    } catch (e1) {
+      // purana schema (INR columns)
+      try {
+        await env.DB.prepare('INSERT INTO withdrawals (user_id,amount_inr,method,payee_enc,payee_last4,status) VALUES (?,?,?,?,?,?)')
+          .bind(user.id, amount, method, payee, account.slice(-4), 'pending').run();
+        await env.DB.prepare("INSERT INTO ledger (user_id,type,bucket,amount_inr,balance_after,ref_table,reason) VALUES (?,'withdrawal_hold','confirmed',?,?,'withdrawals','withdrawal requested')")
+          .bind(user.id, -amount, after).run();
+        await env.DB.prepare('UPDATE users SET balance_conf_inr=? WHERE id=?').bind(after, user.id).run();
+      } catch (e2) {
+        console.error('withdraw insert failed', e1.message, '|', e2.message);
+        return json({ error: 'Could not save the request: ' + String(e2.message || e1.message) }, 500);
+      }
+    }
     return json({ ok: true, message: 'Withdrawal request submitted. It will be reviewed within 48 hours.' });
   }
 
