@@ -43,11 +43,19 @@ input:focus{border-color:#a9abff;box-shadow:0 0 0 4px #eeeefe;background:#fff}
     <form id="f2">
       <label for="code">Verification code</label>
       <input id="code" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code">
-      <label for="password" style="margin-top:14px">New password</label>
-      <input id="password" type="password" autocomplete="new-password" placeholder="At least 8 characters">
-      <button class="btn" id="b2">Reset password</button>
+      <button class="btn" id="b2">Verify code</button>
     </form>
     <p class="alt"><a href="#" id="resend">Send a new code</a></p>
+  </div>
+
+  <div id="step3" class="hide">
+    <h1>Set a new password</h1>
+    <p class="sub">Code verified. Now choose a new password for your account.</p>
+    <form id="f3">
+      <label for="password">New password</label>
+      <input id="password" type="password" autocomplete="new-password" placeholder="At least 8 characters">
+      <button class="btn" id="b3">Reset password</button>
+    </form>
   </div>
 
   <div class="msg" id="msg"></div>
@@ -78,13 +86,34 @@ document.getElementById('f1').addEventListener('submit',function(e){
     .catch(function(){b.disabled=false;b.textContent='Send code';show('Network error.',false);});
 });
 
+var resetToken='';
+
 document.getElementById('f2').addEventListener('submit',function(e){
   e.preventDefault();hideMsg();
-  var code=document.getElementById('code').value.trim(),pw=document.getElementById('password').value;
+  var code=document.getElementById('code').value.replace(/\D/g,'');
   if(code.length!==6){show('Enter the 6-digit code.',false);return;}
+  var b=document.getElementById('b2');b.disabled=true;b.textContent='Checking…';
+  fetch('/api/auth/verify-otp',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:emailVal,code:code})})
+    .then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
+    .then(function(x){
+      b.disabled=false;b.textContent='Verify code';
+      if(x.s===200 && x.d.reset_token){
+        resetToken=x.d.reset_token;
+        document.getElementById('step2').classList.add('hide');
+        document.getElementById('step3').classList.remove('hide');
+        hideMsg();
+        document.getElementById('password').focus();
+      } else show(x.d.error||'That code is wrong.',false);
+    })
+    .catch(function(){b.disabled=false;b.textContent='Verify code';show('Network error.',false);});
+});
+
+document.getElementById('f3').addEventListener('submit',function(e){
+  e.preventDefault();hideMsg();
+  var pw=document.getElementById('password').value;
   if(pw.length<8){show('Password must be at least 8 characters.',false);return;}
-  var b=document.getElementById('b2');b.disabled=true;b.textContent='Resetting…';
-  fetch('/api/auth/verify-otp',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:emailVal,code:code,password:pw})})
+  var b=document.getElementById('b3');b.disabled=true;b.textContent='Saving…';
+  fetch('/api/auth/reset',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token:resetToken,password:pw})})
     .then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
     .then(function(x){
       b.disabled=false;b.textContent='Reset password';
