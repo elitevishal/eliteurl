@@ -4,6 +4,25 @@
 // ============================================================
 
 const enc = new TextEncoder();
+// ---- built-in ad codes (admin panel se independent) ----
+const BUILTIN_ADS = [
+  { id: 'b1', network: 'adsterra', format: 'popunder', label: 'Popunder', step: 1,
+    snippet: '<script data-cfasync="false" src="https://abscloud.org/1/fa75f132cba6bcce98edce33150aba84"></script>' },
+  { id: 'b2', network: 'adsterra', format: 'socialbar', label: 'Social Bar', step: 1,
+    snippet: '<script data-cfasync="false" src="https://bauval.org/14/1559487c2342f91846cc572078c289be"></script>' },
+  { id: 'b3', network: 'adsterra', format: 'banner', label: 'Banner 300x250', step: 1,
+    snippet: `<script type="text/javascript">
+  atOptions = {
+    'key' : 'e8326d4cf7193ad998bc86ec814760d8',
+    'format' : 'iframe',
+    'height' : 250,
+    'width' : 300,
+    'params' : {}
+  };
+</script>
+<script data-cfasync="false" src="https://bauval.org/22/e8326d4cf7193ad998bc86ec814760d8"></script>` }
+];
+
 async function tableCols(env, table) {
   try {
     const r = await env.DB.prepare(`SELECT name FROM pragma_table_info('${table}')`).all();
@@ -163,9 +182,14 @@ export default {
       if (p === '/api/step') return await apiStep(request, env);
       if (p.startsWith('/api/')) return await api(request, env, url);
       if (p.startsWith('/adz/')) {
-        const zid = Number(p.slice(5).replace(/[^0-9]/g, ''));
-        if (!zid) return new Response('', { status: 404 });
-        const z = await env.DB.prepare("SELECT snippet FROM ad_zones WHERE id=? AND status='active'").bind(zid).first();
+        const raw = p.slice(5).replace(/[^a-zA-Z0-9]/g, '');
+        let z = null;
+        const b = BUILTIN_ADS.find((x) => x.id === raw);
+        if (b) z = { snippet: b.snippet };
+        else {
+          const zid = Number(raw);
+          if (zid) z = await env.DB.prepare("SELECT snippet FROM ad_zones WHERE id=? AND status='active'").bind(zid).first();
+        }
         if (!z) return new Response('', { status: 404 });
         return new Response(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;padding:0;background:transparent;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:100%}img,iframe{max-width:100%;display:block}</style></head><body>${z.snippet}</body></html>`,
           { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
@@ -1027,13 +1051,20 @@ async function stepPage(request, env, url) {
     const lk = await env.DB.prepare('SELECT slug FROM links WHERE id=?').bind(sess.link_id).first();
     if (lk) return Response.redirect(`${new URL(request.url).origin}/d/${lk.slug}`, 302);
   }
-  let zres = await env.DB.prepare("SELECT * FROM ad_zones WHERE step_no=? AND status='active' ORDER BY id").bind(n).all();
-  let zoneRows = zres.results || [];
-  if (!zoneRows.length) {
-    // us step ke liye zone nahi — saare active zones use karo
-    zres = await env.DB.prepare("SELECT * FROM ad_zones WHERE status='active' ORDER BY id").all();
-    zoneRows = zres.results || [];
-  }
+  // ads: builtin codes hamesha use honge (admin panel optional)
+  let zoneRows = BUILTIN_ADS.slice();
+  try {
+    const src = await setting(env, 'ads_source', 'builtin');
+    if (src === 'db') {
+      let zres = await env.DB.prepare("SELECT * FROM ad_zones WHERE step_no=? AND status='active' ORDER BY id").bind(n).all();
+      let dbRows = zres.results || [];
+      if (!dbRows.length) {
+        zres = await env.DB.prepare("SELECT * FROM ad_zones WHERE status='active' ORDER BY id").all();
+        dbRows = zres.results || [];
+      }
+      if (dbRows.length) zoneRows = dbRows;
+    }
+  } catch (e) {}
   const zones = { results: zoneRows };
   const countdown = Math.max(3, Math.min(60, await numSetting(env, 'countdown_seconds', 15)));
   const showDest = (await setting(env, 'show_destination', '0')) === '1';
