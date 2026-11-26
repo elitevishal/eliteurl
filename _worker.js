@@ -450,12 +450,14 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-27-adcss', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-28-builtin-ads', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
     } catch (e) { out.db = false; out.error = String(e.message || e); }
     try { const s = await env.DB.prepare("SELECT value FROM settings WHERE key='steps_count'").first(); out.steps = s ? Number(s.value) : null; } catch (e) {}
+    out.builtin_ads = BUILTIN_ADS.length;
+    try { const src = await env.DB.prepare("SELECT value FROM settings WHERE key='ads_source'").first(); out.ads_source = src ? src.value : 'builtin'; } catch (e) { out.ads_source = 'builtin'; }
     return json(out);
   }
 
@@ -723,7 +725,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-27-adcss',
+        build: '2026-11-28-builtin-ads',
         total: zones.length,
         active: active.length,
         zones,
@@ -790,7 +792,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-27-adcss', zones });
+      return json({ ok: true, build: '2026-11-28-builtin-ads', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
