@@ -6,9 +6,15 @@
 const enc = new TextEncoder();
 // ---- built-in ad codes (admin panel se independent) ----
 const BUILTIN_ADS = [
-  { id: 'b1', network: 'adsterra', format: 'popunder', label: 'Popunder', step: 1,
+  { id: 'p1', network: 'adsterra', format: 'popunder', label: 'Popunder 1', step: 1,
     snippet: '<script data-cfasync="false" src="https://abscloud.org/1/fa75f132cba6bcce98edce33150aba84"></script>' },
-  { id: 'b3', network: 'adsterra', format: 'banner', label: 'Banner 300x250', step: 1,
+  { id: 'p2', network: 'adsterra', format: 'popunder', label: 'Popunder 2', step: 1,
+    snippet: '<script data-cfasync="false" src="https://abscloud.org/1/e981e7b340efb153879eef22c697e44d"></script>' },
+  { id: 'p3', network: 'adsterra', format: 'popunder', label: 'Popunder 3', step: 1,
+    snippet: '<script data-cfasync="false" src="https://abscloud.org/1/1d1e7a2fdb812eccc8b85b69f9a019c5"></script>' },
+  { id: 'p4', network: 'adsterra', format: 'popunder', label: 'Popunder 4', step: 1,
+    snippet: '<script data-cfasync="false" src="https://abscloud.org/1/e5eccf81a60b3390f3aaf5d8b34ac590"></script>' },
+  { id: 'b1', network: 'adsterra', format: 'banner', label: 'Banner 300x250', step: 1,
     snippet: `<script type="text/javascript">
   atOptions = {
     'key' : 'e8326d4cf7193ad998bc86ec814760d8',
@@ -491,7 +497,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-28-v11-final', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-28-v12-4pop', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -766,7 +772,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-28-v11-final',
+        build: '2026-11-28-v12-4pop',
         total: zones.length,
         active: active.length,
         zones,
@@ -833,7 +839,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-28-v11-final', zones });
+      return json({ ok: true, build: '2026-11-28-v12-4pop', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1298,10 +1304,9 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
     const small = (z.format === 'popunder' || z.format === 'socialbar');
     return `<div class="ad${small ? ' small' : ''}"><span class="adlabel">sponsored</span>${z.snippet}</div>`;
   };
-  const B1 = adSlot('banner'), B2 = adSlot('banner');
-  const P1 = adSlot('popunder');
-  const B3 = adSlot('banner'), B4 = adSlot('banner');
-  const S1 = adSlot('banner'), S2 = adSlot('banner');
+  const B1 = adSlot('banner'), P1 = adSlot('popunder');
+  const B2 = adSlot('banner'), P2 = adSlot('popunder');
+  const P3 = adSlot('popunder'), P4 = adSlot('popunder');
 
   const c1 = STEP_CONTENT[(n - 1) % STEP_CONTENT.length];
   const c2 = STEP_CONTENT[n % STEP_CONTENT.length];
@@ -1370,7 +1375,7 @@ body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Robo
 </style></head><body>
 
 ${B1}
-${B2}
+${P1}
 
 <div class="line" id="adline">
   Click the ad above 👆 and wait ${countdown} seconds
@@ -1381,10 +1386,8 @@ ${B2}
   <button class="nextbtn" id="nextbtn">${nextLabel} ↓</button>
 </div>
 
-${B3}
-${B4}
-
-${P1}
+${B2}
+${P2}
 
 <div class="wrap"><div class="sec"><h2>${c1.h}</h2>${c1.b}</div></div>
 
@@ -1393,8 +1396,8 @@ ${P1}
 <div class="wrap"><div class="sec"><h2>${c3.h}</h2>${c3.b}</div></div>
 
 <div class="bottom" id="bottom">
-  ${S1}
-  ${S2}
+  ${P3}
+  ${P4}
   <div class="stat">Step ${n} of ${total} — scroll down to continue</div>
   <div class="spinrow" id="spinrow"><span class="spin"></span> Preparing your link</div>
   <button class="bigbtn" id="go">Please wait…</button>
