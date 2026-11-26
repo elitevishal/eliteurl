@@ -181,6 +181,14 @@ export default {
     try {
       if (p === '/api/step') return await apiStep(request, env);
       if (p.startsWith('/api/')) return await api(request, env, url);
+      if (p === '/adtest2') {
+        // step page ka EXACT structure, clean URL par
+        const demo = renderStep({
+          sid: 'demo', n: 1, total: 7, countdown: 15, destHost: 'example.com',
+          zones: BUILTIN_ADS.slice(), stepToken: 'demo', isLast: false
+        });
+        return new Response(demo, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
+      }
       if (p === '/adtest') {
         const ads = BUILTIN_ADS.map((a, i) => `
   <div class="card">
@@ -1307,13 +1315,13 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#fff;color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.65;overflow-x:hidden}
-.ad{display:flex;align-items:center;justify-content:center;width:100%;background:#f7f8fc;position:relative;padding:8px 0;min-height:60px}
+.ad{display:block;width:100%;background:#f7f8fc;position:relative;padding:10px 0;text-align:center;min-height:0}
 .ad svg,.ad img{display:block;max-width:100%;height:auto}
 .ad iframe{display:block;border:0;max-width:100%}
 .ad>div{max-width:100%}
 .ad .ph{min-height:120px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#a8adc2;letter-spacing:.08em;text-transform:uppercase;font-weight:700;width:100%}
 .ad .ph{min-height:280px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#a8adc2;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
-.adlabel{position:absolute;top:5px;left:6px;font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:#98a0b8;font-weight:800;background:rgba(255,255,255,.92);padding:2px 5px;border-radius:3px;line-height:1.4;z-index:2}
+.adlabel{position:absolute;top:4px;left:6px;pointer-events:none;font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:#98a0b8;font-weight:800;background:rgba(255,255,255,.92);padding:2px 5px;border-radius:3px;line-height:1.4;z-index:2}
 .line{padding:22px 16px;text-align:center;font-size:16.5px;line-height:1.55;font-weight:700;background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .line small{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-top:5px}
 .wrap{max-width:720px;margin:0 auto;padding:0 18px}
