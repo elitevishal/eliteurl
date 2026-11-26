@@ -71,6 +71,11 @@ body{overflow-x:hidden}
 .st-approved{background:#eef1ff;color:#3b3ff2;border-color:#d6dbff}
 .st-paid{background:#e8f9ef;color:#12833b;border-color:#c7eed8}
 .st-rejected{background:#fdecec;color:#b3261e;border-color:#f7c9c9}
+.lk-badges{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.lk-tool{background:linear-gradient(100deg,#3b3ff2,#7b5cff);color:#fff;font-size:9.5px;font-weight:900;
+  padding:4px 9px;border-radius:6px;letter-spacing:.02em;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lk-creator{font-size:10.5px;color:#8b90a6;margin:-4px 0 8px}
+.lk-creator b{color:#3b3ff2}
 </style>
 </head><body>
 
@@ -295,9 +300,13 @@ function renderLinks(boxId){
       h+='<div class="lk-card">'
        +'<div class="lk-top">'
        +'<a class="lk-url" href="'+full+'" target="_blank" rel="noopener">'+esc(full.replace(/^https?:\/\//,''))+'</a>'
+       +'<span class="lk-badges">'
+       +(l.tool_name?'<span class="lk-tool">'+esc(l.tool_name)+'</span>':'')
        +'<span class="pill'+(l.status==='active'?'':' off')+'">'+esc(l.status)+'</span>'
+       +'</span>'
        +'</div>'
        +'<div class="lk-dest">'+esc(l.destination_url)+'</div>'
+       +(l.creator_name?'<div class="lk-creator">by <b>'+esc(l.creator_name)+'</b></div>':'')
        +'<div class="lk-meta">'
        +'<span><b>'+(l.clicks||0)+'</b> clicks</span>'
        +'<span><b>'+(l.valid_views||0)+'</b> valid</span>'
