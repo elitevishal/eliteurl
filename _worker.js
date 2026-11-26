@@ -1170,6 +1170,8 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
   // popunder / socialbar ek hi baar — banner repeat ho sakte hain
   const onceFormats = ['popunder', 'socialbar', 'interstitial', 'vignette'];
   const usedOnce = new Set();
+  const maxPer = { popunder: 2, socialbar: 1, interstitial: 1, vignette: 1 };
+  const counts = {};
   const banners = pool.filter((z) => !onceFormats.includes(z.format));
   let bannerIdx = 0;
   const adBlock = (i) => {
@@ -1178,7 +1180,10 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
       if (i < pool.length) {
         const cand = pool[i];
         if (onceFormats.includes(cand.format)) {
-          if (usedOnce.has(cand.id)) z = null; else { usedOnce.add(cand.id); z = cand; }
+          const cap = maxPer[cand.format] || 1;
+          const c = counts[cand.format] || 0;
+          if (usedOnce.has(cand.id) || c >= cap) { z = null; }
+          else { usedOnce.add(cand.id); counts[cand.format] = c + 1; z = cand; }
         } else z = cand;
       } else if (banners.length) {
         z = banners[bannerIdx++ % banners.length];
@@ -1212,8 +1217,11 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#fff;color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.65;overflow-x:hidden}
-.ad{display:block;width:100%;background:#f4f5fa;position:relative;overflow:hidden;line-height:0;min-height:90px}
-.ad svg,.ad img,.ad iframe{display:block;width:100%;height:auto;max-width:100%}
+.ad{display:flex;align-items:center;justify-content:center;width:100%;background:#f7f8fc;position:relative;padding:8px 0;min-height:60px;overflow:hidden}
+.ad svg,.ad img{display:block;max-width:100%;height:auto}
+.ad iframe{display:block;border:0;max-width:100%}
+.ad>div{max-width:100%}
+.ad .ph{min-height:120px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#a8adc2;letter-spacing:.08em;text-transform:uppercase;font-weight:700;width:100%}
 .ad .ph{min-height:280px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#a8adc2;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
 .adlabel{position:absolute;top:5px;left:6px;font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:#98a0b8;font-weight:800;background:rgba(255,255,255,.92);padding:2px 5px;border-radius:3px;line-height:1.4;z-index:2}
 .line{padding:22px 16px;text-align:center;font-size:16.5px;line-height:1.55;font-weight:700;background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
