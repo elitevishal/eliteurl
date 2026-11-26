@@ -156,6 +156,8 @@ export default {
     try {
       if (p === '/api/step') return await apiStep(request, env);
       if (p.startsWith('/api/')) return await api(request, env, url);
+      if (p.startsWith('/v/')) return await directGo(request, env, p.slice(3));
+      if (p.startsWith('/d/')) return await openShortLink(request, env, p.slice(3), true);
       if (p.startsWith('/s/')) return await stepPage(request, env, url);
       if (p.startsWith('/go/')) return await go(request, env, url);
 
@@ -383,6 +385,7 @@ async function api(request, env, url) {
       estimated_usd: bal ? (bal.estimated_usd || 0) : 0,
       confirmed_usd: bal ? (bal.confirmed_usd || 0) : 0,
       support_email: await safe(async () => setting(env, 'support_email', 'support@eliteofficial.in'), 'support@eliteofficial.in'),
+      site_url: await safe(async () => setting(env, 'site_url', ''), ''),
       min_withdrawal_usd: await safe(async () => numSetting(env, 'min_withdrawal_usd', 5), 5),
       payout_hours: await safe(async () => numSetting(env, 'payout_hours', 12), 12) });
   }
@@ -421,6 +424,7 @@ async function api(request, env, url) {
   if (p === '/api/public/site') {
     return json({ ok: true,
       site_name: await setting(env, 'site_name', 'ELITE URL'),
+      site_url: await setting(env, 'site_url', ''),
       support_email: await setting(env, 'support_email', 'support@eliteofficial.in'),
       min_withdrawal_usd: await numSetting(env, 'min_withdrawal_usd', 5),
       payout_hours: await numSetting(env, 'payout_hours', 12),
@@ -471,13 +475,17 @@ async function api(request, env, url) {
     if (Number.isFinite(days) && days > 0) expAt = Math.floor(Date.now() / 1000) + Math.round(days * 86400);
     let pwHash = null;
     if (b.password && String(b.password).length >= 4) pwHash = await hashPassword(String(b.password));
-    await env.DB.prepare('INSERT INTO links (user_id,slug,destination_url,title,expires_at,password_hash) VALUES (?,?,?,?,?,?)')
-      .bind(user.id, s, dest, b.title || null, expAt, pwHash).run();
+    const adv = b.advanced ? 1 : 0;
+    const creatorName = adv ? String(b.creator_name || '').slice(0, 40) : null;
+    const toolName = adv ? String(b.tool_name || '').slice(0, 60) : null;
+    const pwHint = String(b.pw_hint || '').slice(0, 120) || null;
+    await env.DB.prepare('INSERT INTO links (user_id,slug,destination_url,title,expires_at,password_hash,advanced,creator_name,tool_name,pw_hint) VALUES (?,?,?,?,?,?,?,?,?,?)')
+      .bind(user.id, s, dest, b.title || null, expAt, pwHash, adv, creatorName, toolName, pwHint).run();
     return json({ ok: true, slug: s, short: `${url.origin}/${s}`, destination: dest });
   }
 
   if (p === '/api/links' && m === 'GET') {
-    const rows = await env.DB.prepare('SELECT slug,destination_url,clicks,valid_views,invalid_views,status,created_at,expires_at,(password_hash IS NOT NULL) AS locked FROM links WHERE user_id = ? ORDER BY id DESC LIMIT 200').bind(user.id).all();
+    const rows = await env.DB.prepare('SELECT slug,destination_url,clicks,valid_views,invalid_views,status,created_at,expires_at,(password_hash IS NOT NULL) AS locked,COALESCE(advanced,0) AS advanced,creator_name,tool_name FROM links WHERE user_id = ? ORDER BY id DESC LIMIT 200').bind(user.id).all();
     return json({ ok: true, links: rows.results });
   }
 
@@ -795,7 +803,7 @@ async function api(request, env, url) {
 }
 
 // ---------- short link ----------
-async function openShortLink(request, env, rawSlug) {
+async function openShortLink(request, env, rawSlug, forceFlow) {
   const s = rawSlug.replace(/\/+$/, '');
   if (!s || s.length > 64) return html(messagePage('Link not found', 'This short link does not exist.'), 404);
   const link = await env.DB.prepare("SELECT * FROM links WHERE slug = ? AND status = 'active'").bind(s).first();
@@ -805,7 +813,12 @@ async function openShortLink(request, env, rawSlug) {
   if (link.password_hash) {
     const given = String(new URL(request.url).searchParams.get('pw') || '');
     const ok = given ? await verifyPassword(given, link.password_hash) : false;
-    if (!ok) return html(passwordPage(s, !!given), given ? 401 : 401);
+    if (!ok) return html(passwordPage(s, !!given, link.pw_hint || ''), 401);
+  }
+
+  // advanced link -> premium landing page (no ads)
+  if (Number(link.advanced) === 1 && !forceFlow) {
+    return html(landingPage(link, new URL(request.url).origin));
   }
 
   const ip = request.headers.get('cf-connecting-ip') || '0.0.0.0';
@@ -841,6 +854,22 @@ async function openShortLink(request, env, rawSlug) {
   return Response.redirect(`${new URL(request.url).origin}/s/${sid}/1?t=${t}`, 302);
 }
 
+// ---------- direct download (no ads) ----------
+async function directGo(request, env, rawSlug) {
+  const s = String(rawSlug || '').replace(/\/+$/, '');
+  const link = await env.DB.prepare("SELECT * FROM links WHERE slug = ? AND status = 'active'").bind(s).first();
+  if (!link) return html(messagePage('Link not found', 'This short link does not exist or has been disabled.'), 404);
+  if (link.expires_at && link.expires_at < Math.floor(Date.now() / 1000))
+    return html(messagePage('Link expired', 'This short link has expired.'), 410);
+  if (link.password_hash) {
+    const given = String(new URL(request.url).searchParams.get('pw') || '');
+    const ok = given ? await verifyPassword(given, link.password_hash) : false;
+    if (!ok) return html(passwordPage(s, !!given, link.pw_hint || ''), 401);
+  }
+  await env.DB.prepare('UPDATE links SET clicks=clicks+1 WHERE id=?').bind(link.id).run();
+  return Response.redirect(link.destination_url, 302);
+}
+
 // ---------- step page ----------
 async function stepPage(request, env, url) {
   const parts = url.pathname.split('/').filter(Boolean);
@@ -852,7 +881,21 @@ async function stepPage(request, env, url) {
 
   const sess = await env.DB.prepare('SELECT * FROM click_sessions WHERE id=?').bind(sid).first();
   if (!sess) return html(messagePage('Session not found', ''), 404);
-  const zones = await env.DB.prepare("SELECT * FROM ad_zones WHERE step_no=? AND status='active' ORDER BY id").bind(n).all();
+  // 3 minute se purani session -> shuru se restart
+  const age = Math.floor(Date.now() / 1000) - (sess.created_at || 0);
+  const timeout = Math.max(60, await numSetting(env, 'session_timeout_seconds', 180));
+  if (sess.status === 'started' && age > timeout) {
+    const lk = await env.DB.prepare('SELECT slug FROM links WHERE id=?').bind(sess.link_id).first();
+    if (lk) return Response.redirect(`${new URL(request.url).origin}/d/${lk.slug}`, 302);
+  }
+  let zres = await env.DB.prepare("SELECT * FROM ad_zones WHERE step_no=? AND status='active' ORDER BY id").bind(n).all();
+  let zoneRows = zres.results || [];
+  if (!zoneRows.length) {
+    // us step ke liye zone nahi — saare active zones use karo
+    zres = await env.DB.prepare("SELECT * FROM ad_zones WHERE status='active' ORDER BY id").all();
+    zoneRows = zres.results || [];
+  }
+  const zones = { results: zoneRows };
   const countdown = Math.max(3, Math.min(60, await numSetting(env, 'countdown_seconds', 15)));
   const showDest = (await setting(env, 'show_destination', '0')) === '1';
   const link = showDest ? await env.DB.prepare('SELECT destination_url FROM links WHERE id=?').bind(sess.link_id).first() : null;
@@ -1117,6 +1160,8 @@ ${adBlock(3)}
 
 ${adBlock(4)}
 
+${adBlock(5)}
+
 <div class="bottom">
   <div class="stat">Step ${n} of ${total} — your link will be ready in a moment.</div>
   <div class="spinrow" id="spinrow"><span class="spin"></span> Preparing your link</div>
@@ -1163,7 +1208,68 @@ ${fsAd}
 </script></body></html>`;
 }
 
-function passwordPage(slug, wrong) {
+
+function landingPage(link, origin) {
+  const tool = link.tool_name || 'Your file';
+  const creator = link.creator_name || '';
+  const host = origin.replace(/^https?:\/\//, '');
+  return `<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>${tool} — download</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  background:radial-gradient(80% 60% at 50% 0%,#eef0ff 0%,#f7f8fc 55%,#f2f4fa 100%);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px 16px;color:#0b0d1a}
+.card{width:100%;max-width:430px;background:#fff;border:1px solid #e8eaf3;border-radius:24px;
+  box-shadow:0 30px 70px -40px rgba(20,24,80,.45);overflow:hidden}
+.top{display:flex;align-items:center;justify-content:center;gap:7px;padding:12px;background:linear-gradient(100deg,#3b3ff2,#7b5cff);color:#fff}
+.top .shield{width:15px;height:15px;fill:#fff}
+.top span{font-size:11.5px;font-weight:800;letter-spacing:.05em}
+.body{padding:28px 22px 24px;text-align:center}
+.icon{width:74px;height:74px;margin:0 auto 16px;border-radius:22px;
+  background:linear-gradient(135deg,#3b3ff2,#7b5cff);display:grid;place-items:center;
+  box-shadow:0 16px 34px -18px rgba(59,63,242,.9)}
+.icon svg{width:34px;height:34px;fill:#fff}
+h1{font-size:25px;margin:0 0 6px;letter-spacing:-.03em;word-break:break-word}
+.by{font-size:13px;color:#6b7086;margin:0 0 22px}
+.by b{color:#3b3ff2;font-weight:800}
+.btn{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:16px;
+  border-radius:14px;font-size:15.5px;font-weight:800;text-decoration:none;border:0;
+  font-family:inherit;cursor:pointer;transition:.18s;margin-bottom:11px}
+.btn svg{width:18px;height:18px;fill:currentColor}
+.b1{background:linear-gradient(100deg,#16a34a,#12833b);color:#fff;box-shadow:0 14px 30px -16px rgba(22,163,74,.95)}
+.b1:hover{filter:brightness(1.07)}
+.b2{background:#f1f2f8;color:#0b0d1a;border:1px solid #e2e5f0}
+.b2:hover{background:#e9ebf6}
+.note{font-size:11.5px;color:#8b90a6;margin:14px 0 0;line-height:1.6}
+.foot{border-top:1px solid #eef0f7;padding:12px;text-align:center;font-size:10.5px;color:#a2a6bd}
+</style></head><body>
+<div class="card">
+  <div class="top">
+    <svg class="shield" viewBox="0 0 24 24"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+    <span>${host} · Best trusted URL shortener</span>
+  </div>
+  <div class="body">
+    <div class="icon"><svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg></div>
+    <h1>${tool}</h1>
+    ${creator ? `<p class="by">Created by <b>${creator}</b></p>` : '<p class="by">Ready to download</p>'}
+    <a class="btn b1" href="/v/${link.slug}">
+      <svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
+      Download Video
+    </a>
+    <a class="btn b2" href="/d/${link.slug}">
+      <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7a5 5 0 0 0 0 10h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4a5 5 0 0 0 0-10z"/></svg>
+      Download Link
+    </a>
+    <p class="note">Download Video opens the file directly.<br>Download Link verifies first, then opens the same file.</p>
+  </div>
+  <div class="foot">Protected by EliteURL · ${host}</div>
+</div></body></html>`;
+}
+
+function passwordPage(slug, wrong, hint) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
 <title>Protected link - EliteURL</title>
@@ -1172,10 +1278,14 @@ function passwordPage(slug, wrong) {
 h1{font-size:20px;margin:0 0 8px}p{color:#5b6076;font-size:13.5px;margin:0 0 20px;line-height:1.5}
 input{width:100%;padding:14px;border:1px solid #e6e8f2;border-radius:11px;font-size:15px;font-family:inherit;outline:none;margin-bottom:12px}
 button{width:100%;padding:14px;border:0;border-radius:11px;background:#3b3ff2;color:#fff;font-weight:700;font-size:15px;font-family:inherit;cursor:pointer}
-.err{color:#b3261e;font-size:13px;margin-bottom:12px}</style></head><body>
+.err{color:#b3261e;font-size:13px;margin-bottom:12px}
+.hintbox{background:#eef1ff;border:1px solid #d6dbff;color:#3b3ff2;font-size:12.5px;padding:10px 12px;border-radius:10px;margin-bottom:14px;text-align:left}
+.getp{margin:14px 0 0;font-size:12.5px}.getp a{color:#5b6076}</style></head><body>
 <div class="card"><h1>Protected link</h1><p>This link is password protected. Enter the password to continue.</p>
+${hint ? `<div class="hintbox"><b>Hint:</b> ${hint}</div>` : ''}
 ${wrong ? '<div class="err">Wrong password. Try again.</div>' : ''}
 <form method="get" action="/${slug}"><input name="pw" type="password" placeholder="Password" autofocus><button>Unlock</button></form>
+<p class="getp"><a href="/d/${slug}">Get password</a></p>
 </div></body></html>`;
 }
 
