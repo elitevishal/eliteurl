@@ -1292,15 +1292,8 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
         z = banners[bannerIdx++ % banners.length];
       }
     }
-    if (!z) return `<div class="ad" style="min-height:0;height:0;overflow:hidden"></div>`;
-    const needsFrame = !['popunder', 'socialbar', 'interstitial', 'vignette'].includes(z.format);
-    if (needsFrame) {
-      const h = /height['"]?\s*:\s*(\d+)/i.test(z.snippet) ? Number(RegExp.$1) : 250;
-      const hh = h >= 200 ? 260 : (h >= 80 ? 110 : 70);
-      return `<div class="ad"><span class="adlabel">sponsored</span>
-        <iframe src="/adz/${z.id}" width="100%" height="${hh}" style="border:0;width:100%;height:${hh}px;display:block" scrolling="no" loading="lazy" title="ad"></iframe>
-      </div>`;
-    }
+    if (!z) return `<div class="ad" style="min-height:0;height:0;padding:0;overflow:hidden"></div>`;
+    // inline hamesha — Adsterra iframe ke andar ad nahi deta
     return `<div class="ad"><span class="adlabel">sponsored</span>${z.snippet}</div>`;
   };
 
