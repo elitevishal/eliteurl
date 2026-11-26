@@ -181,6 +181,41 @@ export default {
     try {
       if (p === '/api/step') return await apiStep(request, env);
       if (p.startsWith('/api/')) return await api(request, env, url);
+      if (p === '/adtest') {
+        const ads = BUILTIN_ADS.map((a, i) => `
+  <div class="card">
+    <div class="hd"><b>${i+1}. ${a.label}</b><span id="s${i+1}" class="tag">wait</span></div>
+    <div class="slot" id="box${i+1}">${a.format === 'banner' ? '' : a.format + ' — naya tab / floating'}</div>
+    <div class="code">${a.snippet.replace(/</g, '&lt;').slice(0, 90)}…</div>
+  </div>`).join('');
+        return new Response(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ad test (worker) — EliteURL</title>
+<style>body{margin:0;font-family:Inter,system-ui,sans-serif;background:#fff;color:#0b0d1a;padding:16px}
+h1{font-size:17px;margin:0 0 4px}.sub{font-size:12px;color:#5b6076;margin:0 0 16px}
+.card{border:1px solid #e6e8f2;border-radius:12px;padding:12px;margin-bottom:12px;background:#fbfbff}
+.hd{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;margin-bottom:8px}
+.tag{font-size:9px;font-weight:900;padding:3px 8px;border-radius:99px;border:1px solid #e6e8f2;color:#5b6076}
+.tag.ok{background:#e8f9ef;color:#12833b;border-color:#c7eed8}.tag.bad{background:#fdecec;color:#b3261e;border-color:#f7c9c9}
+.slot{background:#fff;border:1px dashed #d9dcea;border-radius:8px;min-height:90px;display:grid;place-items:center;color:#a2a6bd;font-size:11px;padding:8px;overflow:hidden}
+.slot img,.slot iframe{max-width:100%;height:auto}
+.code{font-family:monospace;font-size:9px;color:#8b90a6;word-break:break-all;margin-top:8px;background:#fff;border:1px solid #eef0f7;padding:6px;border-radius:6px}
+</style></head><body>
+<h1>Ad test — worker se</h1>
+<p class="sub">Yeh page worker (server) se render ho raha hai — bilkul step page jaisa. Yahan ads aaye to step page par bhi aayenge.</p>
+${ads}
+<script>
+setTimeout(function(){
+  var res=(performance.getEntriesByType?performance.getEntriesByType('resource'):[])||[];
+  ['abscloud.org','bauval.org/14','bauval.org/22'].forEach(function(u,i){
+    var hit=res.some(function(r){return (r.name||'').indexOf(u)!==-1;});
+    var el=document.getElementById('s'+(i+1));
+    if(el){el.className='tag '+(hit?'ok':'bad');el.textContent=hit?'loaded':'blocked';}
+  });
+},5000);
+</script>
+${BUILTIN_ADS.map((a) => a.snippet).join('\n')}
+</body></html>`, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
+      }
       if (p.startsWith('/adz/')) {
         const raw = p.slice(5).replace(/[^a-zA-Z0-9]/g, '');
         let z = null;
