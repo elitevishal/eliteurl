@@ -83,6 +83,7 @@ td,th{white-space:nowrap}.td-url{max-width:170px}
           <div class="field" style="flex:1 1 200px"><label>Creator name</label><input id="creator" placeholder="e.g. Vishal" maxlength="40"></div>
           <div class="field" style="flex:1 1 200px"><label>App / tool name</label><input id="toolname" placeholder="e.g. CapCut Video" maxlength="60"></div>
         </div>
+        <div class="field" style="margin-top:12px"><label>Download Video link (opens directly, no ads)</label><input id="videourl" placeholder="https://example.com/video.mp4"></div>
       </div>
       <div class="row hide" id="expRow" style="gap:14px;margin-top:10px">
         <div class="field" style="flex:1 1 200px"><label>Link expires after (days)</label><input id="expdays" type="number" min="1" max="365" placeholder="e.g. 7"></div>
@@ -313,12 +314,12 @@ document.getElementById('create').addEventListener('click',function(){
   m.className='msg';
   if(!u.value.trim()){show(m,'Paste a link first.',false);return;}
   b.disabled=true;b.textContent='Creating…';
-  fetch('/api/links',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:u.value.trim(),alias:a.value.trim(),expires_in_days:document.getElementById('useExp').checked?document.getElementById('expdays').value:'',password:document.getElementById('usePw').checked?document.getElementById('linkpw').value:'',pw_hint:document.getElementById('pwhint').value,advanced:document.getElementById('useAdv').checked,creator_name:document.getElementById('creator').value,tool_name:document.getElementById('toolname').value})})
+  fetch('/api/links',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:u.value.trim(),alias:a.value.trim(),expires_in_days:document.getElementById('useExp').checked?document.getElementById('expdays').value:'',password:document.getElementById('usePw').checked?document.getElementById('linkpw').value:'',pw_hint:document.getElementById('pwhint').value,advanced:document.getElementById('useAdv').checked,creator_name:document.getElementById('creator').value,tool_name:document.getElementById('toolname').value,video_url:document.getElementById('videourl').value})})
     .then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
     .then(function(x){
       b.disabled=false;b.textContent='Shorten';
       if(x.s===200){var o=document.getElementById('out'),s=document.getElementById('short');
-        s.textContent=x.d.short;s.href=x.d.short;o.classList.add('show');u.value='';a.value='';document.getElementById('expdays').value='';document.getElementById('linkpw').value='';document.getElementById('useExp').checked=false;document.getElementById('usePw').checked=false;document.getElementById('useAdv').checked=false;document.getElementById('creator').value='';document.getElementById('toolname').value='';document.getElementById('pwhint').value='';document.getElementById('advRow').classList.add('hide');document.getElementById('expRow').classList.add('hide');document.getElementById('pwRow').classList.add('hide');
+        s.textContent=x.d.short;s.href=x.d.short;o.classList.add('show');u.value='';a.value='';document.getElementById('expdays').value='';document.getElementById('linkpw').value='';document.getElementById('useExp').checked=false;document.getElementById('usePw').checked=false;document.getElementById('useAdv').checked=false;document.getElementById('creator').value='';document.getElementById('toolname').value='';document.getElementById('videourl').value='';document.getElementById('pwhint').value='';document.getElementById('advRow').classList.add('hide');document.getElementById('expRow').classList.add('hide');document.getElementById('pwRow').classList.add('hide');
         renderLinks('list');renderLinks('list2');
 
 fetch('/api/stats/daily').then(function(r){return r.json();}).then(function(d){
