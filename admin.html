@@ -351,6 +351,16 @@ document.getElementById('csvWd').addEventListener('click',function(){
   download('eliteurl-payouts.csv', toCSV(d.withdrawals,['id','email','amount_usd','method','status','txn_ref','requested_at']));
 });
 
+document.getElementById('tm-send').addEventListener('click',function(){
+  var to=document.getElementById('tm-to').value.trim(), m=document.getElementById('tm-msg');
+  if(!to){ m.className='msg show err'; m.textContent='Enter an email address.'; return; }
+  m.className='msg show'; m.textContent='Sending…';
+  API('/api/admin/testmail',{method:'POST',body:JSON.stringify({to:to})}).then(function(d){
+    if(d && d.ok){ m.className='msg show ok'; m.textContent='Sent from '+(d.from||'?')+' — check the inbox and spam folder.'; }
+    else { m.className='msg show err'; m.textContent=(d&&(d.error||d.response))||'Failed. Check RESEND_API_KEY and MAIL_FROM.'; }
+  });
+});
+
 document.getElementById('logout').addEventListener('click',function(e){
   e.preventDefault();fetch('/api/auth/logout',{method:'POST'}).then(function(){location.href='/';});
 });
