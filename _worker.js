@@ -269,6 +269,13 @@ ${BUILTIN_ADS.map((a) => a.snippet).join('\n')}
       }
       if (p.startsWith('/assets/')) return env.ASSETS.fetch(request);
       if (STATIC_FILES.has(p)) return env.ASSETS.fetch(request);
+      // verification files (Monetag, Google, Bing, ads.txt etc) — extension wali path
+      if (/\.[a-z0-9]{2,8}$/i.test(p)) {
+        try {
+          const r = await env.ASSETS.fetch(request);
+          if (r.status === 200) return r;
+        } catch (e) {}
+      }
       if (INFO_PAGES[p]) return html(infoPage(p));
       return await openShortLink(request, env, p.slice(1));
     } catch (err) {
@@ -278,7 +285,7 @@ ${BUILTIN_ADS.map((a) => a.snippet).join('\n')}
   },
 };
 
-const STATIC_FILES = new Set(['/robots.txt','/sitemap.xml','/favicon.svg','/site.webmanifest']);
+const STATIC_FILES = new Set(['/robots.txt','/sitemap.xml','/favicon.svg','/site.webmanifest','/sw.js','/ads.txt','/app-ads.txt']);
 
 // NOTE: Pages khud /login -> login.html serve karta hai (pretty URLs).
 // Isliye yahan .html file map nahi karte — warna Pages 301 karta hai aur loop ban jata hai.
@@ -497,7 +504,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-28-v15-fix', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-28-v17-sw', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -772,7 +779,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-28-v15-fix',
+        build: '2026-11-28-v17-sw',
         total: zones.length,
         active: active.length,
         zones,
@@ -839,7 +846,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-28-v15-fix', zones });
+      return json({ ok: true, build: '2026-11-28-v17-sw', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
