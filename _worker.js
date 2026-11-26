@@ -751,8 +751,14 @@ async function api(request, env, url) {
       return json({ ok: true });
     }
     if (p === '/api/admin/zones' && m === 'GET') {
-      const r = await env.DB.prepare('SELECT id,network,label,format,step_no,status FROM ad_zones ORDER BY step_no,id').all();
-      return json({ ok: true, zones: r.results });
+      const r = await env.DB.prepare('SELECT id,network,label,format,step_no,status,snippet FROM ad_zones ORDER BY step_no,id').all();
+      const zones = (r.results || []).map((z) => ({
+        id: z.id, network: z.network, label: z.label, format: z.format, step_no: z.step_no, status: z.status,
+        has_script: /<script/i.test(z.snippet || ''),
+        len: (z.snippet || '').length,
+        head: String(z.snippet || '').slice(0, 45)
+      }));
+      return json({ ok: true, build: '2026-11-27-adcss', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
