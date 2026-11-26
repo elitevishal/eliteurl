@@ -580,11 +580,26 @@ async function api(request, env, url) {
     }
 
     if (p === '/api/admin/overview') {
-      const u = await env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN status='active' THEN 1 ELSE 0 END) AS active FROM users").first();
-      const l = await env.DB.prepare('SELECT COUNT(*) AS links, COALESCE(SUM(clicks),0) AS clicks, COALESCE(SUM(valid_views),0) AS valid_views, COALESCE(SUM(invalid_views),0) AS invalid_views FROM links').first();
-      const w = await env.DB.prepare("SELECT COUNT(*) AS pending FROM withdrawals WHERE status='pending'").first();
-      const bal = await env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN bucket='estimated' THEN amount_usd END),0) AS est, COALESCE(SUM(CASE WHEN bucket='confirmed' THEN amount_usd END),0) AS conf FROM ledger").first();
-      return json({ ok: true, users: u, links: l, withdrawals: w, ledger: bal });
+      const warn = [];
+      const safe = async (label, fn, fallback) => {
+        try { return await fn(); } catch (e) { warn.push(label + ': ' + String(e.message || e)); return fallback; }
+      };
+      const u = await safe('users', () => env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN status='active' THEN 1 ELSE 0 END) AS active FROM users").first(), { total: 0, active: 0 });
+      const l = await safe('links', () => env.DB.prepare('SELECT COUNT(*) AS links, COALESCE(SUM(clicks),0) AS clicks, COALESCE(SUM(valid_views),0) AS valid_views, COALESCE(SUM(invalid_views),0) AS invalid_views FROM links').first(), { links: 0, clicks: 0, valid_views: 0, invalid_views: 0 });
+      const wd = await safe('withdrawals', () => env.DB.prepare("SELECT COUNT(*) AS pending FROM withdrawals WHERE status='pending'").first(), { pending: 0 });
+      const bal = await safe('ledger', () => env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN bucket='estimated' THEN amount_usd END),0) AS est, COALESCE(SUM(CASE WHEN bucket='confirmed' THEN amount_usd END),0) AS conf FROM ledger").first(), { est: 0, conf: 0 });
+      return json({ ok: true, users: u, links: l, withdrawals: wd, ledger: bal, warnings: warn });
+    }
+
+    if (p === '/api/admin/schema') {
+      const out = {};
+      for (const t of ['users','links','click_sessions','ledger','withdrawals','referrals','otp_codes','ad_zones','settings']) {
+        try {
+          const r = await env.DB.prepare(`SELECT name FROM pragma_table_info('${t}')`).all();
+          out[t] = (r.results || []).map((x) => x.name);
+        } catch (e) { out[t] = 'ERROR: ' + String(e.message || e); }
+      }
+      return json({ ok: true, schema: out });
     }
     if (p === '/api/admin/otp' && m === 'GET') {
       const id = Number(url.searchParams.get('user_id') || 0);
