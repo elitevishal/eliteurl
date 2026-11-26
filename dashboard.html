@@ -74,14 +74,22 @@ td,th{white-space:nowrap}.td-url{max-width:170px}
         <button class="btn btn-primary" id="create">Shorten</button>
       </div>
       <div class="opts">
+        <label class="chk"><input type="checkbox" id="useAdv"> <span>Advanced download page</span></label>
         <label class="chk"><input type="checkbox" id="useExp"> <span>Set an expiry date</span></label>
         <label class="chk"><input type="checkbox" id="usePw"> <span>Password protect this link</span></label>
+      </div>
+      <div class="hide" id="advRow" style="margin-top:12px">
+        <div class="row" style="gap:14px">
+          <div class="field" style="flex:1 1 200px"><label>Creator name</label><input id="creator" placeholder="e.g. Vishal" maxlength="40"></div>
+          <div class="field" style="flex:1 1 200px"><label>App / tool name</label><input id="toolname" placeholder="e.g. CapCut Video" maxlength="60"></div>
+        </div>
       </div>
       <div class="row hide" id="expRow" style="gap:14px;margin-top:10px">
         <div class="field" style="flex:1 1 200px"><label>Link expires after (days)</label><input id="expdays" type="number" min="1" max="365" placeholder="e.g. 7"></div>
       </div>
       <div class="row hide" id="pwRow" style="gap:14px;margin-top:10px">
         <div class="field" style="flex:1 1 220px"><label>Password for this link</label><input id="linkpw" type="text" placeholder="Minimum 4 characters"></div>
+        <div class="field" style="flex:1 1 220px"><label>Password hint (optional)</label><input id="pwhint" type="text" placeholder="e.g. Password is in the video" maxlength="120"></div>
       </div>
       <div class="out" id="out"><a id="short" href="#" target="_blank" rel="noopener"></a></div>
       <div class="msg" id="msg"></div>
@@ -197,7 +205,7 @@ document.querySelectorAll('.tabs button').forEach(function(b){
   });
 });
 
-var ME=null;
+var ME=null, SITE='';
 fetch('/api/me').then(function(r){
   if(r.status===401){ location.href='/login'; return null; }
   return r.json().then(function(d){ return {s:r.status, d:d}; });
@@ -231,7 +239,7 @@ function renderLinks(boxId){
     if(!d.links||!d.links.length){box.innerHTML='<div class="empty">No links yet. Create your first one.</div>';return;}
     var h='<table><tr><th>Short link</th><th>Destination</th><th>Clicks</th><th>Valid</th><th>Status</th><th>Actions</th></tr>';
     d.links.forEach(function(l){
-      var full=location.origin+'/'+l.slug;
+      var full=(SITE||location.origin)+'/'+l.slug;
       h+='<tr>'
        +'<td><a href="'+full+'" target="_blank" rel="noopener" style="color:#3b3ff2;font-weight:700;word-break:break-all">'+esc(full)+'</a>'
        +(l.locked?' <span class="pill">locked</span>':'')
@@ -279,7 +287,7 @@ fetch('/api/stats/daily').then(function(r){return r.json();}).then(function(d){
 
 fetch('/api/referrals').then(function(r){return r.json();}).then(function(d){
   if(!d.ok)return;
-  var link=location.origin+'/register?ref='+(d.code||'');
+  var link=(SITE||location.origin)+'/register?ref='+(d.code||'');
   document.getElementById('ref-link').value=link;
   document.getElementById('ref-count').textContent=d.count||0;
   document.getElementById('ref-earned').textContent='$'+Number(d.earned_usd||0).toFixed(2);
@@ -296,18 +304,21 @@ document.getElementById('useExp').addEventListener('change',function(){
 document.getElementById('usePw').addEventListener('change',function(){
   document.getElementById('pwRow').classList.toggle('hide', !this.checked);
 });
+document.getElementById('useAdv').addEventListener('change',function(){
+  document.getElementById('advRow').classList.toggle('hide', !this.checked);
+});
 
 document.getElementById('create').addEventListener('click',function(){
   var b=this,u=document.getElementById('url'),a=document.getElementById('alias'),m=document.getElementById('msg');
   m.className='msg';
   if(!u.value.trim()){show(m,'Paste a link first.',false);return;}
   b.disabled=true;b.textContent='Creating…';
-  fetch('/api/links',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:u.value.trim(),alias:a.value.trim(),expires_in_days:document.getElementById('useExp').checked?document.getElementById('expdays').value:'',password:document.getElementById('usePw').checked?document.getElementById('linkpw').value:''})})
+  fetch('/api/links',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:u.value.trim(),alias:a.value.trim(),expires_in_days:document.getElementById('useExp').checked?document.getElementById('expdays').value:'',password:document.getElementById('usePw').checked?document.getElementById('linkpw').value:'',pw_hint:document.getElementById('pwhint').value,advanced:document.getElementById('useAdv').checked,creator_name:document.getElementById('creator').value,tool_name:document.getElementById('toolname').value})})
     .then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
     .then(function(x){
       b.disabled=false;b.textContent='Shorten';
       if(x.s===200){var o=document.getElementById('out'),s=document.getElementById('short');
-        s.textContent=x.d.short;s.href=x.d.short;o.classList.add('show');u.value='';a.value='';document.getElementById('expdays').value='';document.getElementById('linkpw').value='';document.getElementById('useExp').checked=false;document.getElementById('usePw').checked=false;document.getElementById('expRow').classList.add('hide');document.getElementById('pwRow').classList.add('hide');
+        s.textContent=x.d.short;s.href=x.d.short;o.classList.add('show');u.value='';a.value='';document.getElementById('expdays').value='';document.getElementById('linkpw').value='';document.getElementById('useExp').checked=false;document.getElementById('usePw').checked=false;document.getElementById('useAdv').checked=false;document.getElementById('creator').value='';document.getElementById('toolname').value='';document.getElementById('pwhint').value='';document.getElementById('advRow').classList.add('hide');document.getElementById('expRow').classList.add('hide');document.getElementById('pwRow').classList.add('hide');
         renderLinks('list');renderLinks('list2');
 
 fetch('/api/stats/daily').then(function(r){return r.json();}).then(function(d){
@@ -323,7 +334,7 @@ fetch('/api/stats/daily').then(function(r){return r.json();}).then(function(d){
 
 fetch('/api/referrals').then(function(r){return r.json();}).then(function(d){
   if(!d.ok)return;
-  var link=location.origin+'/register?ref='+(d.code||'');
+  var link=(SITE||location.origin)+'/register?ref='+(d.code||'');
   document.getElementById('ref-link').value=link;
   document.getElementById('ref-count').textContent=d.count||0;
   document.getElementById('ref-earned').textContent='$'+Number(d.earned_usd||0).toFixed(2);
