@@ -1013,10 +1013,25 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
   const inline = zones.filter((z) => z.format !== 'interstitial' && z.format !== 'vignette' && z.network !== 'house');
   const pool = inline.length ? inline : (house.length ? house : []);
 
+  // popunder / socialbar ek hi baar — banner repeat ho sakte hain
+  const onceFormats = ['popunder', 'socialbar', 'interstitial', 'vignette'];
+  const usedOnce = new Set();
+  const banners = pool.filter((z) => !onceFormats.includes(z.format));
+  let bannerIdx = 0;
   const adBlock = (i) => {
-    const z = pool.length ? pool[i % pool.length] : null;
-    const inner = z ? z.snippet : `<div class="ph">Sponsored space</div>`;
-    return `<div class="ad"><span class="adlabel">sponsored</span>${inner}</div>`;
+    let z = null;
+    if (pool.length) {
+      if (i < pool.length) {
+        const cand = pool[i];
+        if (onceFormats.includes(cand.format)) {
+          if (usedOnce.has(cand.id)) z = null; else { usedOnce.add(cand.id); z = cand; }
+        } else z = cand;
+      } else if (banners.length) {
+        z = banners[bannerIdx++ % banners.length];
+      }
+    }
+    if (!z) return `<div class="ad" style="min-height:0;height:0;overflow:hidden"></div>`;
+    return `<div class="ad"><span class="adlabel">sponsored</span>${z.snippet}</div>`;
   };
 
   const c1 = STEP_CONTENT[(n - 1) % STEP_CONTENT.length];
