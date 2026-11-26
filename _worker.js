@@ -295,28 +295,6 @@ async function api(request, env, url) {
     return json({ ok: true, message: 'A 6-digit code has been sent to your email.' });
   }
 
-  if (p === '/api/auth/verify-otp' && m === 'POST') {
-    const b = await request.json().catch(() => ({}));
-    const email = String(b.email || '').trim().toLowerCase();
-    const code = String(b.code || '').trim();
-    const pw = String(b.password || '');
-    if (pw.length < 8) return json({ error: 'Password must be at least 8 characters' }, 400);
-    const u = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
-    if (!u) return json({ error: 'Invalid code or email' }, 400);
-    const row = await env.DB.prepare("SELECT * FROM otp_codes WHERE user_id=? AND purpose='reset' AND used_at IS NULL AND expires_at > ? ORDER BY id DESC LIMIT 1")
-      .bind(u.id, Math.floor(Date.now() / 1000)).first();
-    if (!row) return json({ error: 'This code has expired. Request a new one.' }, 400);
-    if (row.attempts >= 5) return json({ error: 'Too many wrong attempts. Request a new code.' }, 429);
-    if ((await sha256Hex(code)) !== row.code_hash) {
-      await env.DB.prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ?').bind(row.id).run();
-      return json({ error: 'That code is not correct.' }, 400);
-    }
-    await env.DB.prepare('UPDATE otp_codes SET used_at = ? WHERE id = ?').bind(Math.floor(Date.now() / 1000), row.id).run();
-    await env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?').bind(await hashPassword(pw), u.id).run();
-    await env.DB.prepare('DELETE FROM auth_sessions WHERE user_id = ?').bind(u.id).run();
-    return json({ ok: true });
-  }
-
   if (false) {
     const b = await request.json().catch(() => ({}));
     const email = String(b.email || '').trim().toLowerCase();
@@ -345,6 +323,32 @@ async function api(request, env, url) {
     }
     // email service nahi hai -> admin panel se link generate karo
     return json({ ok: true, message: 'Email service is not configured yet. Please contact support to reset your password.' });
+  }
+
+  if (p === '/api/auth/verify-otp' && m === 'POST') {
+    const b = await request.json().catch(() => ({}));
+    const email = String(b.email || '').trim().toLowerCase();
+    const code = String(b.code || '').replace(/\D/g, '');
+    if (code.length !== 6) return json({ error: 'Enter the 6-digit code' }, 400);
+    const ipHash = await sha256Hex((request.headers.get('cf-connecting-ip') || '0') + (env.IP_SALT || ''));
+    if (await rateLimited(env, `otp:${ipHash}`, 10, 900)) return json({ error: 'Too many attempts. Try again in 15 minutes.' }, 429);
+    const u = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
+    if (!u) return json({ error: 'That code is wrong or has expired.' }, 400);
+    const now = Math.floor(Date.now() / 1000);
+    const otp = await env.DB.prepare('SELECT * FROM otp_codes WHERE user_id = ? AND used_at IS NULL AND expires_at > ? ORDER BY id DESC LIMIT 1')
+      .bind(u.id, now).first();
+    if (!otp) return json({ error: 'That code is wrong or has expired.' }, 400);
+    if (otp.attempts >= 5) return json({ error: 'Too many wrong attempts. Request a new code.' }, 429);
+    const hash = await sha256Hex(code);
+    if (hash !== otp.code_hash) {
+      await env.DB.prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ?').bind(otp.id).run();
+      return json({ error: 'That code is wrong. Please check and try again.' }, 400);
+    }
+    await env.DB.prepare('UPDATE otp_codes SET used_at = ? WHERE id = ?').bind(now, otp.id).run();
+    const tok = [...crypto.getRandomValues(new Uint8Array(24))].map((x) => x.toString(16).padStart(2, '0')).join('');
+    await env.DB.prepare('INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?,?,?)')
+      .bind(u.id, await sha256Hex(tok), now + 900).run();
+    return json({ ok: true, reset_token: tok });
   }
 
   if (p === '/api/auth/reset' && m === 'POST') {
@@ -405,7 +409,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY };
+    const out = { ok: true, db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -589,6 +593,23 @@ async function api(request, env, url) {
       const wd = await safe('withdrawals', () => env.DB.prepare("SELECT COUNT(*) AS pending FROM withdrawals WHERE status='pending'").first(), { pending: 0 });
       const bal = await safe('ledger', () => env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN bucket='estimated' THEN amount_usd END),0) AS est, COALESCE(SUM(CASE WHEN bucket='confirmed' THEN amount_usd END),0) AS conf FROM ledger").first(), { est: 0, conf: 0 });
       return json({ ok: true, users: u, links: l, withdrawals: wd, ledger: bal, warnings: warn });
+    }
+
+    if (p === '/api/admin/testmail' && m === 'POST') {
+      const b = await request.json().catch(() => ({}));
+      const to = String(b.to || '').trim();
+      if (!to) return json({ error: 'Give an email address' }, 400);
+      if (!env.RESEND_API_KEY) return json({ error: 'RESEND_API_KEY is not set in Variables' }, 400);
+      const from = env.MAIL_FROM || 'EliteURL <onboarding@resend.dev>';
+      try {
+        const r = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' },
+          body: JSON.stringify({ from, to: [to], subject: 'EliteURL test email', html: '<p>If you can read this, email is working.</p>' }),
+        });
+        const txt = await r.text();
+        return json({ ok: r.ok, status: r.status, from, to, response: txt.slice(0, 500) });
+      } catch (e) { return json({ ok: false, error: String(e.message || e) }, 500); }
     }
 
     if (p === '/api/admin/schema') {
