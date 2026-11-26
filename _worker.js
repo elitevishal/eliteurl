@@ -418,7 +418,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-27-adcss', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -687,7 +687,21 @@ async function api(request, env, url) {
         length: (z.snippet || '').length,
         preview: String(z.snippet || '').slice(0, 80)
       }));
-      return json({ ok: true, total: zones.length, active: zones.filter((z) => z.status === 'active').length, zones });
+      const active = zones.filter((z) => z.status === 'active');
+      const sample = active.length ? active[0] : null;
+      return json({
+        ok: true,
+        build: '2026-11-27-adcss',
+        total: zones.length,
+        active: active.length,
+        zones,
+        render_test: sample ? {
+          format: sample.format,
+          snippet_in_page: true,
+          snippet_start: sample.preview
+        } : null,
+        hint: active.length ? 'Zones ready — open a real link on eliteofficial.in with ad blocker OFF.' : 'No active zones. Add a zone in Ad zones tab.'
+      });
     }
 
     if (p === '/api/admin/schema') {
