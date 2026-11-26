@@ -678,6 +678,18 @@ async function api(request, env, url) {
       } catch (e) { return json({ ok: false, error: String(e.message || e) }, 500); }
     }
 
+    if (p === '/api/admin/ads') {
+      let rows = [];
+      try { const r = await env.DB.prepare('SELECT id,network,label,format,step_no,status,snippet FROM ad_zones ORDER BY step_no,id').all(); rows = r.results || []; } catch (e) { rows = []; }
+      const zones = rows.map((z) => ({
+        id: z.id, network: z.network, format: z.format, step: z.step_no, status: z.status,
+        has_script: /<script/i.test(z.snippet || ''),
+        length: (z.snippet || '').length,
+        preview: String(z.snippet || '').slice(0, 80)
+      }));
+      return json({ ok: true, total: zones.length, active: zones.filter((z) => z.status === 'active').length, zones });
+    }
+
     if (p === '/api/admin/schema') {
       const out = {};
       for (const t of ['users','links','click_sessions','ledger','withdrawals','referrals','otp_codes','ad_zones','settings']) {
