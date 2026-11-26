@@ -497,7 +497,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-28-v12-4pop', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-28-v14-6b4p', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -772,7 +772,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-28-v12-4pop',
+        build: '2026-11-28-v14-6b4p',
         total: zones.length,
         active: active.length,
         zones,
@@ -839,7 +839,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-28-v12-4pop', zones });
+      return json({ ok: true, build: '2026-11-28-v14-6b4p', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1304,9 +1304,11 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
     const small = (z.format === 'popunder' || z.format === 'socialbar');
     return `<div class="ad${small ? ' small' : ''}"><span class="adlabel">sponsored</span>${z.snippet}</div>`;
   };
-  const B1 = adSlot('banner'), P1 = adSlot('popunder');
-  const B2 = adSlot('banner'), P2 = adSlot('popunder');
+  const B1 = adSlot('banner'), B2 = adSlot('banner');
+  const P1 = adSlot('popunder'), P2 = adSlot('popunder');
+  const B3 = adSlot('banner'), B4 = adSlot('banner');
   const P3 = adSlot('popunder'), P4 = adSlot('popunder');
+  const S1 = adSlot('banner'), S2 = adSlot('banner');
 
   const c1 = STEP_CONTENT[(n - 1) % STEP_CONTENT.length];
   const c2 = STEP_CONTENT[n % STEP_CONTENT.length];
@@ -1375,7 +1377,9 @@ body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Robo
 </style></head><body>
 
 ${B1}
+${B2}
 ${P1}
+${P2}
 
 <div class="line" id="adline">
   Click the ad above 👆 and wait ${countdown} seconds
@@ -1386,8 +1390,10 @@ ${P1}
   <button class="nextbtn" id="nextbtn">${nextLabel} ↓</button>
 </div>
 
-${B2}
-${P2}
+${B3}
+${B4}
+${P3}
+${P4}
 
 <div class="wrap"><div class="sec"><h2>${c1.h}</h2>${c1.b}</div></div>
 
@@ -1396,8 +1402,8 @@ ${P2}
 <div class="wrap"><div class="sec"><h2>${c3.h}</h2>${c3.b}</div></div>
 
 <div class="bottom" id="bottom">
-  ${P3}
-  ${P4}
+  ${S1}
+  ${S2}
   <div class="stat">Step ${n} of ${total} — scroll down to continue</div>
   <div class="spinrow" id="spinrow"><span class="spin"></span> Preparing your link</div>
   <button class="bigbtn" id="go">Please wait…</button>
@@ -1424,15 +1430,19 @@ ${P2}
 
 <script>
 (function(){
-  function checkBlocker(){
-    var bait = document.createElement('div');
-    bait.className = 'adsbox ad-banner ad-placement pub_300x250';
-    bait.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:300px;height:250px';
-    bait.innerHTML = '&nbsp;';
-    document.body.appendChild(bait);
-    var blocked = (bait.offsetHeight === 0 || bait.clientHeight === 0 || getComputedStyle(bait).display === 'none');
-    bait.remove();
-    return blocked;
+  // ads asli mein render hue ya nahi — isse pata chalta hai blocker hai ya nahi
+  function adsRendered(){
+    var slots = document.querySelectorAll('.ad');
+    for (var i = 0; i < slots.length; i++) {
+      var el = slots[i];
+      var kids = el.querySelectorAll('iframe, img, ins, video, canvas, div[style*="width"]');
+      for (var j = 0; j < kids.length; j++) {
+        var k = kids[j];
+        if (k.offsetWidth > 20 && k.offsetHeight > 20) return true;
+      }
+      if (el.querySelector('script') && el.offsetHeight > 80) return true;
+    }
+    return false;
   }
   var btn = document.getElementById('go'),
       nextWrap = document.getElementById('nextwrap'),
@@ -1442,15 +1452,18 @@ ${P2}
       bottomEl = document.getElementById('bottom'),
       left = ${countdown}, timer = null, ready = false;
 
-  if (checkBlocker()) {
+  var blockedShown = false;
+  function showBlocked(){
+    if (blockedShown) return;
+    blockedShown = true;
     blockedEl.classList.add('show');
     btn.textContent = 'Ads blocked';
     btn.className = 'bigbtn';
     nextWrap.classList.add('hide');
     adline.classList.add('hide');
+    if (timer) clearInterval(timer);
     fetch('/api/step', { method:'POST', headers:{'content-type':'application/json'},
       body: JSON.stringify({ sid:${JSON.stringify(sid)}, n:${n}, t:${JSON.stringify(stepToken)}, blocked:true }) }).catch(function(){});
-    return;
   }
 
   function arm(){
@@ -1465,6 +1478,7 @@ ${P2}
         btn.textContent = ${JSON.stringify(label)};
         document.getElementById('spinrow').style.display = 'none';
         ready = true;
+        setTimeout(function(){ if (!adsRendered()) showBlocked(); }, 2500);
       }
     }, 1000);
   }
