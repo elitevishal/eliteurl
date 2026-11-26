@@ -124,6 +124,7 @@ document.querySelectorAll('.tabs button').forEach(function(b){
 
 API('/api/admin/overview').then(function(d){
   if(!d || !d.ok){
+    var st=(d&&d._status)||0;
     document.getElementById('o-users').closest('.panel,div') && null;
     var box=document.querySelector('#panel-overview') || document.body;
     if(!document.getElementById('ovErr')){
@@ -135,6 +136,13 @@ API('/api/admin/overview').then(function(d){
     return;
   }
   if(!d.ok)return;
+  if(d.warnings && d.warnings.length){
+    var we=document.getElementById('ovWarn');
+    if(!we){ we=document.createElement('div'); we.id='ovWarn';
+      we.style.cssText='background:#fffbe8;border:1px solid #f0e0a8;color:#7a5c00;padding:12px 14px;border-radius:12px;margin:0 0 16px;font-size:12.5px';
+      var p=document.getElementById('panel-overview')||document.body; p.insertBefore(we,p.firstChild); }
+    we.innerHTML='<b>Database needs an update.</b> Some columns are missing:<br><code style="font-size:11px">'+d.warnings.join('<br>')+'</code>';
+  }
   document.getElementById('o-users').textContent=d.users.total||0;
   document.getElementById('o-links').textContent=d.links.links||0;
   document.getElementById('o-clicks').textContent=d.links.clicks||0;
