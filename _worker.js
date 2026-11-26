@@ -693,7 +693,7 @@ async function api(request, env, url) {
       LEFT JOIN (SELECT user_id, SUM(CASE WHEN is_valid=1 THEN 1 ELSE 0 END) AS valid,
                         SUM(CASE WHEN is_valid=0 AND status IN ('invalid','started') THEN 1 ELSE 0 END) AS invalid
                  FROM click_sessions GROUP BY user_id) v ON v.user_id = u.id
-      ORDER BY u.id DESC LIMIT 200`).all();
+      ORDER BY COALESCE(b.confirmed_usd,0) DESC, COALESCE(b.estimated_usd,0) DESC, u.id DESC LIMIT 200`).all();
       return json({ ok: true, users: r.results });
     }
     if (p === '/api/admin/links') {
@@ -755,6 +755,47 @@ async function api(request, env, url) {
         await env.DB.prepare("INSERT INTO ledger (user_id,type,bucket,amount_usd,balance_after_usd,ref_table,ref_id,reason) VALUES (?,'withdrawal_release','confirmed',?,?,'withdrawals',?,'withdrawal rejected')")
           .bind(wd.user_id, Number(wd.amount_usd), after, String(id)).run();
         await env.DB.prepare('UPDATE users SET balance_conf_usd=? WHERE id=?').bind(after, wd.user_id).run();
+        return json({ ok: true });
+      }
+      if (action === 'setstatus') {
+        const target = String(b.status || '');
+        if (!['pending', 'approved', 'rejected', 'paid'].includes(target)) return json({ error: 'Invalid status' }, 400);
+        if (wd.status === 'paid' && target !== 'paid') return json({ error: 'This payout is already marked paid and cannot be changed.' }, 400);
+        const wc = await tableCols(env, 'withdrawals');
+        const lc = await tableCols(env, 'ledger');
+        const uc = await tableCols(env, 'users');
+        const wAmt = wc.has('amount_usd') ? 'amount_usd' : 'amount_inr';
+        const lAmt = lc.has('amount_usd') ? 'amount_usd' : 'amount_inr';
+        const lBal = lc.has('balance_after_usd') ? 'balance_after_usd' : 'balance_after';
+        const uBal = uc.has('balance_conf_usd') ? 'balance_conf_usd' : 'balance_conf_inr';
+        const amt = Number(wd[wAmt] || wd.amount_usd || wd.amount_inr || 0);
+        const wasHeld = wd.status !== 'rejected';
+        const willHold = target !== 'rejected';
+        let bal = 0;
+        try { const v = await env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id=?').bind(wd.user_id).first(); bal = v ? Number(v.confirmed_usd || 0) : 0; } catch (e) {}
+        if (!bal) { const u2 = await env.DB.prepare(`SELECT ${uBal} AS b FROM users WHERE id=?`).bind(wd.user_id).first(); bal = u2 ? Number(u2.b || 0) : 0; }
+        let after = bal;
+        if (wasHeld && !willHold) {
+          after = bal + amt;
+          await env.DB.prepare(`INSERT INTO ledger (user_id,type,bucket,${lAmt},${lBal},ref_table,ref_id,reason) VALUES (?,'withdrawal_release','confirmed',?,?,'withdrawals',?,'status changed to ' || ?)`)
+            .bind(wd.user_id, amt, after, String(id), target).run();
+        } else if (!wasHeld && willHold) {
+          if (bal < amt) return json({ error: `User only has $${bal.toFixed(2)} available — cannot hold $${amt.toFixed(2)} again.` }, 400);
+          after = bal - amt;
+          await env.DB.prepare(`INSERT INTO ledger (user_id,type,bucket,${lAmt},${lBal},ref_table,ref_id,reason) VALUES (?,'withdrawal_hold','confirmed',?,?,'withdrawals',?,'status changed to ' || ?)`)
+            .bind(wd.user_id, -amt, after, String(id), target).run();
+        }
+        if (after !== bal) await env.DB.prepare(`UPDATE users SET ${uBal}=? WHERE id=?`).bind(after, wd.user_id).run();
+        await env.DB.prepare('UPDATE withdrawals SET status=?, processed_at=?, admin_note=? WHERE id=?')
+          .bind(target, now, b.note || null, id).run();
+        await env.DB.prepare('INSERT INTO admin_actions (admin_id,user_id,action,amount_usd,note) VALUES (?,?,?,?,?)')
+          .bind(user.id, wd.user_id, 'withdrawal_' + target, amt, b.note || null).run();
+        if (target === 'approved' || target === 'paid') {
+          const uu3 = await env.DB.prepare('SELECT email,name FROM users WHERE id=?').bind(wd.user_id).first();
+          if (uu3) await sendMail(env, uu3.email,
+            target === 'paid' ? 'Your EliteURL payout was sent' : 'Your EliteURL withdrawal was approved',
+            `<p>Hi ${uu3.name || 'there'},</p><p>Your withdrawal of <strong>$${amt.toFixed(2)}</strong> is now <strong>${target}</strong>.</p><p>— EliteURL</p>`);
+        }
         return json({ ok: true });
       }
       if (action === 'paid') {
