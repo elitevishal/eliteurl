@@ -604,8 +604,12 @@ async function api(request, env, url) {
       } catch (e2) { available = 0; }
     }
     if (amount > available) return json({ error: `You can withdraw up to $${available.toFixed(2)}` }, 400);
+    // duplicate guard: 60 second ke andar same amount+method dobara na aaye
+    const recent = await env.DB.prepare("SELECT id FROM withdrawals WHERE user_id=? AND status='pending' AND method=? AND requested_at > ? LIMIT 1")
+      .bind(user.id, method, Math.floor(Date.now() / 1000) - 60).first();
+    if (recent) return json({ error: 'A request was just submitted. Please wait a moment before trying again.' }, 409);
     const pending = await env.DB.prepare("SELECT COUNT(*) AS c FROM withdrawals WHERE user_id=? AND status='pending'").bind(user.id).first();
-    if (pending && pending.c >= 2) return json({ error: 'You already have pending withdrawal requests' }, 409);
+    if (pending && pending.c >= 1) return json({ error: 'You already have a pending withdrawal request. Please wait until it is approved or rejected.' }, 409);
 
     const payee = method === 'bank' ? `${holder} | ${account} | ${ifsc}` : account;
     const after = available - amount;
@@ -618,8 +622,14 @@ async function api(request, env, url) {
       const lAmt = lc.has('amount_usd') ? 'amount_usd' : 'amount_inr';
       const lBal = lc.has('balance_after_usd') ? 'balance_after_usd' : 'balance_after';
       const uBal = uc.has('balance_conf_usd') ? 'balance_conf_usd' : 'balance_conf_inr';
-      await env.DB.prepare(`INSERT INTO withdrawals (user_id,${wAmt},method,payee_enc,payee_last4,status) VALUES (?,?,?,?,?,?)`)
+      const ins = await env.DB.prepare(`INSERT INTO withdrawals (user_id,${wAmt},method,payee_enc,payee_last4,status) VALUES (?,?,?,?,?,?)`)
         .bind(user.id, amount, method, payee, account.slice(-4), 'pending').run();
+      // race guard: agar is user ke 2 se zyada pending ho gaye to yeh row hatao
+      const chk = await env.DB.prepare("SELECT COUNT(*) AS c FROM withdrawals WHERE user_id=? AND status='pending'").bind(user.id).first();
+      if (chk && chk.c > 1) {
+        await env.DB.prepare('DELETE FROM withdrawals WHERE id=?').bind(ins.meta.last_row_id).run();
+        return json({ error: 'You already have a pending withdrawal request. Please wait until it is approved or rejected.' }, 409);
+      }
       await env.DB.prepare(`INSERT INTO ledger (user_id,type,bucket,${lAmt},${lBal},ref_table,reason) VALUES (?,'withdrawal_hold','confirmed',?,?,'withdrawals','withdrawal requested')`)
         .bind(user.id, -amount, after).run();
       await env.DB.prepare(`UPDATE users SET ${uBal}=? WHERE id=?`).bind(after, user.id).run();
