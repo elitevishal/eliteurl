@@ -512,7 +512,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-29-v19-4mon', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-29-v21-tapfix', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -787,7 +787,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-29-v19-4mon',
+        build: '2026-11-29-v21-tapfix',
         total: zones.length,
         active: active.length,
         zones,
@@ -854,7 +854,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-29-v19-4mon', zones });
+      return json({ ok: true, build: '2026-11-29-v21-tapfix', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1118,6 +1118,12 @@ async function stepPage(request, env, url) {
   // ads: step ke hisaab se network alternate hota hai (odd=adsterra, even=monetag)
   const adNetwork = (n % 2 === 1) ? 'adsterra' : 'monetag';
   let zoneRows = BUILTIN_ADS.filter((z) => z.network === adNetwork);
+  // Monetag OnClick click hijack karta hai — ek page par sirf 1 zone
+  if (adNetwork === 'monetag') {
+    const mons = zoneRows.filter((z) => z.format === 'popunder');
+    const pick = mons[(n / 2 - 1) % (mons.length || 1)];
+    zoneRows = pick ? [pick] : [];
+  }
   // page bhara rahe — dusre network ke banner fillers ke roop mein
   const fillers = BUILTIN_ADS.filter((z) => z.network !== adNetwork && z.format === 'banner');
   zoneRows = zoneRows.concat(fillers);
@@ -1427,6 +1433,9 @@ ${P4}
   <div class="stat">Step ${n} of ${total} — scroll down to continue</div>
   <div class="spinrow" id="spinrow"><span class="spin"></span> Preparing your link</div>
   <button class="bigbtn" id="go">Please wait…</button>
+  <div id="taphint" style="display:none;margin-top:12px;font-size:11.5px;color:#8b90a6;line-height:1.5">
+    A new tab may have opened. Close it and tap the button again.
+  </div>
 </div>
 
 <div class="foot">
@@ -1521,11 +1530,13 @@ ${P4}
       btn.className = 'bigbtn on';
       btn.textContent = ${JSON.stringify(label)};
       document.getElementById('spinrow').style.display = 'none';
+      var th = document.getElementById('taphint');
+      if (th) th.style.display = 'block';
       ready = true;
     }, 600);
   });
 
-  btn.addEventListener('click', function(){
+  function goNext(){
     if (!ready) return;
     if (!adsRendered()) { showBlocked(); return; }
     btn.textContent = 'Loading…';
@@ -1534,7 +1545,9 @@ ${P4}
       .then(function(r){ return r.json(); })
       .then(function(d){ if (d.next) { location.href = d.next; } else { btn.textContent = ${JSON.stringify(label)}; } })
       .catch(function(){ btn.textContent = ${JSON.stringify(label)}; });
-  });
+  }
+  btn.addEventListener('click', goNext);
+  btn.addEventListener('touchend', function(e){ e.preventDefault(); goNext(); }, { passive:false });
 })();
 </script></body></html>`;
 }
