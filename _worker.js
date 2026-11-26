@@ -493,7 +493,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-28-builtin-ads', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-28-v8-adblock', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -768,7 +768,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-28-builtin-ads',
+        build: '2026-11-28-v8-adblock',
         total: zones.length,
         active: active.length,
         zones,
@@ -835,7 +835,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-28-builtin-ads', zones });
+      return json({ ok: true, build: '2026-11-28-v8-adblock', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1132,6 +1132,15 @@ async function apiStep(request, env) {
   const sess = await env.DB.prepare('SELECT * FROM click_sessions WHERE id=?').bind(b.sid).first();
   if (!sess) return json({ error: 'no_session' }, 404);
   if (sess.status === 'invalid') return json({ error: 'invalid_session' }, 403);
+  // ad blocker mila -> session invalid, koi kamai nahi
+  if (b.blocked === true) {
+    await env.DB.prepare("UPDATE click_sessions SET status='invalid', is_valid=0, invalid_reason='adblock', earning_est_usd=0 WHERE id=?").bind(b.sid).run();
+    try {
+      await env.DB.prepare('INSERT INTO fraud_events (session_id,user_id,rule,severity,action) VALUES (?,?,?,?,?)')
+        .bind(b.sid, sess.user_id, 'adblock', 'medium', 'no_earning').run();
+    } catch (e) {}
+    return json({ error: 'adblock', message: 'Ad blocker detected — no earning for this view.' }, 403);
+  }
   if (sess.steps_completed !== step - 1) return json({ error: 'out_of_order' }, 409);
   if (Math.floor(Date.now() / 1000) - sess.created_at > 7200) return json({ error: 'expired' }, 410);
 
@@ -1265,122 +1274,113 @@ const STEP_CONTENT = [
 ];
 
 function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLast }) {
-  const pct = Math.round((n / total) * 100);
-  const fullscreen = zones.filter((z) => (z.format === 'interstitial' || z.format === 'vignette') && z.network !== 'house');
-  const house = zones.filter((z) => z.network === 'house');
-  const inline = zones.filter((z) => z.format !== 'interstitial' && z.format !== 'vignette' && z.network !== 'house');
-  // visible ads (banner) pehle, invisible (popunder/socialbar) baad mein
   const VISIBLE = ['banner', 'inpage', 'native'];
-  const sorted = inline.slice().sort((a, b) => {
-    const av = VISIBLE.includes(a.format) ? 0 : 1;
-    const bv = VISIBLE.includes(b.format) ? 0 : 1;
-    return av - bv;
-  });
-  const pool = sorted.length ? sorted : (house.length ? house : []);
-
-  // HAR zone ek hi baar — Adsterra same script do baar nahi chalata
-  const usedOnce = new Set();
-  const adBlock = (i) => {
+  const inline = zones.filter((z) => z.format !== 'interstitial' && z.format !== 'vignette' && z.network !== 'house');
+  const house = zones.filter((z) => z.network === 'house');
+  const sorted = inline.slice().sort((a, b) => (VISIBLE.includes(a.format) ? 0 : 1) - (VISIBLE.includes(b.format) ? 0 : 1));
+  const pool = sorted.length ? sorted : house;
+  const used = new Set();
+  const adSlot = () => {
+    if (!pool.length) return '';
     let z = null;
-    if (pool.length && i < pool.length) {
-      const cand = pool[i];
-      if (!usedOnce.has(cand.id)) { usedOnce.add(cand.id); z = cand; }
-    }
-    if (!z) return `<div class="ad" style="min-height:0;height:0;padding:0;overflow:hidden"></div>`;
-    // inline hamesha — Adsterra iframe ke andar ad nahi deta
+    for (const c of pool) { if (!used.has(c.id)) { used.add(c.id); z = c; break; } }
+    if (!z) return '';
     return `<div class="ad"><span class="adlabel">sponsored</span>${z.snippet}</div>`;
   };
+  const A1 = adSlot(), A2 = adSlot(), A3 = adSlot(), A4 = adSlot();
+  const S1 = adSlot(), S2 = adSlot();
 
   const c1 = STEP_CONTENT[(n - 1) % STEP_CONTENT.length];
   const c2 = STEP_CONTENT[n % STEP_CONTENT.length];
   const c3 = STEP_CONTENT[(n + 1) % STEP_CONTENT.length];
 
+  const LABELS = ['Continue', 'Next', 'Continue to link', 'Verify and continue', 'Next step', 'Open my link', 'Get my link'];
+  const label = LABELS[(n - 1) % LABELS.length];
+  const nextLabel = ['Next', 'Continue', 'Go on', 'Next step'][(n - 1) % 4];
+  const ACCENTS = ['#3b3ff2', '#7b5cff', '#0ea5e9', '#16a34a', '#f59e0b', '#ec4899', '#8b5cf6'];
+  const accent = ACCENTS[(n - 1) % ACCENTS.length];
+
   let dots = '';
   for (let i = 1; i <= total; i++) dots += `<i class="${i <= n ? 'on' : ''}"></i>`;
-
-  const fsAd = fullscreen.length
-    ? `<div class="fs" id="fsAd">
-         <div class="fs-top"><span class="fs-tag">Sponsored</span><button class="fs-close" id="fsClose" type="button">Close ✕</button></div>
-         <div class="fs-body">${fullscreen.map((z) => z.snippet).join('')}</div>
-         <div class="fs-foot">This ad keeps link shortening free. Close it to continue.</div>
-       </div>`
-    : '';
 
   return `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>Please wait — EliteURL</title>
 <style>
-:root{--ink:#0b0d1a;--body:#3f4459;--muted:#5b6076;--accent:#3b3ff2;--green:#16a34a;--line:#e8eaf3;--soft:#f7f8fc}
+:root{--ink:#0b0d1a;--body:#3f4459;--muted:#5b6076;--accent:${accent};--green:#16a34a;--line:#e8eaf3;--soft:#f7f8fc}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#fff;color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.65;overflow-x:hidden}
-.ad{display:block;width:100%;background:#f7f8fc;position:relative;padding:10px 0;text-align:center;min-height:0}
-.ad svg,.ad img{display:block;max-width:100%;height:auto}
-.ad iframe{display:block;border:0;max-width:100%}
-.ad>div{max-width:100%}
-.ad .ph{min-height:120px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#a8adc2;letter-spacing:.08em;text-transform:uppercase;font-weight:700;width:100%}
-.ad .ph{min-height:280px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#a8adc2;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
-.adlabel{position:absolute;top:4px;left:6px;pointer-events:none;font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:#98a0b8;font-weight:800;background:rgba(255,255,255,.92);padding:2px 5px;border-radius:3px;line-height:1.4;z-index:2}
-.line{padding:22px 16px;text-align:center;font-size:16.5px;line-height:1.55;font-weight:700;background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#fff;color:var(--ink);line-height:1.65;overflow-x:hidden}
+.ad{display:block;width:100%;background:#f4f5fa;position:relative;padding:10px 0;text-align:center;min-height:0}
+.ad svg,.ad img{display:block;max-width:100%;height:auto;margin:0 auto}
+.ad iframe{display:block;border:0;max-width:100%;margin:0 auto}
+.adlabel{position:absolute;top:4px;left:6px;font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:#98a0b8;font-weight:800;background:rgba(255,255,255,.92);padding:2px 5px;border-radius:3px;pointer-events:none;z-index:2}
+.ad.small{background:#fafbff;padding:8px 0}
+.line{padding:20px 16px;text-align:center;font-size:16px;line-height:1.55;font-weight:800;background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .line small{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-top:5px}
+.nextwrap{padding:16px;text-align:center;background:#fff;border-bottom:1px solid var(--line)}
+.nextwrap.hide{display:none}
+.nextbtn{display:inline-flex;align-items:center;gap:8px;padding:15px 34px;border-radius:12px;border:0;font-family:inherit;font-size:15px;font-weight:800;color:#fff;background:linear-gradient(100deg,var(--accent),#7b5cff);cursor:pointer;box-shadow:0 14px 30px -16px var(--accent)}
+.nextbtn:active{transform:scale(.97)}
 .wrap{max-width:720px;margin:0 auto;padding:0 18px}
-.sec{padding:26px 0 10px}
-.sec h2{font-size:21px;letter-spacing:-.025em;margin:0 0 10px;font-weight:800}
-.sec p{font-size:15px;color:var(--body);margin:0 0 14px}
-.sec ul{padding-left:20px;margin:0 0 14px}
-.sec li{font-size:15px;color:var(--body);margin-bottom:8px}
-.callout{background:var(--soft);border-left:3px solid var(--accent);border-radius:0 12px 12px 0;padding:14px 16px;margin:18px 0;font-size:14.5px;color:var(--body)}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:18px 0}
-.mini{background:#fff;border:1px solid var(--line);border-radius:13px;padding:16px}
-.mini b{display:block;font-size:13.5px;margin-bottom:5px}
-.mini p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.55}
-.bottom{padding:26px 18px 32px;text-align:center;background:#fff;border-top:1px solid var(--line)}
-.bottom .stat{font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5}
-.spinrow{display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;color:var(--muted);margin-bottom:16px}
+.sec{padding:24px 0 8px}
+.sec h2{font-size:20px;letter-spacing:-.025em;margin:0 0 10px;font-weight:800}
+.sec p{font-size:14.5px;color:var(--body);margin:0 0 13px}
+.sec ul{padding-left:20px;margin:0 0 13px}
+.sec li{font-size:14.5px;color:var(--body);margin-bottom:7px}
+.callout{background:var(--soft);border-left:3px solid var(--accent);border-radius:0 12px 12px 0;padding:13px 15px;margin:16px 0;font-size:14px;color:var(--body)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:11px;margin:16px 0}
+.mini{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+.mini b{display:block;font-size:13px;margin-bottom:4px}
+.mini p{margin:0;font-size:12px;color:var(--muted);line-height:1.5}
+.bottom{padding:22px 18px 30px;text-align:center;background:#fff;border-top:1px solid var(--line)}
+.bottom .stat{font-size:12.5px;color:var(--muted);margin-bottom:12px}
+.spinrow{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12.5px;color:var(--muted);margin-bottom:14px}
 .spin{width:13px;height:13px;border:2px solid #dfe3ee;border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
-.bigbtn{display:block;width:100%;max-width:400px;margin:0 auto;padding:20px 22px;font-size:18px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border:0;border-radius:8px;background:#e3e7f2;color:#9aa0b8;cursor:not-allowed;font-family:inherit;transition:.18s}
+.bigbtn{display:block;width:100%;max-width:400px;margin:0 auto;padding:19px 22px;font-size:17px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border:0;border-radius:10px;background:#e3e7f2;color:#9aa0b8;cursor:not-allowed;font-family:inherit;transition:.2s}
 .bigbtn.on{background:var(--green);color:#fff;cursor:pointer;box-shadow:0 12px 26px -14px rgba(22,163,74,.95)}
-.bigbtn.on:hover{background:#12833b}
-.foot{padding:16px;text-align:center;font-size:11px;color:#9aa0b8;border-top:1px solid var(--line);line-height:1.6}
+.foot{padding:15px;text-align:center;font-size:11px;color:#9aa0b8;border-top:1px solid var(--line);line-height:1.6}
 .foot a{color:#9aa0b8;text-decoration:none;margin:0 7px}
-.dots{display:flex;justify-content:center;gap:6px;margin-bottom:8px}
+.dots{display:flex;justify-content:center;gap:6px;margin-bottom:7px}
 .dots i{width:6px;height:6px;border-radius:50%;background:#d9dcea;display:block;transition:.2s}
 .dots i.on{background:var(--accent)}
-.fs{position:fixed;inset:0;z-index:9999;background:#fff;display:flex;flex-direction:column}
-.fs-top{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid var(--line)}
-.fs-tag{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:#a2a6bd;font-weight:800}
-.fs-close{background:#f1f2f8;border:0;border-radius:99px;padding:9px 17px;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer;font-family:inherit}
-.fs-body{flex:1;display:flex;align-items:center;justify-content:center;padding:8px;overflow:auto}
-.fs-foot{padding:11px 16px 16px;text-align:center;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+.blocked{display:none;position:fixed;inset:0;z-index:99999;background:rgba(11,13,26,.97);color:#fff;align-items:center;justify-content:center;padding:26px;text-align:center;flex-direction:column}
+.blocked.show{display:flex}
+.blocked .ic{width:76px;height:76px;border-radius:50%;background:rgba(220,38,38,.15);border:2px solid #dc2626;display:grid;place-items:center;margin-bottom:18px}
+.blocked .ic svg{width:36px;height:36px;fill:#dc2626}
+.blocked h2{font-size:21px;margin:0 0 10px;color:#fecaca}
+.blocked p{font-size:13.5px;color:#c7cbe4;margin:0 0 8px;max-width:340px;line-height:1.6}
+.blocked .steps{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:14px 16px;margin-top:14px;text-align:left;font-size:12.5px;color:#c7cbe4;line-height:1.8;max-width:340px}
+.blocked b{color:#fff}
 </style></head><body>
 
-${adBlock(0)}
+${A1}
+${A2}
 
-<div class="line">
-  Please wait 👆 while we prepare your link 👆
-  <small>The page continues automatically in ${countdown} seconds</small>
+<div class="line" id="adline">
+  Click the ad above 👆 and wait ${countdown} seconds
+  <small>The button appears automatically</small>
 </div>
 
-${adBlock(1)}
+<div class="nextwrap hide" id="nextwrap">
+  <button class="nextbtn" id="nextbtn">${nextLabel} ↓</button>
+</div>
+
+${A3}
+${A4}
 
 <div class="wrap"><div class="sec"><h2>${c1.h}</h2>${c1.b}</div></div>
 
-${adBlock(2)}
-
 <div class="wrap"><div class="sec"><h2>${c2.h}</h2>${c2.b}</div></div>
-
-${adBlock(3)}
 
 <div class="wrap"><div class="sec"><h2>${c3.h}</h2>${c3.b}</div></div>
 
-${adBlock(4)}
-
-${adBlock(5)}
-
-<div class="bottom">
-  <div class="stat">Step ${n} of ${total} — your link will be ready in a moment.</div>
+<div class="bottom" id="bottom">
+  ${S1}
+  ${S2}
+  <div class="stat">Step ${n} of ${total} — scroll down to continue</div>
   <div class="spinrow" id="spinrow"><span class="spin"></span> Preparing your link</div>
   <button class="bigbtn" id="go">Please wait…</button>
 </div>
@@ -1388,43 +1388,93 @@ ${adBlock(5)}
 <div class="foot">
   <div class="dots">${dots}</div>
   <a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/help">Help</a>
-  <div style="margin-top:7px">© 2026 EliteURL</div>
+  <div style="margin-top:6px">© 2026 EliteURL</div>
 </div>
 
-${fsAd}
+<div class="blocked" id="blocked">
+  <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div>
+  <h2>Ad blocker detected</h2>
+  <p>This page is supported by ads. Please turn off your ad blocker to continue.</p>
+  <div class="steps">
+    <b>How to fix:</b><br>
+    1. Tap your browser menu (⋮)<br>
+    2. Settings → Site settings → Ads<br>
+    3. Allow ads on this site<br>
+    4. Reload this page
+  </div>
+</div>
+
 <script>
 (function(){
-  var left=${countdown},btn=document.getElementById('go'),timer=null;
-  function start(){
-    if(timer) return;
-    timer=setInterval(function(){
+  function checkBlocker(){
+    var bait = document.createElement('div');
+    bait.className = 'adsbox ad-banner ad-placement pub_300x250';
+    bait.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:300px;height:250px';
+    bait.innerHTML = '&nbsp;';
+    document.body.appendChild(bait);
+    var blocked = (bait.offsetHeight === 0 || bait.clientHeight === 0 || getComputedStyle(bait).display === 'none');
+    bait.remove();
+    return blocked;
+  }
+  var btn = document.getElementById('go'),
+      nextWrap = document.getElementById('nextwrap'),
+      nextBtn = document.getElementById('nextbtn'),
+      adline = document.getElementById('adline'),
+      blockedEl = document.getElementById('blocked'),
+      bottomEl = document.getElementById('bottom'),
+      left = ${countdown}, timer = null, ready = false;
+
+  if (checkBlocker()) {
+    blockedEl.classList.add('show');
+    btn.textContent = 'Ads blocked';
+    btn.className = 'bigbtn';
+    nextWrap.classList.add('hide');
+    adline.classList.add('hide');
+    fetch('/api/step', { method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ sid:${JSON.stringify(sid)}, n:${n}, t:${JSON.stringify(stepToken)}, blocked:true }) }).catch(function(){});
+    return;
+  }
+
+  function arm(){
+    if (timer) return;
+    timer = setInterval(function(){
       left--;
-      if(left<=0){clearInterval(timer);btn.className='bigbtn on';btn.textContent='Click here';document.getElementById('spinrow').style.display='none';}
-    },1000);
+      if (left <= 0) {
+        clearInterval(timer);
+        adline.classList.add('hide');
+        nextWrap.classList.remove('hide');
+        btn.className = 'bigbtn on';
+        btn.textContent = ${JSON.stringify(label)};
+        document.getElementById('spinrow').style.display = 'none';
+        ready = true;
+      }
+    }, 1000);
   }
-  var fs=document.getElementById('fsAd'),fsClose=document.getElementById('fsClose');
-  var bottomEl=document.querySelector('.bottom');
-  function armWhenVisible(){
-    if(!bottomEl || !('IntersectionObserver' in window)){ start(); return; }
-    var io=new IntersectionObserver(function(entries){
-      entries.forEach(function(en){ if(en.isIntersecting){ io.disconnect(); start(); } });
-    },{threshold:0.35});
+
+  if ('IntersectionObserver' in window && bottomEl) {
+    var io = new IntersectionObserver(function(en){
+      en.forEach(function(x){ if (x.isIntersecting) { io.disconnect(); arm(); } });
+    }, { threshold: 0.2 });
     io.observe(bottomEl);
-  }
-  if(fs&&fsClose){ fsClose.addEventListener('click',function(){fs.style.display='none';armWhenVisible();}); } else { armWhenVisible(); }
-  btn.addEventListener('click',function(){
-    if(!btn.classList.contains('on')) return;
-    btn.textContent='Loading…';
-    fetch('/api/step',{method:'POST',headers:{'content-type':'application/json'},
-      body:JSON.stringify({sid:${JSON.stringify(sid)},n:${n},t:${JSON.stringify(stepToken)}})})
-      .then(function(r){return r.json();})
-      .then(function(d){ if(d.next){ location.href=d.next; } else { btn.textContent='Click here'; } })
-      .catch(function(){ btn.textContent='Click here'; });
+    setTimeout(arm, 4000);
+  } else { arm(); }
+
+  nextBtn.addEventListener('click', function(){
+    if (bottomEl) bottomEl.scrollIntoView({ behavior:'smooth', block:'center' });
+  });
+
+  btn.addEventListener('click', function(){
+    if (!ready) return;
+    btn.textContent = 'Loading…';
+    fetch('/api/step', { method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ sid:${JSON.stringify(sid)}, n:${n}, t:${JSON.stringify(stepToken)} }) })
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if (d.next) { location.href = d.next; } else { btn.textContent = ${JSON.stringify(label)}; } })
+      .catch(function(){ btn.textContent = ${JSON.stringify(label)}; });
   });
 })();
 </script></body></html>`;
 }
-
 
 function landingPage(link, origin) {
   const tool = link.tool_name || 'Your file';
