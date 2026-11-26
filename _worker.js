@@ -1261,7 +1261,14 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
   const fullscreen = zones.filter((z) => (z.format === 'interstitial' || z.format === 'vignette') && z.network !== 'house');
   const house = zones.filter((z) => z.network === 'house');
   const inline = zones.filter((z) => z.format !== 'interstitial' && z.format !== 'vignette' && z.network !== 'house');
-  const pool = inline.length ? inline : (house.length ? house : []);
+  // visible ads (banner) pehle, invisible (popunder/socialbar) baad mein
+  const VISIBLE = ['banner', 'inpage', 'native'];
+  const sorted = inline.slice().sort((a, b) => {
+    const av = VISIBLE.includes(a.format) ? 0 : 1;
+    const bv = VISIBLE.includes(b.format) ? 0 : 1;
+    return av - bv;
+  });
+  const pool = sorted.length ? sorted : (house.length ? house : []);
 
   // popunder / socialbar ek hi baar — banner repeat ho sakte hain
   const onceFormats = ['popunder', 'socialbar', 'interstitial', 'vignette'];
@@ -1321,7 +1328,7 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#fff;color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.65;overflow-x:hidden}
-.ad{display:flex;align-items:center;justify-content:center;width:100%;background:#f7f8fc;position:relative;padding:8px 0;min-height:60px;overflow:hidden}
+.ad{display:flex;align-items:center;justify-content:center;width:100%;background:#f7f8fc;position:relative;padding:8px 0;min-height:60px}
 .ad svg,.ad img{display:block;max-width:100%;height:auto}
 .ad iframe{display:block;border:0;max-width:100%}
 .ad>div{max-width:100%}
