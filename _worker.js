@@ -486,8 +486,13 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/links' && m === 'GET') {
-    const rows = await env.DB.prepare('SELECT slug,destination_url,clicks,valid_views,invalid_views,status,created_at,expires_at,(password_hash IS NOT NULL) AS locked,COALESCE(advanced,0) AS advanced,creator_name,tool_name,video_url FROM links WHERE user_id = ? ORDER BY id DESC LIMIT 200').bind(user.id).all();
-    return json({ ok: true, links: rows.results });
+    let rows;
+    try {
+      rows = await env.DB.prepare('SELECT slug,destination_url,clicks,valid_views,invalid_views,status,created_at,expires_at,(password_hash IS NOT NULL) AS locked,COALESCE(advanced,0) AS advanced,creator_name,tool_name,video_url FROM links WHERE user_id = ? ORDER BY id DESC LIMIT 200').bind(user.id).all();
+    } catch (e) {
+      rows = await env.DB.prepare('SELECT slug,destination_url,clicks,valid_views,invalid_views,status,created_at FROM links WHERE user_id = ? ORDER BY id DESC LIMIT 200').bind(user.id).all();
+    }
+    return json({ ok: true, links: rows.results || [] });
   }
 
   if (p.startsWith('/api/links/') && m === 'DELETE') {
@@ -547,11 +552,20 @@ async function api(request, env, url) {
 
   // ---- withdrawals (user) ----
   if (p === '/api/withdrawals' && m === 'GET') {
-    const r = await env.DB.prepare('SELECT id,amount_usd,method,payee_last4,status,txn_ref,requested_at,processed_at FROM withdrawals WHERE user_id=? ORDER BY id DESC LIMIT 50')
-      .bind(user.id).all();
+    let rows = [];
+    try {
+      const r = await env.DB.prepare('SELECT id,amount_usd,method,payee_last4,status,txn_ref,requested_at,processed_at FROM withdrawals WHERE user_id=? ORDER BY id DESC LIMIT 50').bind(user.id).all();
+      rows = r.results || [];
+    } catch (e) {
+      try {
+        const r2 = await env.DB.prepare('SELECT id,amount_inr AS amount_usd,method,payee_last4,status,txn_ref,requested_at,processed_at FROM withdrawals WHERE user_id=? ORDER BY id DESC LIMIT 50').bind(user.id).all();
+        rows = r2.results || [];
+      } catch (e2) { rows = []; }
+    }
     const min = await numSetting(env, 'min_withdrawal_usd', 5);
-    const bal = await env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id=?').bind(user.id).first();
-    return json({ ok: true, withdrawals: r.results, min_withdrawal_usd: min, available_usd: bal ? bal.confirmed_usd : 0 });
+    let avail = 0;
+    try { const bal = await env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id=?').bind(user.id).first(); avail = bal ? (bal.confirmed_usd || 0) : 0; } catch (e) {}
+    return json({ ok: true, withdrawals: rows, min_withdrawal_usd: min, available_usd: avail });
   }
 
   if (p === '/api/withdrawals' && m === 'POST') {
