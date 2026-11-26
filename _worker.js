@@ -4,6 +4,12 @@
 // ============================================================
 
 const enc = new TextEncoder();
+async function tableCols(env, table) {
+  try {
+    const r = await env.DB.prepare(`SELECT name FROM pragma_table_info('${table}')`).all();
+    return new Set((r.results || []).map((x) => x.name));
+  } catch (e) { return new Set(); }
+}
 const ownerEmailOf = (env) => String(env.OWNER_EMAIL || '').trim().toLowerCase();
 const COOKIE = 'eu_session';
 const SESSION_DAYS = 30;
@@ -503,11 +509,15 @@ async function api(request, env, url) {
 
   // ---- 7-day stats ----
   if (p === '/api/stats/daily' && m === 'GET') {
-    const r = await env.DB.prepare(`SELECT s.day, SUM(s.clicks) AS clicks, SUM(s.valid_views) AS valid
-      FROM link_daily_stats s JOIN links l ON l.id = s.link_id
-      WHERE l.user_id = ? AND s.day >= date('now','-6 days')
-      GROUP BY s.day ORDER BY s.day`).bind(user.id).all();
-    return json({ ok: true, days: r.results });
+    try {
+      const r = await env.DB.prepare(`SELECT s.day, SUM(s.clicks) AS clicks, SUM(s.valid_views) AS valid
+        FROM link_daily_stats s JOIN links l ON l.id = s.link_id
+        WHERE l.user_id = ? AND s.day >= date('now','-6 days')
+        GROUP BY s.day ORDER BY s.day`).bind(user.id).all();
+      return json({ ok: true, days: r.results || [] });
+    } catch (e) {
+      return json({ ok: true, days: [] });
+    }
   }
 
   // ---- referrals ----
@@ -586,8 +596,12 @@ async function api(request, env, url) {
       const bal = await env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id=?').bind(user.id).first();
       available = bal ? Number(bal.confirmed_usd || 0) : 0;
     } catch (e) {
-      const u2 = await env.DB.prepare('SELECT balance_conf_inr AS b FROM users WHERE id=?').bind(user.id).first();
-      available = u2 ? Number(u2.b || 0) : 0;
+      const uc2 = await tableCols(env, 'users');
+      const col = uc2.has('balance_conf_usd') ? 'balance_conf_usd' : 'balance_conf_inr';
+      try {
+        const u2 = await env.DB.prepare(`SELECT ${col} AS b FROM users WHERE id=?`).bind(user.id).first();
+        available = u2 ? Number(u2.b || 0) : 0;
+      } catch (e2) { available = 0; }
     }
     if (amount > available) return json({ error: `You can withdraw up to $${available.toFixed(2)}` }, 400);
     const pending = await env.DB.prepare("SELECT COUNT(*) AS c FROM withdrawals WHERE user_id=? AND status='pending'").bind(user.id).first();
@@ -596,25 +610,24 @@ async function api(request, env, url) {
     const payee = method === 'bank' ? `${holder} | ${account} | ${ifsc}` : account;
     const after = available - amount;
     try {
-      await env.DB.prepare('INSERT INTO withdrawals (user_id,amount_usd,method,payee_enc,payee_last4,status) VALUES (?,?,?,?,?,?)')
+      // asli columns detect karo
+      const wc = await tableCols(env, 'withdrawals');
+      const lc = await tableCols(env, 'ledger');
+      const uc = await tableCols(env, 'users');
+      const wAmt = wc.has('amount_usd') ? 'amount_usd' : 'amount_inr';
+      const lAmt = lc.has('amount_usd') ? 'amount_usd' : 'amount_inr';
+      const lBal = lc.has('balance_after_usd') ? 'balance_after_usd' : 'balance_after';
+      const uBal = uc.has('balance_conf_usd') ? 'balance_conf_usd' : 'balance_conf_inr';
+      await env.DB.prepare(`INSERT INTO withdrawals (user_id,${wAmt},method,payee_enc,payee_last4,status) VALUES (?,?,?,?,?,?)`)
         .bind(user.id, amount, method, payee, account.slice(-4), 'pending').run();
-      await env.DB.prepare("INSERT INTO ledger (user_id,type,bucket,amount_usd,balance_after_usd,ref_table,reason) VALUES (?,'withdrawal_hold','confirmed',?,?,'withdrawals','withdrawal requested')")
+      await env.DB.prepare(`INSERT INTO ledger (user_id,type,bucket,${lAmt},${lBal},ref_table,reason) VALUES (?,'withdrawal_hold','confirmed',?,?,'withdrawals','withdrawal requested')`)
         .bind(user.id, -amount, after).run();
-      await env.DB.prepare('UPDATE users SET balance_conf_usd=? WHERE id=?').bind(after, user.id).run();
+      await env.DB.prepare(`UPDATE users SET ${uBal}=? WHERE id=?`).bind(after, user.id).run();
     } catch (e1) {
-      // purana schema (INR columns)
-      try {
-        await env.DB.prepare('INSERT INTO withdrawals (user_id,amount_inr,method,payee_enc,payee_last4,status) VALUES (?,?,?,?,?,?)')
-          .bind(user.id, amount, method, payee, account.slice(-4), 'pending').run();
-        await env.DB.prepare("INSERT INTO ledger (user_id,type,bucket,amount_inr,balance_after,ref_table,reason) VALUES (?,'withdrawal_hold','confirmed',?,?,'withdrawals','withdrawal requested')")
-          .bind(user.id, -amount, after).run();
-        await env.DB.prepare('UPDATE users SET balance_conf_inr=? WHERE id=?').bind(after, user.id).run();
-      } catch (e2) {
-        console.error('withdraw insert failed', e1.message, '|', e2.message);
-        return json({ error: 'Could not save the request: ' + String(e2.message || e1.message) }, 500);
-      }
+      console.error('withdraw insert failed', e1.message);
+      return json({ error: 'Could not save the request: ' + String(e1.message || e1) }, 500);
     }
-    return json({ ok: true, message: 'Withdrawal request submitted. It will be reviewed within 48 hours.' });
+    return json({ ok: true, message: 'Withdrawal request submitted. It will be reviewed within 24 hours.' });
   }
 
   // ---- admin ----
