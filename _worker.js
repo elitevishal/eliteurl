@@ -1284,11 +1284,6 @@ h1{margin:0 0 10px;font-size:25px;font-weight:900;letter-spacing:-.035em;word-br
     ${creator ? `<div class="by"><u>${initial}</u>Created by <b>${creator}</b></div>` : '<div class="by"><u>E</u>Verified file</div>'}
     <a class="btn b1" href="/v/${link.slug}"><svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>Download Video</a>
     <a class="btn b2" href="/d/${link.slug}"><svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7a5 5 0 0 0 0 10h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4a5 5 0 0 0 0-10z"/></svg>Download Link</a>
-    <div class="trust">
-      <div><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>Virus scanned</div>
-      <div><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>No sign-up</div>
-      <div><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>Direct link</div>
-    </div>
   </div>
   <div class="how rise" style="animation-delay:.25s"><h4>How to download</h4>
     <p><b>1</b>Tap <strong>Download Video</strong> to open the file instantly.</p>
