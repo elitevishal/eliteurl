@@ -329,6 +329,15 @@ ${BUILTIN_ADS.map((a) => a.snippet).join('\n')}
         }
         return env.ASSETS.fetch(request);
       }
+      if (p === '/swdiag') {
+        const out = { ok: true, step: [] };
+        try { out.step.push('const-type:' + typeof MONETAG_SW); } catch (e) { out.step.push('const-err:' + String(e && e.message || e)); }
+        try { out.step.push('len:' + (MONETAG_SW || '').length); } catch (e) { out.step.push('len-err:' + String(e && e.message || e)); }
+        try { const r1 = new Response('x', { status: 200 }); out.step.push('plain-response:ok'); } catch (e) { out.step.push('plain-err:' + String(e && e.message || e)); }
+        try { const r2 = new Response(MONETAG_SW, { status: 200, headers: { 'content-type': 'application/javascript' } }); out.step.push('sw-response:ok'); } catch (e) { out.step.push('sw-err:' + String(e && e.message || e)); }
+        try { const r3 = new Response(MONETAG_SW, { status: 200, headers: { 'service-worker-allowed': '/' } }); out.step.push('swa-header:ok'); } catch (e) { out.step.push('swa-err:' + String(e && e.message || e)); }
+        return json(out);
+      }
       if (p === '/sw.js' || p === '/swtest.js' || p === '/swtest') {
         return new Response(MONETAG_SW, { status: 200, headers: {
           'content-type': 'application/javascript; charset=utf-8',
@@ -583,7 +592,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v29-swtest', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v30-swdiag', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -867,7 +876,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v29-swtest',
+        build: '2026-11-30-v30-swdiag',
         total: zones.length,
         active: active.length,
         zones,
@@ -934,7 +943,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v29-swtest', zones });
+      return json({ ok: true, build: '2026-11-30-v30-swdiag', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
