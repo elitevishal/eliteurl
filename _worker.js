@@ -689,7 +689,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v49-inline', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v51-tap', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -1012,7 +1012,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v49-inline',
+        build: '2026-11-30-v51-tap',
         total: zones.length,
         active: active.length,
         zones,
@@ -1079,7 +1079,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v49-inline', zones });
+      return json({ ok: true, build: '2026-11-30-v51-tap', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1888,10 +1888,15 @@ ${P4}
     setTimeout(arm, 4000);
   } else { arm(); }
 
-  nextBtn.addEventListener('click', function(){
+  // ad network click hijack karta hai — isliye touch/pointer par hi scroll kar dete hain
+  var scrolled = false;
+  function doScroll(ev){
+    if (ev && ev.cancelable) { try { ev.preventDefault(); } catch (e) {} }
+    if (ev) { try { ev.stopPropagation(); } catch (e) {} }
+    if (scrolled) return;
+    scrolled = true;
     nextWrap.classList.add('hide');
-    if (bottomEl) bottomEl.scrollIntoView({ behavior:'smooth', block:'center' });
-    // scroll ke baad Continue enable
+    try { if (bottomEl) bottomEl.scrollIntoView({ behavior:'smooth', block:'center' }); } catch (e) {}
     setTimeout(function(){
       ready = true;
       btn.className = 'bigbtn on';
@@ -1901,7 +1906,11 @@ ${P4}
       var th2 = document.getElementById('taphint');
       if (th2) th2.style.display = 'block';
     }, 700);
-  });
+  }
+  nextBtn.addEventListener('pointerdown', doScroll, { passive:false });
+  nextBtn.addEventListener('touchstart', doScroll, { passive:false });
+  nextBtn.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); doScroll(e); });
+  nextBtn.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); doScroll(e); } });
 
   var busy = false;
   var NEXT = btn.getAttribute('data-next') || '';
@@ -1923,8 +1932,9 @@ ${P4}
       btn.textContent = ${JSON.stringify(label)};
     });
   }
-  btn.addEventListener('click', goNext);
-  btn.addEventListener('touchend', function(e){ e.preventDefault(); goNext(); }, { passive:false });
+  btn.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); goNext(); });
+  btn.addEventListener('pointerup', function(e){ e.stopPropagation(); goNext(); }, { passive:true });
+  btn.addEventListener('touchend', function(e){ e.preventDefault(); e.stopPropagation(); goNext(); }, { passive:false });
 })();
 </script></body></html>`;
 }
@@ -2156,7 +2166,7 @@ tr:last-child td{border-bottom:0}
 <div class="hd">
   <div class="logo">ELITEURL</div>
   <h1>Rate card</h1>
-  <p>Earnings per 1,000 verified views</p>
+  <p>Up to this much per 1,000 verified views</p>
   <div class="stats">
     <div><b>$${min.toFixed(0)}</b><span>Min payout</span></div>
     <div><b>${hrs}h</b><span>Payout time</span></div>
@@ -2164,12 +2174,12 @@ tr:last-child td{border-bottom:0}
   </div>
 </div>
 <div class="wrap">
-  <div class="note"><b>No withdrawal fee.</b> You keep what you earn. Minimum payout is $${min.toFixed(0)} and requests are paid within ${hrs} hours. Earnings become withdrawable every night at 12:00 AM IST.</div>
-  <div class="card"><h2>Earnings by country</h2>
+  <div class="note"><b>No withdrawal fee.</b> The rates below are the maximum for each country — you receive <b>95%</b> of the rate for the visitor's country. Most traffic is tier-2 and pays the "Other countries" rate. Minimum payout is $${min.toFixed(0)}, paid within ${hrs} hours. Earnings become withdrawable every night at 12:00 AM IST.</div>
+  <div class="card"><h2>Maximum earnings by country</h2>
     <table>${rows || '<tr><td colspan="3" style="text-align:center;color:#8b90a6">Rate card not set yet.</td></tr>'}</table>
   </div>
   <a class="cta" href="${origin}/register">Start earning with EliteURL</a>
-  <p class="tiny">Rates are per 1,000 valid views. A view counts only when a real visitor completes all steps. Bots, VPNs and duplicate visits earn nothing.</p>
+  <p class="tiny">Rates are per 1,000 valid views — a view counts only when a real visitor completes all steps. Bots, VPNs and duplicate visits earn nothing. Actual earnings depend on where your visitors come from.</p>
 </div></body></html>`;
 }
 
@@ -2320,12 +2330,13 @@ h1 em{color:#ffd76e;font-style:normal}
   <a class="cta2" href="${origin}/payouts">See real payout proof →</a>
 
   <div class="rates">
-    <h2>Earnings per 1,000 views</h2>
+    <h2>Up to this much per 1,000 views</h2>
     <table>${rates}</table>
   </div>
 
   <div class="calc">
     <h2>Earnings calculator</h2>
+    <p class="small" style="margin:0 0 12px">You receive <b style="color:#ffd76e">95%</b> of the rate for your visitors' country.</p>
     <label>Views per day</label>
     <input id="cv" type="number" value="1000" min="1" inputmode="numeric">
     <label>Country</label>
