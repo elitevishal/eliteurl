@@ -329,10 +329,10 @@ ${BUILTIN_ADS.map((a) => a.snippet).join('\n')}
         }
         return env.ASSETS.fetch(request);
       }
-      if (p === '/sw.js') {
-        return new Response(MONETAG_SW, { headers: {
+      if (p === '/sw.js' || p === '/swtest.js' || p === '/swtest') {
+        return new Response(MONETAG_SW, { status: 200, headers: {
           'content-type': 'application/javascript; charset=utf-8',
-          'cache-control': 'public, max-age=3600',
+          'cache-control': 'no-store',
           'service-worker-allowed': '/'
         } });
       }
@@ -583,7 +583,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v28-swfix', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v29-swtest', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -867,7 +867,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v28-swfix',
+        build: '2026-11-30-v29-swtest',
         total: zones.length,
         active: active.length,
         zones,
@@ -934,7 +934,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v28-swfix', zones });
+      return json({ ok: true, build: '2026-11-30-v29-swtest', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
