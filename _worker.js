@@ -54,6 +54,17 @@ async function runCleanup(env, days) {
   return out;
 }
 
+const CANONICAL_SITE = 'https://eliteofficial.in';
+
+function fixSiteUrl(u, origin) {
+  const v = String(u || '').trim();
+  const o = String(origin || '').trim();
+  const bad = /pages\.dev|localhost|127\.0\.0\.1/i;
+  if (!v) return (o && !bad.test(o)) ? o.replace(/\/+$/, '') : CANONICAL_SITE;
+  if (bad.test(v)) return CANONICAL_SITE;
+  return v.replace(/\/+$/, '');
+}
+
 async function schemaMap(env) {
   const [cs, lg, us, ds, wd] = await Promise.all([
     tableCols(env, 'click_sessions'), tableCols(env, 'ledger'), tableCols(env, 'users'),
@@ -566,7 +577,7 @@ async function api(request, env, url) {
       estimated_usd: bal ? (bal.estimated_usd || 0) : 0,
       confirmed_usd: bal ? (bal.confirmed_usd || 0) : 0,
       support_email: await safe(async () => setting(env, 'support_email', 'support@eliteofficial.in'), 'support@eliteofficial.in'),
-      site_url: await safe(async () => setting(env, 'site_url', ''), ''),
+      site_url: fixSiteUrl(await safe(async () => setting(env, 'site_url', ''), ''), new URL(request.url).origin),
       min_withdrawal_usd: await safe(async () => numSetting(env, 'min_withdrawal_usd', 5), 5),
       payout_hours: await safe(async () => numSetting(env, 'payout_hours', 12), 12) });
   }
@@ -593,7 +604,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v37-navfix', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v38-domain', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -607,7 +618,7 @@ async function api(request, env, url) {
   if (p === '/api/public/site') {
     return json({ ok: true,
       site_name: await setting(env, 'site_name', 'ELITE URL'),
-      site_url: await setting(env, 'site_url', ''),
+      site_url: fixSiteUrl(await setting(env, 'site_url', ''), new URL(request.url).origin),
       support_email: await setting(env, 'support_email', 'support@eliteofficial.in'),
       min_withdrawal_usd: await numSetting(env, 'min_withdrawal_usd', 5),
       payout_hours: await numSetting(env, 'payout_hours', 12),
@@ -877,7 +888,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v37-navfix',
+        build: '2026-11-30-v38-domain',
         total: zones.length,
         active: active.length,
         zones,
@@ -944,7 +955,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v37-navfix', zones });
+      return json({ ok: true, build: '2026-11-30-v38-domain', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
