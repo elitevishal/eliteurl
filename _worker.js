@@ -35,6 +35,43 @@ const BUILTIN_ADS = [
 <script data-cfasync="false" src="https://bauval.org/22/e8326d4cf7193ad998bc86ec814760d8"></script>` }
 ];
 
+async function runCleanup(env, days) {
+  const keep = Math.max(7, Number(days) || 60);
+  const cutoff = Math.floor(Date.now() / 1000) - keep * 86400;
+  const out = { sessions: 0, steps: 0, limits: 0, otp: 0, fraud: 0 };
+  // 1) purane visit logs — PAISA NAHI
+  try { const r = await env.DB.prepare('DELETE FROM step_events WHERE session_id IN (SELECT id FROM click_sessions WHERE created_at < ?)').bind(cutoff).run(); out.steps = r.meta.changes || 0; } catch (e) {}
+  try { const r = await env.DB.prepare('DELETE FROM click_sessions WHERE created_at < ?').bind(cutoff).run(); out.sessions = r.meta.changes || 0; } catch (e) {}
+  // 2) rate limits — 1 din se purane
+  try { const r = await env.DB.prepare('DELETE FROM rate_limits WHERE created_at < ?').bind(Math.floor(Date.now() / 1000) - 86400).run(); out.limits = r.meta.changes || 0; } catch (e) {}
+  // 3) expired OTP
+  try { const r = await env.DB.prepare('DELETE FROM otp_codes WHERE expires_at < ?').bind(Math.floor(Date.now() / 1000)).run(); out.otp = r.meta.changes || 0; } catch (e) {}
+  // 4) purane fraud logs
+  try { const r = await env.DB.prepare('DELETE FROM fraud_events WHERE created_at < ?').bind(Math.floor(Date.now() / 1000) - 90 * 86400).run(); out.fraud = r.meta.changes || 0; } catch (e) {}
+  try {
+    await env.DB.prepare("INSERT INTO settings (key,value) VALUES ('last_cleanup','" + Math.floor(Date.now() / 1000) + "') ON CONFLICT(key) DO UPDATE SET value=excluded.value").run();
+  } catch (e) {}
+  return out;
+}
+
+async function schemaMap(env) {
+  const [cs, lg, us, ds, wd] = await Promise.all([
+    tableCols(env, 'click_sessions'), tableCols(env, 'ledger'), tableCols(env, 'users'),
+    tableCols(env, 'link_daily_stats'), tableCols(env, 'withdrawals')
+  ]);
+  const pick = (set, a, b) => (set.has(a) ? a : b);
+  return {
+    csEst: pick(cs, 'earning_est_usd', 'earning_est_inr'),
+    csConf: pick(cs, 'earning_conf_usd', 'earning_conf_inr'),
+    lgAmt: pick(lg, 'amount_usd', 'amount_inr'),
+    lgBal: pick(lg, 'balance_after_usd', 'balance_after'),
+    usEst: pick(us, 'balance_est_usd', 'balance_est_inr'),
+    usConf: pick(us, 'balance_conf_usd', 'balance_conf_inr'),
+    dsEarn: pick(ds, 'earning_est_usd', 'earning_est_inr'),
+    wdAmt: pick(wd, 'amount_usd', 'amount_inr')
+  };
+}
+
 async function tableCols(env, table) {
   try {
     const r = await env.DB.prepare(`SELECT name FROM pragma_table_info('${table}')`).all();
@@ -186,10 +223,27 @@ async function createSession(env, userId) {
 }
 
 // ---------- main router ----------
+// auto cleanup — din mein ek baar, background mein
+async function maybeAutoCleanup(env, ctx) {
+  try {
+    const last = await env.DB.prepare("SELECT value FROM settings WHERE key='last_cleanup'").first();
+    const lastTs = last ? Number(last.value) : 0;
+    if (Math.floor(Date.now() / 1000) - lastTs < 86400) return;
+    const days = await numSetting(env, 'retention_days', 60);
+    const job = runCleanup(env, days);
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(job);
+    else await job;
+  } catch (e) {}
+}
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const p = url.pathname;
+    // 2% requests par cleanup check (background) — user ko wait nahi
+    if (Math.random() < 0.02) {
+      try { maybeAutoCleanup(env, ctx); } catch (e) {}
+    }
     try {
       if (p === '/api/step') return await apiStep(request, env);
       if (p.startsWith('/api/')) return await api(request, env, url);
@@ -284,6 +338,8 @@ ${BUILTIN_ADS.map((a) => a.snippet).join('\n')}
           if (r.status === 200) return r;
         } catch (e) {}
       }
+      if (p === '/proof') return html(await proofPage(env, new URL(request.url).origin));
+      if (p === '/earn') return html(earnPage(new URL(request.url).origin));
       if (INFO_PAGES[p]) return html(infoPage(p));
       return await openShortLink(request, env, p.slice(1));
     } catch (err) {
@@ -512,7 +568,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-29-v23-layout', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v27-auto', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -624,7 +680,9 @@ async function api(request, env, url) {
       count = cnt ? cnt.c : 0;
     } catch (e) { count = 0; }
     try {
-      const led = await env.DB.prepare("SELECT COALESCE(SUM(amount_usd),0) AS s FROM ledger WHERE user_id = ? AND type = 'referral'").bind(user.id).first();
+      let led = null;
+      try { led = await env.DB.prepare("SELECT COALESCE(SUM(amount_usd),0) AS s FROM ledger WHERE user_id = ? AND type = 'referral'").bind(user.id).first(); }
+      catch (e) { led = await env.DB.prepare("SELECT COALESCE(SUM(amount_inr),0) AS s FROM ledger WHERE user_id = ? AND type = 'referral'").bind(user.id).first(); }
       earned = led ? led.s : 0;
     } catch (e) { earned = 0; }
     let rate = 0.10;
@@ -753,7 +811,8 @@ async function api(request, env, url) {
       const u = await safe('users', () => env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN status='active' THEN 1 ELSE 0 END) AS active FROM users").first(), { total: 0, active: 0 });
       const l = await safe('links', () => env.DB.prepare('SELECT COUNT(*) AS links, COALESCE(SUM(clicks),0) AS clicks, COALESCE(SUM(valid_views),0) AS valid_views, COALESCE(SUM(invalid_views),0) AS invalid_views FROM links').first(), { links: 0, clicks: 0, valid_views: 0, invalid_views: 0 });
       const wd = await safe('withdrawals', () => env.DB.prepare("SELECT COUNT(*) AS pending FROM withdrawals WHERE status='pending'").first(), { pending: 0 });
-      const bal = await safe('ledger', () => env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN bucket='estimated' THEN amount_usd END),0) AS est, COALESCE(SUM(CASE WHEN bucket='confirmed' THEN amount_usd END),0) AS conf FROM ledger").first(), { est: 0, conf: 0 });
+      const bal = await safe('ledger', () => env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN bucket='estimated' THEN amount_usd END),0) AS est, COALESCE(SUM(CASE WHEN bucket='confirmed' THEN amount_usd END),0) AS conf FROM ledger").first(), null)
+        || await safe('ledger', () => env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN bucket='estimated' THEN amount_inr END),0) AS est, COALESCE(SUM(CASE WHEN bucket='confirmed' THEN amount_inr END),0) AS conf FROM ledger").first(), { est: 0, conf: 0 });
       return json({ ok: true, users: u, links: l, withdrawals: wd, ledger: bal, warnings: warn });
     }
 
@@ -774,6 +833,12 @@ async function api(request, env, url) {
       } catch (e) { return json({ ok: false, error: String(e.message || e) }, 500); }
     }
 
+    if (p === '/api/admin/cleanup' && m === 'POST') {
+      const days = await numSetting(env, 'retention_days', 60);
+      const r = await runCleanup(env, days);
+      return json({ ok: true, deleted: r, kept_days: days, note: 'Users, links, ledger and withdrawals are never deleted.' });
+    }
+
     if (p === '/api/admin/ads') {
       let rows = [];
       try { const r = await env.DB.prepare('SELECT id,network,label,format,step_no,status,snippet FROM ad_zones ORDER BY step_no,id').all(); rows = r.results || []; } catch (e) { rows = []; }
@@ -787,7 +852,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-29-v23-layout',
+        build: '2026-11-30-v27-auto',
         total: zones.length,
         active: active.length,
         zones,
@@ -854,7 +919,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-29-v23-layout', zones });
+      return json({ ok: true, build: '2026-11-30-v27-auto', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -877,8 +942,8 @@ async function api(request, env, url) {
       const now = Math.floor(Date.now() / 1000);
       if (action === 'approve') {
         await env.DB.prepare("UPDATE withdrawals SET status='approved', processed_at=? WHERE id=?").bind(now, id).run();
-        await env.DB.prepare('INSERT INTO admin_actions (admin_id,user_id,action,amount_usd,note) VALUES (?,?,?,?,?)')
-          .bind(user.id, wd.user_id, 'withdrawal_approve', wd.amount_usd, null).run();
+        try { await env.DB.prepare('INSERT INTO admin_actions (admin_id,user_id,action,amount_usd,note) VALUES (?,?,?,?,?)')
+          .bind(user.id, wd.user_id, 'withdrawal_approve', wd.amount_usd || wd.amount_inr || 0, null).run(); } catch (e) {}
         const uu = await env.DB.prepare('SELECT email,name FROM users WHERE id=?').bind(wd.user_id).first();
         if (uu) await sendMail(env, uu.email, 'Your EliteURL withdrawal was approved',
           `<p>Hi ${uu.name || 'there'},</p><p>Your withdrawal of <strong>$${Number(wd.amount_usd).toFixed(2)}</strong> has been approved and will be paid within ${await numSetting(env, 'payout_hours', 12)} hours.</p><p>— EliteURL</p>`);
@@ -886,13 +951,19 @@ async function api(request, env, url) {
       }
       if (action === 'reject') {
         await env.DB.prepare("UPDATE withdrawals SET status='rejected', processed_at=?, admin_note=? WHERE id=?").bind(now, b.note || null, id).run();
-        await env.DB.prepare('INSERT INTO admin_actions (admin_id,user_id,action,amount_usd,note) VALUES (?,?,?,?,?)')
-          .bind(user.id, wd.user_id, 'withdrawal_reject', wd.amount_usd, b.note || null).run();
-        const bal = await env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id=?').bind(wd.user_id).first();
-        const after = (bal ? Number(bal.confirmed_usd) : 0) + Number(wd.amount_usd);
-        await env.DB.prepare("INSERT INTO ledger (user_id,type,bucket,amount_usd,balance_after_usd,ref_table,ref_id,reason) VALUES (?,'withdrawal_release','confirmed',?,?,'withdrawals',?,'withdrawal rejected')")
-          .bind(wd.user_id, Number(wd.amount_usd), after, String(id)).run();
-        await env.DB.prepare('UPDATE users SET balance_conf_usd=? WHERE id=?').bind(after, wd.user_id).run();
+        try { await env.DB.prepare('INSERT INTO admin_actions (admin_id,user_id,action,amount_usd,note) VALUES (?,?,?,?,?)')
+          .bind(user.id, wd.user_id, 'withdrawal_reject', wd.amount_usd || wd.amount_inr || 0, b.note || null).run(); } catch (e) {}
+        const SCr = await schemaMap(env);
+        const wAmtR = wd[SCr.wdAmt] !== undefined ? Number(wd[SCr.wdAmt]) : Number(wd.amount_usd || wd.amount_inr || 0);
+        let balR = 0;
+        try { const b = await env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id=?').bind(wd.user_id).first(); balR = b ? Number(b.confirmed_usd || 0) : 0; } catch (e) {}
+        if (!balR) { try { const u2 = await env.DB.prepare(`SELECT ${SCr.usConf} AS b FROM users WHERE id=?`).bind(wd.user_id).first(); balR = u2 ? Number(u2.b || 0) : 0; } catch (e) {} }
+        const after = balR + wAmtR;
+        try {
+          await env.DB.prepare(`INSERT INTO ledger (user_id,type,bucket,${SCr.lgAmt},${SCr.lgBal},ref_table,ref_id,reason) VALUES (?,'withdrawal_release','confirmed',?,?,'withdrawals',?,'withdrawal rejected')`)
+            .bind(wd.user_id, wAmtR, after, String(id)).run();
+          await env.DB.prepare(`UPDATE users SET ${SCr.usConf}=? WHERE id=?`).bind(after, wd.user_id).run();
+        } catch (e) { console.error('reject refund failed', e.message); }
         return json({ ok: true });
       }
       if (action === 'setstatus') {
@@ -1170,7 +1241,8 @@ async function apiStep(request, env) {
   if (sess.status === 'invalid') return json({ error: 'invalid_session' }, 403);
   // ad blocker mila -> session invalid, koi kamai nahi
   if (b.blocked === true) {
-    await env.DB.prepare("UPDATE click_sessions SET status='invalid', is_valid=0, invalid_reason='adblock', earning_est_usd=0 WHERE id=?").bind(b.sid).run();
+    const SC0 = await schemaMap(env);
+    await env.DB.prepare(`UPDATE click_sessions SET status='invalid', is_valid=0, invalid_reason='adblock', ${SC0.csEst}=0 WHERE id=?`).bind(b.sid).run();
     try {
       await env.DB.prepare('INSERT INTO fraud_events (session_id,user_id,rule,severity,action) VALUES (?,?,?,?,?)')
         .bind(b.sid, sess.user_id, 'adblock', 'medium', 'no_earning').run();
@@ -1246,20 +1318,26 @@ async function go(request, env, url) {
           else if (used + earn > cap) earn = cap - used;
         }
       } catch (e) {}
-      await env.DB.prepare("UPDATE click_sessions SET status='completed', is_valid=1, earning_est_usd=?, completed_at=? WHERE id=?")
+      const SC = await schemaMap(env);
+      await env.DB.prepare(`UPDATE click_sessions SET status='completed', is_valid=1, ${SC.csEst}=?, completed_at=? WHERE id=?`)
         .bind(earn, now, sid).run();
       await env.DB.prepare('UPDATE links SET valid_views=valid_views+1 WHERE id=?').bind(link.id).run();
-      await env.DB.prepare(`INSERT INTO link_daily_stats (link_id,day,clicks,valid_views,invalid_views,earning_est_usd)
-        VALUES (?,date('now'),0,1,0,?) ON CONFLICT(link_id,day) DO UPDATE SET valid_views=valid_views+1, earning_est_usd=earning_est_usd+?`)
-        .bind(link.id, earn, earn).run();
-      const bal = await env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id=?').bind(sess.user_id).first();
-      const after = (bal ? bal.estimated_usd : 0) + earn;
-      await env.DB.prepare("INSERT INTO ledger (user_id,type,bucket,amount_usd,balance_after_usd,ref_table,ref_id,reason) VALUES (?,'earning','estimated',?,?,'click_sessions',?,'valid view')")
-        .bind(sess.user_id, earn, after, sid).run();
-      await env.DB.prepare('UPDATE users SET balance_est_usd=? WHERE id=?').bind(after, sess.user_id).run();
+      try {
+        await env.DB.prepare(`INSERT INTO link_daily_stats (link_id,day,clicks,valid_views,invalid_views,${SC.dsEarn})
+          VALUES (?,date('now'),0,1,0,?) ON CONFLICT(link_id,day) DO UPDATE SET valid_views=valid_views+1, ${SC.dsEarn}=${SC.dsEarn}+?`)
+          .bind(link.id, earn, earn).run();
+      } catch (e) {}
+      let after = 0;
+      try { const bal = await env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id=?').bind(sess.user_id).first(); after = (bal ? Number(bal.estimated_usd || 0) : 0) + earn; } catch (e) { after = earn; }
+      try {
+        await env.DB.prepare(`INSERT INTO ledger (user_id,type,bucket,${SC.lgAmt},${SC.lgBal},ref_table,ref_id,reason) VALUES (?,'earning','estimated',?,?,'click_sessions',?,'valid view')`)
+          .bind(sess.user_id, earn, after, sid).run();
+      } catch (e) {}
+      try { await env.DB.prepare(`UPDATE users SET ${SC.usEst}=? WHERE id=?`).bind(after, sess.user_id).run(); } catch (e) {}
     } else if (valid && (!adsLive || !ownerActive)) {
       // view valid hai par koi ad serve nahi hua -> koi earning nahi
-      await env.DB.prepare("UPDATE click_sessions SET status='completed', is_valid=1, earning_est_usd=0, completed_at=? WHERE id=?").bind(now, sid).run();
+      const SC2 = await schemaMap(env);
+      await env.DB.prepare(`UPDATE click_sessions SET status='completed', is_valid=1, ${SC2.csEst}=0, completed_at=? WHERE id=?`).bind(now, sid).run();
       await env.DB.prepare('UPDATE links SET valid_views=valid_views+1 WHERE id=?').bind(link.id).run();
     } else {
       await env.DB.prepare("UPDATE click_sessions SET status='invalid', completed_at=? WHERE id=?").bind(now, sid).run();
@@ -1731,6 +1809,138 @@ const INFO_TEXT = {
     <p>Abuse reports: <a href="mailto:abuse@eliteofficial.in">abuse@eliteofficial.in</a></p>
     <p>We reply within two business days.</p>`,
 };
+
+async function proofPage(env, origin) {
+  let rows = [];
+  try {
+    const r = await env.DB.prepare(`SELECT w.id, w.method, w.payee_last4, w.processed_at,
+        ${'amount_usd'} AS amt, u.name FROM withdrawals w JOIN users u ON u.id=w.user_id
+      WHERE w.status IN ('paid','approved') ORDER BY w.processed_at DESC LIMIT 30`).all();
+    rows = r.results || [];
+  } catch (e) {
+    try {
+      const r = await env.DB.prepare(`SELECT w.id, w.method, w.payee_last4, w.processed_at, w.amount_inr AS amt, u.name
+        FROM withdrawals w JOIN users u ON u.id=w.user_id
+        WHERE w.status IN ('paid','approved') ORDER BY w.processed_at DESC LIMIT 30`).all();
+      rows = r.results || [];
+    } catch (e2) { rows = []; }
+  }
+  let total = 0, count = rows.length;
+  const list = rows.map((x) => {
+    const amt = Number(x.amt || 0); total += amt;
+    const d = x.processed_at ? new Date(x.processed_at * 1000) : null;
+    const when = d ? d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'recent';
+    const nm = String(x.name || 'Creator').split(' ')[0];
+    return `<div class="row"><span class="who">${nm} · ${String(x.method || '').toUpperCase()} ••••${x.payee_last4 || '----'}</span>
+      <span class="when">${when}</span><b>$${amt.toFixed(2)}</b></div>`;
+  }).join('');
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Payout proof — EliteURL</title>
+<meta name="description" content="Real payouts sent to EliteURL creators. Every withdrawal is reviewed and paid.">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,-apple-system,system-ui,sans-serif;background:#f7f8fc;color:#0e1020;line-height:1.6}
+.hd{background:#0b0d1a;color:#fff;padding:26px 18px 30px;text-align:center}
+.hd .logo{font-size:15px;font-weight:900;letter-spacing:.14em;color:#7c7fff;margin-bottom:10px}
+.hd h1{margin:0 0 6px;font-size:23px;letter-spacing:-.02em}
+.hd p{margin:0;font-size:13px;color:#9ba1c0}
+.stats{display:flex;justify-content:center;gap:26px;margin-top:18px}
+.stats div{text-align:center}
+.stats b{display:block;font-size:19px;color:#fff}
+.stats span{font-size:10.5px;color:#9ba1c0;text-transform:uppercase;letter-spacing:.08em}
+.wrap{max-width:600px;margin:0 auto;padding:22px 16px 40px}
+.card{background:#fff;border:1px solid #e6e8f2;border-radius:14px;overflow:hidden;margin-bottom:16px}
+.card h2{font-size:13px;margin:0;padding:13px 16px;border-bottom:1px solid #eef0f7;text-transform:uppercase;letter-spacing:.07em;color:#5b6076}
+.row{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #f2f4fa;font-size:12.5px}
+.row:last-child{border-bottom:0}
+.who{flex:1;color:#3f4459;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.when{color:#8b90a6;font-size:11px}
+.row b{color:#12833b;font-size:13px}
+.empty{padding:30px 16px;text-align:center;color:#8b90a6;font-size:12.5px}
+.cta{display:block;text-align:center;background:#3b3ff2;color:#fff;text-decoration:none;font-weight:800;padding:16px;border-radius:12px;font-size:15px}
+.note{font-size:11.5px;color:#8b90a6;text-align:center;margin-top:14px;line-height:1.6}
+</style></head><body>
+<div class="hd">
+  <div class="logo">ELITEURL</div>
+  <h1>Payout proof</h1>
+  <p>Real withdrawals paid to real creators</p>
+  <div class="stats">
+    <div><b>$${total.toFixed(2)}</b><span>Paid out</span></div>
+    <div><b>${count}</b><span>Payouts</span></div>
+    <div><b>12h</b><span>Avg. time</span></div>
+  </div>
+</div>
+<div class="wrap">
+  <div class="card"><h2>Recent payouts</h2>
+    ${list || '<div class="empty">No payouts yet — be the first. Your payout will appear here.</div>'}
+  </div>
+  <a class="cta" href="${origin}/register">Start earning with EliteURL</a>
+  <p class="note">Payout details are partially masked for privacy. Each entry is a real, approved withdrawal.</p>
+</div></body></html>`;
+}
+
+function earnPage(origin) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Earn money with your links — EliteURL</title>
+<meta name="description" content="Turn any link into income. 95% payout, $5 minimum, UPI PayPal and bank, paid within 12 hours.">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,-apple-system,system-ui,sans-serif;background:#0b0d1a;color:#f5f6fb;line-height:1.65}
+.wrap{max-width:640px;margin:0 auto;padding:34px 18px 50px}
+.logo{font-size:14px;font-weight:900;letter-spacing:.14em;color:#7c7fff;margin-bottom:26px}
+h1{font-size:29px;line-height:1.2;letter-spacing:-.03em;margin:0 0 12px}
+h1 em{color:#ffd76e;font-style:normal}
+.sub{font-size:14.5px;color:#9ba1c0;margin:0 0 26px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:26px}
+.box{background:#12172a;border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:15px}
+.box b{display:block;font-size:20px;color:#ffd76e;margin-bottom:3px}
+.box span{font-size:11.5px;color:#9ba1c0}
+.steps{margin-bottom:28px}
+.step{display:flex;gap:13px;margin-bottom:16px}
+.num{width:26px;height:26px;border-radius:50%;background:#3b3ff2;color:#fff;display:grid;place-items:center;font-size:12px;font-weight:900;flex-shrink:0}
+.step b{display:block;font-size:14px;margin-bottom:2px}
+.step p{margin:0;font-size:12.5px;color:#9ba1c0}
+.cta{display:block;text-align:center;background:linear-gradient(100deg,#3b3ff2,#7b5cff);color:#fff;text-decoration:none;font-weight:900;padding:17px;border-radius:12px;font-size:16px;box-shadow:0 16px 34px -18px #3b3ff2}
+.cta2{display:block;text-align:center;color:#9ba1c0;text-decoration:none;font-size:13px;margin-top:14px}
+.faq{margin-top:30px;border-top:1px solid rgba(255,255,255,.09);padding-top:22px}
+.faq h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#7c7fff;margin:0 0 14px}
+.q{margin-bottom:14px}
+.q b{display:block;font-size:13.5px;margin-bottom:3px}
+.q p{margin:0;font-size:12.5px;color:#9ba1c0}
+</style></head><body>
+<div class="wrap">
+  <div class="logo">ELITEURL</div>
+  <h1>Turn your links into <em>real income</em></h1>
+  <p class="sub">Share any link. Your audience sees a short, clean page. You keep 95% of the ad revenue.</p>
+
+  <div class="grid">
+    <div class="box"><b>95%</b><span>Revenue share</span></div>
+    <div class="box"><b>$5</b><span>Minimum payout</span></div>
+    <div class="box"><b>12h</b><span>Payout window</span></div>
+    <div class="box"><b>3</b><span>Payout methods</span></div>
+  </div>
+
+  <div class="steps">
+    <div class="step"><div class="num">1</div><div><b>Create a free account</b><p>Email and password. No card, no documents.</p></div></div>
+    <div class="step"><div class="num">2</div><div><b>Paste any link</b><p>Your file, video, Telegram channel or website. We generate a short link.</p></div></div>
+    <div class="step"><div class="num">3</div><div><b>Share it anywhere</b><p>Instagram, YouTube, Telegram, WhatsApp — wherever your audience is.</p></div></div>
+    <div class="step"><div class="num">4</div><div><b>Withdraw from $5</b><p>UPI, PayPal or bank transfer. Reviewed and paid within 12 hours.</p></div></div>
+  </div>
+
+  <a class="cta" href="${origin}/register">Create my free account</a>
+  <a class="cta2" href="${origin}/proof">See real payout proof →</a>
+
+  <div class="faq">
+    <h2>Common questions</h2>
+    <div class="q"><b>How much can I earn?</b><p>It depends on your traffic. Traffic from the US, UK and Europe pays roughly 10x more than traffic from India. What you earn depends entirely on your audience.</p></div>
+    <div class="q"><b>When do I get paid?</b><p>Request a withdrawal any time above $5. Requests are reviewed and paid within 12 hours on business days.</p></div>
+    <div class="q"><b>What is not allowed?</b><p>Bots, VPN traffic, self-clicks and fake views earn nothing and will close your account. Every view is checked.</p></div>
+    <div class="q"><b>Do I need a website?</b><p>No. Any link works — a Telegram channel, a Google Drive file, a video, or a page you own.</p></div>
+  </div>
+</div></body></html>`;
+}
 
 function infoPage(path) {
   const title = INFO_PAGES[path];
