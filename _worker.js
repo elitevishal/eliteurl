@@ -329,8 +329,15 @@ ${BUILTIN_ADS.map((a) => a.snippet).join('\n')}
         }
         return env.ASSETS.fetch(request);
       }
-      if (p.startsWith('/assets/')) return env.ASSETS.fetch(request);
-      if (STATIC_FILES.has(p)) return env.ASSETS.fetch(request);
+      if (p === '/sw.js') {
+        return new Response(MONETAG_SW, { headers: {
+          'content-type': 'application/javascript; charset=utf-8',
+          'cache-control': 'public, max-age=3600',
+          'service-worker-allowed': '/'
+        } });
+      }
+      if (p.startsWith('/assets/')) { try { return await env.ASSETS.fetch(request); } catch (e) { return new Response('not found', { status: 404 }); } }
+      if (STATIC_FILES.has(p)) { try { return await env.ASSETS.fetch(request); } catch (e) { return new Response('not found', { status: 404 }); } }
       // verification files (Monetag, Google, Bing, ads.txt etc) — extension wali path
       if (/\.[a-z0-9]{2,8}$/i.test(p)) {
         try {
@@ -338,7 +345,7 @@ ${BUILTIN_ADS.map((a) => a.snippet).join('\n')}
           if (r.status === 200) return r;
         } catch (e) {}
       }
-      if (p === '/proof') return html(await proofPage(env, new URL(request.url).origin));
+      if (p === '/proof' || p === '/payouts' || p === '/payout-proof') return html(await proofPage(env, new URL(request.url).origin));
       if (p === '/earn') return html(earnPage(new URL(request.url).origin));
       if (INFO_PAGES[p]) return html(infoPage(p));
       return await openShortLink(request, env, p.slice(1));
@@ -348,6 +355,14 @@ ${BUILTIN_ADS.map((a) => a.snippet).join('\n')}
     }
   },
 };
+
+const MONETAG_SW = `self.options = {
+    "domain": "5gvci.com",
+    "zoneId": 12360982
+}
+self.lary = ""
+importScripts('https://5gvci.com/act/files/service-worker.min.js?r=sw')
+`;
 
 const STATIC_FILES = new Set(['/robots.txt','/sitemap.xml','/favicon.svg','/site.webmanifest','/sw.js','/ads.txt','/app-ads.txt']);
 
@@ -568,7 +583,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v27-auto', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v28-swfix', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -852,7 +867,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v27-auto',
+        build: '2026-11-30-v28-swfix',
         total: zones.length,
         active: active.length,
         zones,
@@ -919,7 +934,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v27-auto', zones });
+      return json({ ok: true, build: '2026-11-30-v28-swfix', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1930,7 +1945,7 @@ h1 em{color:#ffd76e;font-style:normal}
   </div>
 
   <a class="cta" href="${origin}/register">Create my free account</a>
-  <a class="cta2" href="${origin}/proof">See real payout proof →</a>
+  <a class="cta2" href="${origin}/payouts">See real payout proof →</a>
 
   <div class="faq">
     <h2>Common questions</h2>
