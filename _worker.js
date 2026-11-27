@@ -439,8 +439,9 @@ ${BUILTIN_ADS.map((a) => a.snippet).join('\n')}
       if (/\.[a-z0-9]{2,8}$/i.test(p)) {
         try {
           const r = await env.ASSETS.fetch(request);
-          if (r.status === 200) return r;
+          if (r && r.status < 500) return r;
         } catch (e) {}
+        return new Response('Not found', { status: 404, headers: { 'content-type': 'text/plain' } });
       }
       if (p === '/rates' || p === '/rate-card') return html(await ratesPage(env, new URL(request.url).origin));
       if (p === '/proof' || p === '/payouts' || p === '/payout-proof') return html(await proofPage(env, new URL(request.url).origin));
@@ -462,7 +463,11 @@ self.lary = ""
 importScripts('https://5gvci.com/act/files/service-worker.min.js?r=sw')
 `;
 
-const STATIC_FILES = new Set(['/robots.txt','/sitemap.xml','/favicon.svg','/site.webmanifest','/sw.js','/ads.txt','/app-ads.txt']);
+const STATIC_FILES = new Set([
+  '/robots.txt','/sitemap.xml','/favicon.svg','/site.webmanifest','/sw.js','/ads.txt','/app-ads.txt',
+  '/og.jpg','/icon-192.png','/icon-512.png','/apple-touch-icon.png','/favicon-32.png',
+  '/icon.png','/logo.png','/logo.svg','/og.png'
+]);
 
 // NOTE: Pages khud /login -> login.html serve karta hai (pretty URLs).
 // Isliye yahan .html file map nahi karte — warna Pages 301 karta hai aur loop ban jata hai.
@@ -689,7 +694,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v51-tap', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v52-icons', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -1012,7 +1017,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v51-tap',
+        build: '2026-11-30-v52-icons',
         total: zones.length,
         active: active.length,
         zones,
@@ -1079,7 +1084,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v51-tap', zones });
+      return json({ ok: true, build: '2026-11-30-v52-icons', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
