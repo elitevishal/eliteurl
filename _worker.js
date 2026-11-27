@@ -593,7 +593,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v34-access', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v35-clickfix', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -877,7 +877,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v34-access',
+        build: '2026-11-30-v35-clickfix',
         total: zones.length,
         active: active.length,
         zones,
@@ -944,7 +944,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v34-access', zones });
+      return json({ ok: true, build: '2026-11-30-v35-clickfix', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1275,7 +1275,15 @@ async function apiStep(request, env) {
     } catch (e) {}
     return json({ error: 'adblock', message: 'Ad blocker detected — no earning for this view.' }, 403);
   }
-  if (sess.steps_completed !== step - 1) return json({ error: 'out_of_order' }, 409);
+  // repeat click / double tap — error nahi, seedha next do (idempotent)
+  if (sess.steps_completed < step - 1) return json({ error: 'out_of_order' }, 409);
+  if (sess.steps_completed >= step) {
+    const o1 = new URL(request.url).origin;
+    if (step >= sess.steps_required) {
+      return json({ ok: true, done: true, repeat: true, next: `${o1}/access/${b.sid}?t=${await token(env.SESSION_SECRET, b.sid, 'access')}` });
+    }
+    return json({ ok: true, done: false, repeat: true, next: `${o1}/s/${b.sid}/${step + 1}?t=${await token(env.SESSION_SECRET, b.sid, step + 1)}` });
+  }
   if (Math.floor(Date.now() / 1000) - sess.created_at > 7200) return json({ error: 'expired' }, 410);
 
   await env.DB.prepare('INSERT INTO step_events (session_id,step_no,ad_fired,dwell_ms,created_at) VALUES (?,?,?,?,?) ON CONFLICT(session_id,step_no) DO UPDATE SET created_at=excluded.created_at, ad_fired=1')
@@ -1665,7 +1673,8 @@ ${P4}
         var k = kids[j];
         if (k.offsetWidth > 20 && k.offsetHeight > 20) return true;
       }
-      if (el.querySelector('script') && el.offsetHeight > 80) return true;
+      if (el.offsetHeight > 100) return true;
+      if (el.querySelector('script') && el.offsetHeight > 60) return true;
     }
     return false;
   }
@@ -1731,15 +1740,22 @@ ${P4}
     }, 600);
   });
 
+  var busy = false;
   function goNext(){
-    if (!ready) return;
-    if (!adsRendered()) { showBlocked(); return; }
+    if (!ready || busy) return;
+    busy = true;
+    if (!adsRendered()) { busy = false; showBlocked(); return; }
     btn.textContent = 'Loading…';
     fetch('/api/step', { method:'POST', headers:{'content-type':'application/json'},
       body: JSON.stringify({ sid:${JSON.stringify(sid)}, n:${n}, t:${JSON.stringify(stepToken)} }) })
       .then(function(r){ return r.json(); })
-      .then(function(d){ if (d.next) { location.href = d.next; } else { btn.textContent = ${JSON.stringify(label)}; } })
-      .catch(function(){ btn.textContent = ${JSON.stringify(label)}; });
+      .then(function(d){
+        if (d && d.next) { location.href = d.next; return; }
+        busy = false;
+        btn.textContent = ${JSON.stringify(label)};
+        if (d && d.error === 'out_of_order') location.reload();
+      })
+      .catch(function(){ busy = false; btn.textContent = ${JSON.stringify(label)}; });
   }
   btn.addEventListener('click', goNext);
   btn.addEventListener('touchend', function(e){ e.preventDefault(); goNext(); }, { passive:false });
