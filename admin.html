@@ -119,6 +119,13 @@ tbody tr:hover{background:#fafbff}
       <button class="btn btn-primary" id="add-zone">Add zone</button>
       <div class="msg" id="z-msg"></div>
     </div>
+    <div class="panel"><h2>Database cleanup</h2>
+      <p style="font-size:12.5px;color:#5b6076;margin:0 0 12px;line-height:1.6">
+        Deletes visit logs older than 60 days. <b>Users, links, earnings and withdrawals are never deleted.</b>
+      </p>
+      <button class="btn btn-primary" id="cleanup-btn">Run cleanup now</button>
+      <div class="msg" id="cleanup-msg"></div>
+    </div>
     <div class="panel"><h2>Existing zones</h2><div id="z-list"><div class="empty">Loading…</div></div></div>
   </div>
 </div></main>
@@ -347,6 +354,21 @@ function loadZones(){
 }
 loadZones();
 API('/api/admin/zones').then(function(d){ var b=document.getElementById('buildtag'); if(b&&d&&d.build) b.textContent='build '+d.build; });
+
+document.getElementById('cleanup-btn').addEventListener('click',function(){
+  var b=this,m=document.getElementById('cleanup-msg');
+  if(!confirm('Delete visit logs older than 60 days?\n\nUsers, links, earnings and withdrawals will NOT be touched.')) return;
+  b.disabled=true;b.textContent='Cleaning…';m.className='msg';
+  API('/api/admin/cleanup',{method:'POST',headers:{'content-type':'application/json'},body:'{}'})
+    .then(function(d){
+      b.disabled=false;b.textContent='Run cleanup now';
+      if(d&&d.ok){
+        m.className='msg ok';
+        m.textContent='Deleted '+d.deleted.sessions+' sessions, '+d.deleted.steps+' step logs, '+d.deleted.limits+' rate limits, '+d.deleted.otp+' OTPs. Your money and accounts are safe.';
+      } else { m.className='msg bad'; m.textContent=(d&&d.error)||'Cleanup failed'; }
+    })
+    .catch(function(){b.disabled=false;b.textContent='Run cleanup now';m.className='msg bad';m.textContent='Network error';});
+});
 
 document.getElementById('add-zone').addEventListener('click',function(){
   var m=document.getElementById('z-msg');m.className='msg';
