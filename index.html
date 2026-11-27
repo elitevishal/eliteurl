@@ -96,13 +96,28 @@ header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.82);backdro
 /* hero */
 .hero{padding:80px 0 0;text-align:center;position:relative;overflow:hidden}
 .hero::before{content:"";position:absolute;inset:-30% 30% auto;height:520px;background:radial-gradient(60% 60% at 50% 40%,rgba(123,92,255,.16),transparent 70%);pointer-events:none}
-.eyebrow{display:inline-flex;align-items:center;gap:8px;background:#f0f1ff;color:#3b3ff2;font-size:12px;font-weight:700;letter-spacing:.04em;padding:7px 14px;border-radius:99px;margin-bottom:24px;border:1px solid #e0e2ff}
+.eyebrow{display:inline-flex;align-items:center;gap:9px;padding:7px 15px;border-radius:99px;
+  background:rgba(123,92,255,.10);border:1px solid rgba(123,92,255,.22);
+  font-size:11.5px;font-weight:750;letter-spacing:.055em;text-transform:uppercase;
+  color:#8b7bff;margin-bottom:22px}
 .dot{width:6px;height:6px;border-radius:50%;background:#3b3ff2;box-shadow:0 0 0 3px rgba(59,63,242,.15)}
-h1{font-size:clamp(36px,6.4vw,66px);line-height:1.03;letter-spacing:-.04em;margin:0 0 22px;font-weight:800}
-h1 .grad{background:linear-gradient(100deg,#3b3ff2,#7b5cff 55%,#b44cff);-webkit-background-clip:text;background-clip:text;color:transparent}
-.lead{font-size:clamp(15px,2.1vw,18px);color:var(--body);max-width:610px;margin:0 auto 34px;line-height:1.65}
+h1{font-size:clamp(34px,6.1vw,62px);line-height:1.09;letter-spacing:-.031em;margin:0 0 20px;
+  font-weight:800;text-wrap:balance;font-optical-sizing:auto;
+  font-feature-settings:"ss01","cv11","kern" 1;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility}
+h1 br{line-height:0}
+h1 .grad{background:linear-gradient(97deg,#4f46e5 0%,#7c3aed 48%,#a855f7 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  font-weight:900;letter-spacing:-.034em;
+  display:inline-block;padding-bottom:.06em;
+  -webkit-text-fill-color:transparent;
+  filter:saturate(1.06)}
+.lead{max-width:56ch;margin:0 auto 30px;color:var(--body);font-size:clamp(15px,1.9vw,17.5px);
+  line-height:1.72;letter-spacing:-.008em;font-weight:450;text-wrap:pretty}
 .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-.fine{font-size:12.5px;color:var(--muted);margin-top:16px}
+.fine{font-size:12.5px;color:var(--muted);margin:22px 0 0;letter-spacing:.005em;
+  display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
 
 /* product mockup */
 .mock{margin:56px auto 0;max-width:940px;border-radius:20px;border:1px solid var(--line);background:#fff;box-shadow:0 40px 90px -50px rgba(15,18,50,.5),0 2px 8px rgba(15,18,50,.05);overflow:hidden;text-align:left}

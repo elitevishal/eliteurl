@@ -102,6 +102,13 @@ body{overflow-x:hidden}
 .bal{margin-top:16px}
 .bal i{display:block;font-style:normal;font-size:9.5px;color:rgba(255,255,255,.45);letter-spacing:.06em;text-transform:uppercase;margin-top:2px}
 @media(max-width:480px){.hello-cta{padding:9px 14px;font-size:12px}.bal b{font-size:19px}}
+
+.lk-folder{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:750;color:#5b6076;margin-top:7px}
+.lk-folder span{width:9px;height:9px;border-radius:3px;display:inline-block}
+.fchip{background:#fff;border:1px solid #e8eaf4;border-radius:99px;padding:7px 13px;font-size:12px;font-weight:700;
+  color:#5b6076;cursor:pointer;font-family:inherit;white-space:nowrap;transition:.15s}
+.fchip:hover{border-color:#c9cce0;color:#0b0e1c}
+.fchip.on{background:#3b3ff2;border-color:#3b3ff2;color:#fff}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -170,6 +177,22 @@ body{overflow-x:hidden}
         <input id="alias" placeholder="Custom alias (optional)" style="flex:0 1 190px" autocomplete="off">
         <button class="btn btn-primary" id="create">Shorten</button>
       </div>
+      <div class="row" style="margin-top:10px;align-items:center">
+        <select id="folder-sel" style="flex:0 1 220px">
+          <option value="">No folder</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" id="new-folder" type="button">+ New folder</button>
+        <button class="btn btn-ghost btn-sm" id="bulk-toggle" type="button">Bulk shorten</button>
+      </div>
+      <div class="hide" id="bulk-box" style="margin-top:12px">
+        <label style="display:block;font-size:11px;font-weight:750;color:#8b90a8;letter-spacing:.075em;text-transform:uppercase;margin-bottom:6px">Paste up to 20 URLs — one per line</label>
+        <textarea id="bulk-urls" rows="5" placeholder="https://example.com/1&#10;https://example.com/2&#10;https://example.com/3" style="width:100%;font-family:ui-monospace,Menlo,monospace;font-size:12.5px"></textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="btn btn-primary btn-sm" id="bulk-go" type="button">Shorten all</button>
+          <span class="msg" id="bulk-msg" style="margin:0"></span>
+        </div>
+        <div id="bulk-out" style="margin-top:10px;font-size:12.5px"></div>
+      </div>
       <div class="opts">
         <label class="chk"><input type="checkbox" id="useAdv"> <span>Advanced download page</span></label>
         <label class="chk"><input type="checkbox" id="useExp"> <span>Set an expiry date</span></label>
@@ -195,6 +218,15 @@ body{overflow-x:hidden}
     <div class="panel">
       <h2>Last 7 days</h2>
       <div id="chart" style="display:flex;align-items:flex-end;gap:10px;height:120px;padding-top:8px"></div>
+    </div>
+
+    <div class="panel" id="country-panel">
+      <h2>Audience — where your visitors come from</h2>
+      <div id="country-list" style="font-size:13px"><div class="empty">Loading…</div></div>
+      <div class="cards" style="margin:16px 0 0">
+        <div class="kpi" style="padding:14px"><span>Devices</span><div id="dev-list" style="font-size:12px;margin-top:8px;color:#5b6076">—</div></div>
+        <div class="kpi" style="padding:14px"><span>Referrers</span><div id="ref-list" style="font-size:12px;margin-top:8px;color:#5b6076">—</div></div>
+      </div>
     </div>
     <div class="panel" id="rates-panel">
       <h2>How much you earn</h2>
@@ -351,8 +383,11 @@ function renderLinks(boxId){
     if(!d) return;
     if(!d.ok){box.innerHTML='<div class="empty">Could not load your links. Please refresh.</div>';return;}
     if(!d.links||!d.links.length){box.innerHTML='<div class="empty">No links yet. Create your first one above.</div>';return;}
+    var list=d.links;
+    if(FOLD_FILTER!==''){ list=list.filter(function(l){ return String(l.folder_id||'')===String(FOLD_FILTER); }); }
+    if(!list.length){ box.innerHTML='<div class="empty">No links in this folder yet.</div>'; return; }
     var h='<div class="lk">';
-    d.links.forEach(function(l){
+    list.forEach(function(l){
       var full=(SITE||location.origin)+'/'+l.slug;
       h+='<div class="lk-card">'
        +'<div class="lk-top">'
@@ -362,6 +397,7 @@ function renderLinks(boxId){
        +'<span class="pill'+(l.status==='active'?'':' off')+'">'+esc(l.status)+'</span>'
        +'</span>'
        +'</div>'
+       +(l.folder_name?'<div class="lk-folder"><span style="background:'+(l.folder_color||'#3b3ff2')+'"></span>'+esc(l.folder_name)+'</div>':'')
        +'<div class="lk-dest">'+esc(l.destination_url)+'</div>'
        +(l.creator_name?'<div class="lk-creator">by <b>'+esc(l.creator_name)+'</b></div>':'')
        +'<div class="lk-meta">'
@@ -373,10 +409,14 @@ function renderLinks(boxId){
        +'<div class="lk-act">'
        +'<button class="btn btn-primary btn-sm" data-copy="'+esc(full)+'">Copy</button>'
        +'<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data='+encodeURIComponent(full)+'">QR</a>'
+       +'<button class="btn btn-ghost btn-sm" data-edit="'+(l.id||'')+'" data-slug="'+esc(l.slug)+'" data-url="'+esc(l.destination_url)+'">Edit</button>'
        +'<button class="btn btn-ghost btn-sm" data-del="'+esc(l.slug)+'">Disable</button>'
        +'</div></div>';
     });
     box.innerHTML=h+'</div>';
+    box.querySelectorAll('[data-edit]').forEach(function(b){
+      b.addEventListener('click',function(){ editLink(b.getAttribute('data-edit'),b.getAttribute('data-slug'),b.getAttribute('data-url')); });
+    });
     box.querySelectorAll('[data-del]').forEach(function(b){
       b.addEventListener('click',function(){
         fetch('/api/links/'+b.getAttribute('data-del'),{method:'DELETE'}).then(function(){renderLinks(boxId);});
@@ -396,6 +436,69 @@ function renderLinks(boxId){
     });
   });
 }
+
+var FOLDERS=[], FOLD_FILTER='';
+function loadFolders(){
+  return fetch('/api/folders').then(function(r){return r.json();}).then(function(d){
+    FOLDERS=(d&&d.folders)||[];
+    var sel=document.getElementById('folder-sel');
+    if(sel){ sel.innerHTML='<option value="">No folder</option>'+FOLDERS.map(function(f){
+      return '<option value="'+f.id+'">'+esc(f.name)+' ('+(f.link_count||0)+')</option>'; }).join(''); }
+    var bar=document.getElementById('folder-bar');
+    if(bar){
+      bar.innerHTML='<button class="fchip'+(FOLD_FILTER===''?' on':'')+'" data-f="">All links</button>'
+        +FOLDERS.map(function(f){ return '<button class="fchip'+(String(FOLD_FILTER)===String(f.id)?' on':'')+'" data-f="'+f.id+'">'+esc(f.name)+'</button>'; }).join('');
+      bar.querySelectorAll('[data-f]').forEach(function(b){
+        b.addEventListener('click',function(){ FOLD_FILTER=b.getAttribute('data-f'); renderLinks('list'); });
+      });
+    }
+  }).catch(function(){});
+}
+function newFolder(){
+  var name=prompt('Folder name (e.g. Exam Notes, Free Tools)');
+  if(!name||!name.trim()) return;
+  fetch('/api/folders',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:name.trim()})})
+    .then(function(r){return r.json();}).then(function(d){
+      if(d&&d.ok){ loadFolders().then(function(){ var s=document.getElementById('folder-sel'); if(s&&d.id) s.value=d.id; }); }
+      else alert((d&&d.error)||'Could not create the folder');
+    });
+}
+var nf=document.getElementById('new-folder'); if(nf) nf.addEventListener('click',newFolder);
+var bt=document.getElementById('bulk-toggle');
+if(bt) bt.addEventListener('click',function(){ document.getElementById('bulk-box').classList.toggle('hide'); });
+var bg=document.getElementById('bulk-go');
+if(bg) bg.addEventListener('click',function(){
+  var ta=document.getElementById('bulk-urls'), msg=document.getElementById('bulk-msg'), out=document.getElementById('bulk-out');
+  var urls=(ta.value||'').split('\n').map(function(x){return x.trim();}).filter(Boolean).slice(0,20);
+  if(!urls.length){ msg.className='msg show err'; msg.textContent='Paste at least one URL.'; return; }
+  bg.disabled=true; bg.textContent='Creating…'; msg.className='msg';
+  fetch('/api/links/bulk',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({urls:urls,folder_id:document.getElementById('folder-sel').value||null})})
+  .then(function(r){return r.json();}).then(function(d){
+    bg.disabled=false; bg.textContent='Shorten all';
+    if(!d||!d.ok){ msg.className='msg show err'; msg.textContent=(d&&d.error)||'Failed'; return; }
+    msg.className='msg show ok'; msg.textContent='Created '+d.created+' of '+urls.length+' links.';
+    out.innerHTML=(d.results||[]).map(function(x){
+      if(!x.ok) return '<div style="color:#b3261e;padding:4px 0">✗ '+esc(String(x.url).slice(0,60))+' — '+esc(x.error||'failed')+'</div>';
+      var full=(SITE||location.origin)+'/'+x.slug;
+      return '<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #f2f4fa"><a href="'+full+'" target="_blank" rel="noopener" style="color:#3b3ff2;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(full.replace(/^https?:\/\//,''))+'</a><button class="btn btn-ghost btn-sm" data-copy="'+esc(full)+'">Copy</button></div>';
+    }).join('');
+    out.querySelectorAll('[data-copy]').forEach(function(b){ b.addEventListener('click',function(){ copyText(b.getAttribute('data-copy')); b.textContent='Copied'; }); });
+    ta.value=''; renderLinks('list'); renderLinks('list2'); loadFolders();
+  }).catch(function(){ bg.disabled=false; bg.textContent='Shorten all'; msg.className='msg show err'; msg.textContent='Network error'; });
+});
+function editLink(id,slug,cur){
+  var url=prompt('New destination URL for /'+slug, cur||'');
+  if(url===null) return;
+  url=url.trim(); if(!url) return;
+  fetch('/api/links/'+id,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({url:url})})
+    .then(function(r){return r.json();}).then(function(d){
+      if(d&&d.ok){ renderLinks('list'); renderLinks('list2'); }
+      else alert((d&&d.error)||'Could not update');
+    });
+}
+
+loadFolders();
 renderLinks('list');renderLinks('list2');
 
 fetch('/api/stats/daily').then(function(r){return r.json();}).then(function(d){
@@ -423,6 +526,29 @@ fetch('/api/stats/daily').then(function(r){return r.json();}).then(function(d){
       +'<div style="font-size:11px;font-weight:800;color:'+(v?'#0b0d1a':'#c3c7d6')+'">'+v+'</div>'
       +'</div>';
   }).join('');
+});
+
+fetch('/api/analytics/countries').then(function(r){return r.json();}).then(function(d){
+  var box=document.getElementById('country-list'); if(!box||!d||!d.ok) return;
+  var NAMES={US:'United States',GB:'United Kingdom',CA:'Canada',AU:'Australia',IN:'India',PK:'Pakistan',BD:'Bangladesh',AE:'UAE',SA:'Saudi Arabia',DE:'Germany',FR:'France',NL:'Netherlands',SG:'Singapore',MY:'Malaysia',ID:'Indonesia',PH:'Philippines',NG:'Nigeria',KE:'Kenya',ZA:'South Africa',BR:'Brazil',MX:'Mexico',TR:'Turkey',EG:'Egypt',LK:'Sri Lanka',NP:'Nepal',XX:'Unknown',ALL:'Other'};
+  var cs=(d.countries||[]).filter(function(x){return x.c!=='XX';});
+  var total=cs.reduce(function(s,x){return s+(x.n||0);},0);
+  if(!total){ box.innerHTML='<div class="empty" style="padding:20px 0">No audience data yet. Share a link to see where visitors come from.</div>'; }
+  else {
+    box.innerHTML=cs.slice(0,8).map(function(x){
+      var pct=Math.round((x.n||0)/total*100);
+      return '<div style="margin-bottom:10px">'
+        +'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+        +'<span><b style="display:inline-block;min-width:30px;text-align:center;font-size:9px;font-weight:900;color:#3b3ff2;background:#eef1ff;border-radius:4px;padding:2px 4px;margin-right:7px">'+esc(x.c)+'</b>'+esc(NAMES[x.c]||x.c)+'</span>'
+        +'<b style="color:#0b0e1c">'+pct+'% <span style="font-weight:500;color:#8b90a6;font-size:11px">('+(x.v||0)+' valid)</span></b></div>'
+        +'<div style="height:6px;background:#f2f4fa;border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#3b3ff2,#7b5cff);border-radius:99px"></div></div>'
+        +'</div>';
+    }).join('');
+  }
+  var dv=document.getElementById('dev-list');
+  if(dv&&d.devices&&d.devices.length){ dv.innerHTML=d.devices.map(function(x){return '<div style="display:flex;justify-content:space-between;padding:2px 0"><span style="text-transform:capitalize">'+esc(x.d)+'</span><b>'+x.n+'</b></div>';}).join(''); }
+  var rf=document.getElementById('ref-list');
+  if(rf&&d.referrers&&d.referrers.length){ rf.innerHTML=d.referrers.map(function(x){return '<div style="display:flex;justify-content:space-between;padding:2px 0"><span style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(x.r)+'</span><b>'+x.n+'</b></div>';}).join(''); }
 });
 
 fetch('/api/rates').then(function(r){return r.json();}).then(function(d){
@@ -468,7 +594,7 @@ document.getElementById('create').addEventListener('click',function(){
   m.className='msg';
   if(!u.value.trim()){show(m,'Paste a link first.',false);return;}
   b.disabled=true;b.textContent='Creating…';
-  fetch('/api/links',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:u.value.trim(),alias:a.value.trim(),expires_in_days:document.getElementById('useExp').checked?document.getElementById('expdays').value:'',password:document.getElementById('usePw').checked?document.getElementById('linkpw').value:'',pw_hint:document.getElementById('pwhint').value,advanced:document.getElementById('useAdv').checked,creator_name:document.getElementById('creator').value,tool_name:document.getElementById('toolname').value,video_url:document.getElementById('videourl').value})})
+  fetch('/api/links',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:u.value.trim(),alias:a.value.trim(),folder_id:(document.getElementById('folder-sel')||{}).value||null,expires_in_days:document.getElementById('useExp').checked?document.getElementById('expdays').value:'',password:document.getElementById('usePw').checked?document.getElementById('linkpw').value:'',pw_hint:document.getElementById('pwhint').value,advanced:document.getElementById('useAdv').checked,creator_name:document.getElementById('creator').value,tool_name:document.getElementById('toolname').value,video_url:document.getElementById('videourl').value})})
     .then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
     .then(function(x){
       b.disabled=false;b.textContent='Shorten';

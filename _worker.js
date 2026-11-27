@@ -130,6 +130,27 @@ function fixSiteUrl(u, origin) {
   return v.replace(/\/+$/, '');
 }
 
+async function ensureFolders(env) {
+  try {
+    const done = await env.DB.prepare("SELECT value FROM settings WHERE key='migrated_folders'").first();
+    if (done) return;
+  } catch (e) {}
+  try {
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS link_folders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#3b3ff2',
+      created_at INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER)),
+      UNIQUE(user_id, name)
+    )`).run();
+  } catch (e) {}
+  try { await env.DB.prepare("ALTER TABLE links ADD COLUMN folder_id INTEGER").run(); } catch (e) {}
+  try {
+    await env.DB.prepare("INSERT INTO settings (key,value) VALUES ('migrated_folders','1') ON CONFLICT(key) DO UPDATE SET value='1'").run();
+  } catch (e) {}
+}
+
 async function schemaMap(env) {
   const [cs, lg, us, ds, wd] = await Promise.all([
     tableCols(env, 'click_sessions'), tableCols(env, 'ledger'), tableCols(env, 'users'),
@@ -694,7 +715,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v53-ogpng', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v54-folders', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -737,7 +758,140 @@ async function api(request, env, url) {
   if (!user) return json({ error: 'Please sign in' }, 401);
 
   // ---- links ----
+  if (p === '/api/folders' && m === 'GET') {
+    if (!user) return json({ ok: false }, 401);
+    await ensureFolders(env);
+    let rows = [];
+    try {
+      const r = await env.DB.prepare(`SELECT f.id, f.name, f.color,
+        (SELECT COUNT(*) FROM links l WHERE l.folder_id = f.id AND l.user_id = f.user_id) AS link_count
+        FROM link_folders f WHERE f.user_id = ? ORDER BY f.name COLLATE NOCASE`).bind(user.id).all();
+      rows = r.results || [];
+    } catch (e) {}
+    return json({ ok: true, folders: rows });
+  }
+
+  if (p === '/api/folders' && m === 'POST') {
+    if (!user) return json({ ok: false }, 401);
+    await ensureFolders(env);
+    const b = await request.json().catch(() => ({}));
+    const name = String(b.name || '').trim().slice(0, 40);
+    if (name.length < 1) return json({ error: 'Folder name is required' }, 400);
+    const color = /^#[0-9a-f]{6}$/i.test(String(b.color || '')) ? String(b.color) : '#3b3ff2';
+    try {
+      await env.DB.prepare("INSERT INTO link_folders (user_id,name,color) VALUES (?,?,?)").bind(user.id, name, color).run();
+      const row = await env.DB.prepare("SELECT id,name,color FROM link_folders WHERE user_id=? AND name=?").bind(user.id, name).first();
+      return json({ ok: true, id: row ? row.id : null, name, color });
+    } catch (e) {
+      const ex = await env.DB.prepare("SELECT id,name,color FROM link_folders WHERE user_id=? AND name=?").bind(user.id, name).first();
+      if (ex) return json({ ok: true, id: ex.id, name: ex.name, color: ex.color, existing: true });
+      return json({ error: 'Could not create the folder' }, 500);
+    }
+  }
+
+  if (p.startsWith('/api/folders/') && m === 'DELETE') {
+    if (!user) return json({ ok: false }, 401);
+    const id = Number(p.split('/')[3]);
+    if (!Number.isFinite(id)) return json({ error: 'Bad folder' }, 400);
+    await ensureFolders(env);
+    try {
+      await env.DB.prepare("UPDATE links SET folder_id=NULL WHERE folder_id=? AND user_id=?").bind(id, user.id).run();
+      await env.DB.prepare("DELETE FROM link_folders WHERE id=? AND user_id=?").bind(id, user.id).run();
+    } catch (e) {}
+    return json({ ok: true });
+  }
+
+  if (p === '/api/links/bulk' && m === 'POST') {
+    if (!user) return json({ ok: false }, 401);
+    await ensureFolders(env);
+    const b = await request.json().catch(() => ({}));
+    const list = Array.isArray(b.urls) ? b.urls.slice(0, 20) : [];
+    if (!list.length) return json({ error: 'Paste at least one URL' }, 400);
+    const folderId = Number(b.folder_id) || null;
+    const out = [];
+    for (const raw of list) {
+      const dest = validUrl(String(raw || '').trim());
+      if (!dest) { out.push({ url: raw, ok: false, error: 'Invalid URL' }); continue; }
+      let s = null;
+      for (let i = 0; i < 6; i++) {
+        s = slug(6);
+        if (!(await env.DB.prepare('SELECT 1 FROM links WHERE slug = ?').bind(s).first())) break;
+        s = null;
+      }
+      if (!s) { out.push({ url: raw, ok: false, error: 'Could not create' }); continue; }
+      try {
+        await env.DB.prepare(`INSERT INTO links (user_id,slug,destination_url,title,status,folder_id) VALUES (?,?,?,?,'active',?)`)
+          .bind(user.id, s, dest, dest.slice(0, 120), folderId).run();
+        out.push({ url: raw, ok: true, slug: s });
+      } catch (e) {
+        out.push({ url: raw, ok: false, error: 'Insert failed' });
+      }
+    }
+    const made = out.filter(x => x.ok).length;
+    return json({ ok: true, created: made, results: out });
+  }
+
+  if (p.startsWith('/api/links/') && (m === 'PATCH' || m === 'PUT')) {
+    if (!user) return json({ ok: false }, 401);
+    await ensureFolders(env);
+    const id = Number(p.split('/')[3]);
+    if (!Number.isFinite(id)) return json({ error: 'Bad link' }, 400);
+    const b = await request.json().catch(() => ({}));
+    const row = await env.DB.prepare('SELECT * FROM links WHERE id=? AND user_id=?').bind(id, user.id).first();
+    if (!row) return json({ error: 'Link not found' }, 404);
+    const sets = [], binds = [];
+    if (b.url !== undefined) {
+      const dest = validUrl(String(b.url || ''));
+      if (!dest) return json({ error: 'Enter a valid http or https URL' }, 400);
+      sets.push('destination_url=?'); binds.push(dest);
+    }
+    if (b.title !== undefined) { sets.push('title=?'); binds.push(String(b.title || '').slice(0, 120)); }
+    if (b.folder_id !== undefined) {
+      const fid = Number(b.folder_id) || null;
+      if (fid) {
+        const own = await env.DB.prepare('SELECT 1 FROM link_folders WHERE id=? AND user_id=?').bind(fid, user.id).first();
+        if (!own) return json({ error: 'Folder not found' }, 404);
+      }
+      sets.push('folder_id=?'); binds.push(fid);
+    }
+    if (b.status !== undefined) {
+      const st = String(b.status);
+      if (!['active', 'inactive'].includes(st)) return json({ error: 'Bad status' }, 400);
+      sets.push('status=?'); binds.push(st);
+    }
+    if (!sets.length) return json({ error: 'Nothing to update' }, 400);
+    sets.push('updated_at=?'); binds.push(Math.floor(Date.now() / 1000));
+    binds.push(id, user.id);
+    try {
+      await env.DB.prepare(`UPDATE links SET ${sets.join(', ')} WHERE id=? AND user_id=?`).bind(...binds).run();
+    } catch (e) { return json({ error: 'Could not update the link' }, 500); }
+    return json({ ok: true, id, slug: row.slug });
+  }
+
+  if (p === '/api/analytics/countries' && m === 'GET') {
+    if (!user) return json({ ok: false }, 401);
+    let rows = [], dev = [], ref = [];
+    try {
+      const r = await env.DB.prepare(`SELECT COALESCE(country,'XX') AS c, COUNT(*) AS n,
+        SUM(CASE WHEN is_valid=1 THEN 1 ELSE 0 END) AS v
+        FROM click_sessions WHERE user_id=? GROUP BY c ORDER BY n DESC LIMIT 12`).bind(user.id).all();
+      rows = r.results || [];
+    } catch (e) {}
+    try {
+      const r = await env.DB.prepare(`SELECT COALESCE(device,'unknown') AS d, COUNT(*) AS n
+        FROM click_sessions WHERE user_id=? GROUP BY d ORDER BY n DESC`).bind(user.id).all();
+      dev = r.results || [];
+    } catch (e) {}
+    try {
+      const r = await env.DB.prepare(`SELECT COALESCE(NULLIF(referrer,''),'direct') AS r, COUNT(*) AS n
+        FROM click_sessions WHERE user_id=? GROUP BY r ORDER BY n DESC LIMIT 6`).bind(user.id).all();
+      ref = r.results || [];
+    } catch (e) {}
+    return json({ ok: true, countries: rows, devices: dev, referrers: ref });
+  }
+
   if (p === '/api/links' && m === 'POST') {
+    await ensureFolders(env);
     const b = await request.json().catch(() => ({}));
     const dest = validUrl(b.url || '');
     if (!dest) return json({ error: 'Enter a valid http or https URL' }, 400);
@@ -764,17 +918,31 @@ async function api(request, env, url) {
     const toolName = adv ? String(b.tool_name || '').slice(0, 60) : null;
     const pwHint = String(b.pw_hint || '').slice(0, 120) || null;
     const videoUrl = adv ? (validUrl(b.video_url || '') || null) : null;
-    await env.DB.prepare('INSERT INTO links (user_id,slug,destination_url,title,expires_at,password_hash,advanced,creator_name,tool_name,pw_hint,video_url) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
-      .bind(user.id, s, dest, b.title || null, expAt, pwHash, adv, creatorName, toolName, pwHint, videoUrl).run();
-    return json({ ok: true, slug: s, short: `${url.origin}/${s}`, destination: dest });
+    let fid = Number(b.folder_id) || null;
+    if (fid) {
+      const own = await env.DB.prepare('SELECT 1 FROM link_folders WHERE id=? AND user_id=?').bind(fid, user.id).first();
+      if (!own) fid = null;
+    }
+    await env.DB.prepare('INSERT INTO links (user_id,slug,destination_url,title,expires_at,password_hash,advanced,creator_name,tool_name,pw_hint,video_url,folder_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+      .bind(user.id, s, dest, b.title || null, expAt, pwHash, adv, creatorName, toolName, pwHint, videoUrl, fid).run();
+    return json({ ok: true, slug: s, short: `${url.origin}/${s}`, destination: dest, folder_id: fid });
   }
 
   if (p === '/api/links' && m === 'GET') {
+    await ensureFolders(env);
     let rows;
     try {
-      rows = await env.DB.prepare('SELECT slug,destination_url,clicks,valid_views,invalid_views,status,created_at,expires_at,(password_hash IS NOT NULL) AS locked,COALESCE(advanced,0) AS advanced,creator_name,tool_name,video_url FROM links WHERE user_id = ? ORDER BY id DESC LIMIT 200').bind(user.id).all();
+      rows = await env.DB.prepare(`SELECT l.id,l.slug,l.destination_url,l.clicks,l.valid_views,l.invalid_views,l.status,l.created_at,l.expires_at,
+        (l.password_hash IS NOT NULL) AS locked,COALESCE(l.advanced,0) AS advanced,l.creator_name,l.tool_name,l.video_url,
+        l.folder_id, f.name AS folder_name, f.color AS folder_color
+        FROM links l LEFT JOIN link_folders f ON f.id = l.folder_id AND f.user_id = l.user_id
+        WHERE l.user_id = ? ORDER BY l.id DESC LIMIT 200`).bind(user.id).all();
     } catch (e) {
-      rows = await env.DB.prepare('SELECT slug,destination_url,clicks,valid_views,invalid_views,status,created_at FROM links WHERE user_id = ? ORDER BY id DESC LIMIT 200').bind(user.id).all();
+      try {
+        rows = await env.DB.prepare('SELECT slug,destination_url,clicks,valid_views,invalid_views,status,created_at,expires_at,(password_hash IS NOT NULL) AS locked,COALESCE(advanced,0) AS advanced,creator_name,tool_name,video_url FROM links WHERE user_id = ? ORDER BY id DESC LIMIT 200').bind(user.id).all();
+      } catch (e2) {
+        rows = await env.DB.prepare('SELECT slug,destination_url,clicks,valid_views,invalid_views,status,created_at FROM links WHERE user_id = ? ORDER BY id DESC LIMIT 200').bind(user.id).all();
+      }
     }
     return json({ ok: true, links: rows.results || [] });
   }
@@ -1017,7 +1185,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v53-ogpng',
+        build: '2026-11-30-v54-folders',
         total: zones.length,
         active: active.length,
         zones,
@@ -1084,7 +1252,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v53-ogpng', zones });
+      return json({ ok: true, build: '2026-11-30-v54-folders', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
