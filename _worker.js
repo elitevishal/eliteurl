@@ -22,10 +22,6 @@ const BUILTIN_ADS = [
     snippet: '<script>(function(s){s.dataset.zone="12361015",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
   { id: 'm4', network: 'monetag', format: 'popunder', label: 'Monetag 4', step: 1,
     snippet: '<script>(function(s){s.dataset.zone="12361023",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
-  { id: 'm5', network: 'monetag', format: 'banner', cap: 1, label: 'Monetag Vignette', step: 1,
-    snippet: '<script>(function(s){s.dataset.zone="12364923",s.src="https://n6wxm.com/vignette.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
-  { id: 'm6', network: 'monetag', format: 'banner', cap: 1, label: 'Monetag In-Page Push', step: 1,
-    snippet: '<script>(function(s){s.dataset.zone="12364928",s.src="https://nap5k.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
   { id: 'b1', network: 'adsterra', format: 'banner', label: 'Banner 300x250', step: 1,
     snippet: `<script type="text/javascript">
   atOptions = {
@@ -310,6 +306,7 @@ ${BUILTIN_ADS.map((a) => a.snippet).join('\n')}
       if (p.startsWith('/v/')) return await directGo(request, env, p.slice(3));
       if (p.startsWith('/d/')) return await openShortLink(request, env, p.slice(3), true);
       if (p.startsWith('/s/')) return await stepPage(request, env, url);
+      if (p.startsWith('/access/')) return await accessPage(request, env, url);
       if (p.startsWith('/go/')) return await go(request, env, url);
 
       if (!p.startsWith('/api/')) {
@@ -596,7 +593,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v33-admix', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v34-access', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -880,7 +877,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v33-admix',
+        build: '2026-11-30-v34-access',
         total: zones.length,
         active: active.length,
         zones,
@@ -947,7 +944,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v33-admix', zones });
+      return json({ ok: true, build: '2026-11-30-v34-access', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1215,7 +1212,7 @@ async function stepPage(request, env, url) {
     if (le && le.t && le.t > lastAct) lastAct = le.t;
   } catch (e) {}
   const idle = nowTs - lastAct;
-  const timeout = Math.max(60, await numSetting(env, 'session_timeout_seconds', 180));
+  const timeout = Math.max(60, await numSetting(env, 'session_timeout_seconds', 600));
   if (sess.status === 'started' && idle > timeout) {
     const lk = await env.DB.prepare('SELECT slug FROM links WHERE id=?').bind(sess.link_id).first();
     if (lk) return Response.redirect(`${new URL(request.url).origin}/d/${lk.slug}`, 302);
@@ -1287,9 +1284,97 @@ async function apiStep(request, env) {
 
   const origin = new URL(request.url).origin;
   if (step >= sess.steps_required) {
-    return json({ ok: true, done: true, next: `${origin}/go/${b.sid}?t=${await token(env.SESSION_SECRET, b.sid, 'go')}` });
+    return json({ ok: true, done: true, next: `${origin}/access/${b.sid}?t=${await token(env.SESSION_SECRET, b.sid, 'access')}` });
   }
   return json({ ok: true, done: false, next: `${origin}/s/${b.sid}/${step + 1}?t=${await token(env.SESSION_SECRET, b.sid, step + 1)}` });
+}
+
+async function accessPage(request, env, url) {
+  const parts = url.pathname.split('/').filter(Boolean);
+  const sid = parts[1];
+  const t = url.searchParams.get('t') || '';
+  if (!sid) return html(messagePage('Invalid link', ''), 400);
+  if (t !== await token(env.SESSION_SECRET, sid, 'access')) return html(messagePage('Invalid link', 'Security check failed.'), 403);
+  const sess = await env.DB.prepare('SELECT * FROM click_sessions WHERE id=?').bind(sid).first();
+  if (!sess) return html(messagePage('Session not found', ''), 404);
+  const link = await env.DB.prepare('SELECT destination_url FROM links WHERE id=?').bind(sess.link_id).first();
+  const dest = link ? link.destination_url : '';
+  let host = '';
+  try { host = new URL(dest).hostname.replace(/^www\./, ''); } catch (e) { host = dest; }
+  const goUrl = `/go/${sid}?t=${await token(env.SESSION_SECRET, sid, 'go')}`;
+  const origin = new URL(request.url).origin;
+
+  return html(`<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Your link is ready — EliteURL</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0b0d1a;color:#f5f6fb;line-height:1.6;overflow-x:hidden}
+.wrap{max-width:520px;margin:0 auto;padding:20px 16px 40px}
+.hero{width:100%;border-radius:16px;display:block;box-shadow:0 20px 50px -24px rgba(80,80,255,.7);margin-bottom:22px}
+.badge{display:inline-flex;align-items:center;gap:6px;background:rgba(22,163,74,.15);border:1px solid rgba(22,163,74,.4);color:#4ade80;
+  font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:5px 12px;border-radius:99px;margin-bottom:14px}
+h1{font-size:24px;line-height:1.25;letter-spacing:-.025em;margin:0 0 8px;text-align:center}
+h1 span{background:linear-gradient(100deg,#7c7fff,#c084fc);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{font-size:13.5px;color:#9ba1c0;text-align:center;margin:0 0 22px}
+.pills{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:22px}
+.pill{background:#12172a;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:9px 13px;font-size:11px;color:#c7cbe4;font-weight:700}
+.pill b{display:block;color:#ffd76e;font-size:13px;margin-bottom:1px}
+.card{background:#12172a;border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:16px;margin-bottom:18px}
+.card .lbl{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#7c7fff;font-weight:900;margin-bottom:8px}
+.dest{font-size:13px;color:#e6e8f2;word-break:break-all;line-height:1.5;font-weight:600}
+.dest .host{color:#7c7fff}
+.timer{display:flex;align-items:center;justify-content:center;gap:9px;font-size:13px;color:#9ba1c0;margin-bottom:14px}
+.ring{width:26px;height:26px;border-radius:50%;border:3px solid rgba(255,255,255,.12);border-top-color:#7c7fff;animation:sp .9s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.btn{display:block;width:100%;text-align:center;text-decoration:none;font-weight:900;font-size:16px;letter-spacing:.03em;text-transform:uppercase;
+  padding:19px;border-radius:12px;border:0;color:#fff;background:linear-gradient(100deg,#3b3ff2,#7b5cff);
+  box-shadow:0 16px 36px -16px #3b3ff2;cursor:pointer;font-family:inherit}
+.btn.off{background:#1b2138;color:#5b6076;box-shadow:none;pointer-events:none}
+.foot{text-align:center;font-size:11px;color:#5b6076;margin-top:18px;line-height:1.7}
+.foot a{color:#7c7fff;text-decoration:none}
+</style></head><body>
+<div class="wrap">
+  <img class="hero" src="${origin}/assets/eliteurl-banner.jpg" alt="EliteURL Shortener — shorten links, earn money" width="900" height="965" loading="eager">
+  <div style="text-align:center"><span class="badge">✓ Verified &amp; Trusted</span></div>
+  <h1>Your link is <span>ready</span></h1>
+  <p class="sub">EliteURL Shortener — high CPM, instant payouts, trusted by creators.</p>
+
+  <div class="pills">
+    <div class="pill"><b>95%</b>Revenue share</div>
+    <div class="pill"><b>$5</b>Min payout</div>
+    <div class="pill"><b>12h</b>Payout time</div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">Your destination</div>
+    <div class="dest"><span class="host">${host}</span></div>
+  </div>
+
+  <div class="timer" id="tm"><span class="ring"></span> Preparing your link — <b id="sec">5</b>s</div>
+  <a class="btn off" id="go" href="${goUrl}">Access Link</a>
+
+  <div class="foot">
+    <a href="${origin}/register">Create your own links</a> · <a href="${origin}/earn">Earn with EliteURL</a>
+    <div style="margin-top:6px">© 2026 EliteURL</div>
+  </div>
+</div>
+<script>
+(function(){
+  var left = 5, btn = document.getElementById('go'), sec = document.getElementById('sec'), tm = document.getElementById('tm');
+  var t = setInterval(function(){
+    left--;
+    if (sec) sec.textContent = left > 0 ? left : 0;
+    if (left <= 0) {
+      clearInterval(t);
+      if (tm) tm.style.display = 'none';
+      btn.className = 'btn';
+      btn.textContent = 'Access Link →';
+    }
+  }, 1000);
+})();
+</script></body></html>`);
 }
 
 async function go(request, env, url) {
