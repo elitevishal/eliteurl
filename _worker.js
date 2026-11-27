@@ -689,7 +689,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v48-banner', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v49-inline', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -1012,7 +1012,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v48-banner',
+        build: '2026-11-30-v49-inline',
         total: zones.length,
         active: active.length,
         zones,
@@ -1079,7 +1079,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v48-banner', zones });
+      return json({ ok: true, build: '2026-11-30-v49-inline', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1493,7 +1493,7 @@ h1 span{background:linear-gradient(100deg,#7c7fff,#c084fc);-webkit-background-cl
 </style></head><body>
 <div class="wrap">
   <div class="hero-wrap">
-    <img class="hero" id="heroimg" src="${origin}/banner.jpg" alt="EliteURL Shortener" loading="eager" onerror="document.getElementById('heroimg').style.display='none';document.getElementById('herofb').style.display='flex';">
+    <img class="hero" id="heroimg" src="data:image/jpeg;base64,${BANNER_B64}" alt="EliteURL Shortener" loading="eager" onerror="document.getElementById('heroimg').style.display='none';document.getElementById('herofb').style.display='flex';">
     <div class="hero-fb" id="herofb" style="display:none">
       <div class="fb-logo">E</div>
       <div class="fb-name">ELITEURL <span>Shortener</span></div>
