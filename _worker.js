@@ -604,7 +604,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v38-domain', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v39-gate', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -888,7 +888,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v38-domain',
+        build: '2026-11-30-v39-gate',
         total: zones.length,
         active: active.length,
         zones,
@@ -955,7 +955,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v38-domain', zones });
+      return json({ ok: true, build: '2026-11-30-v39-gate', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1334,7 +1334,7 @@ async function accessPage(request, env, url) {
 *{box-sizing:border-box}
 body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0b0d1a;color:#f5f6fb;line-height:1.6;overflow-x:hidden}
 .wrap{max-width:520px;margin:0 auto;padding:20px 16px 40px}
-.hero{width:100%;border-radius:16px;display:block;box-shadow:0 20px 50px -24px rgba(80,80,255,.7);margin-bottom:22px}
+.hero{width:100%;max-height:300px;object-fit:cover;object-position:top center;border-radius:16px;display:block;box-shadow:0 20px 50px -24px rgba(80,80,255,.7);margin:0 auto 18px}
 .badge{display:inline-flex;align-items:center;gap:6px;background:rgba(22,163,74,.15);border:1px solid rgba(22,163,74,.4);color:#4ade80;
   font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:5px 12px;border-radius:99px;margin-bottom:14px}
 h1{font-size:24px;line-height:1.25;letter-spacing:-.025em;margin:0 0 8px;text-align:center}
@@ -1358,7 +1358,7 @@ h1 span{background:linear-gradient(100deg,#7c7fff,#c084fc);-webkit-background-cl
 .foot a{color:#7c7fff;text-decoration:none}
 </style></head><body>
 <div class="wrap">
-  <img class="hero" src="${origin}/assets/eliteurl-banner.jpg" alt="EliteURL Shortener — shorten links, earn money" width="900" height="965" loading="eager">
+  <img class="hero" src="${origin}/assets/eliteurl-banner.jpg" alt="EliteURL Shortener" loading="eager">
   <div style="text-align:center"><span class="badge">✓ Verified &amp; Trusted</span></div>
   <h1>Your link is <span>ready</span></h1>
   <p class="sub">EliteURL Shortener — high CPM, instant payouts, trusted by creators.</p>
@@ -1367,11 +1367,6 @@ h1 span{background:linear-gradient(100deg,#7c7fff,#c084fc);-webkit-background-cl
     <div class="pill"><b>95%</b>Revenue share</div>
     <div class="pill"><b>$5</b>Min payout</div>
     <div class="pill"><b>12h</b>Payout time</div>
-  </div>
-
-  <div class="card">
-    <div class="lbl">Your destination</div>
-    <div class="dest"><span class="host">${host}</span></div>
   </div>
 
   <div class="timer" id="tm"><span class="ring"></span> Preparing your link — <b id="sec">5</b>s</div>
@@ -1729,16 +1724,9 @@ ${P4}
         // 15 second poore -> pehle check karo ads aaye ya nahi
         setTimeout(function(){
           if (!adsRendered()) { showBlocked(); return; }
-          // ads theek hain -> Next dikhao AUR Continue bhi enable karo
+          // ads theek hain -> sirf Next dikhao (Continue Next ke baad)
           adline.classList.add('hide');
           nextWrap.classList.remove('hide');
-          btn.className = 'bigbtn on';
-          btn.textContent = ${JSON.stringify(label)};
-          var sp = document.getElementById('spinrow');
-          if (sp) sp.style.display = 'none';
-          var th0 = document.getElementById('taphint');
-          if (th0) th0.style.display = 'block';
-          ready = true;
         }, 1800);
       }
     }, 1000);
@@ -1755,12 +1743,16 @@ ${P4}
   nextBtn.addEventListener('click', function(){
     nextWrap.classList.add('hide');
     if (bottomEl) bottomEl.scrollIntoView({ behavior:'smooth', block:'center' });
-    // Continue pehle se enabled hai (15s baad) — yahan sirf scroll karna hai
-    ready = true;
-    btn.className = 'bigbtn on';
-    btn.textContent = ${JSON.stringify(label)};
-    var sp2 = document.getElementById('spinrow');
-    if (sp2) sp2.style.display = 'none';
+    // scroll ke baad Continue enable
+    setTimeout(function(){
+      ready = true;
+      btn.className = 'bigbtn on';
+      btn.textContent = ${JSON.stringify(label)};
+      var sp2 = document.getElementById('spinrow');
+      if (sp2) sp2.style.display = 'none';
+      var th2 = document.getElementById('taphint');
+      if (th2) th2.style.display = 'block';
+    }, 700);
   });
 
   var busy = false;
