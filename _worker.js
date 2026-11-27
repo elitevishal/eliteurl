@@ -593,7 +593,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v36-mask', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v37-navfix', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -877,7 +877,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v36-mask',
+        build: '2026-11-30-v37-navfix',
         total: zones.length,
         active: active.length,
         zones,
@@ -944,7 +944,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v36-mask', zones });
+      return json({ ok: true, build: '2026-11-30-v37-navfix', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1250,9 +1250,12 @@ async function stepPage(request, env, url) {
   const destHost = link ? new URL(link.destination_url).hostname : null;
   const stepToken = await token(env.SESSION_SECRET, sid, n);
 
+  const nextUrl = (n >= sess.steps_required)
+    ? `/access/${sid}?t=${await token(env.SESSION_SECRET, sid, 'access')}`
+    : `/s/${sid}/${n + 1}?t=${await token(env.SESSION_SECRET, sid, n + 1)}`;
   return html(renderStep({
     sid, n, total: sess.steps_required, countdown, destHost,
-    zones: zones.results, stepToken, isLast: n === sess.steps_required,
+    zones: zones.results, stepToken, isLast: n === sess.steps_required, nextUrl,
   }));
 }
 
@@ -1509,7 +1512,7 @@ const STEP_CONTENT = [
         <div class="callout"><strong>Note:</strong> EliteURL does not guarantee any level of income. What you earn depends entirely on your traffic and its geography.</div>` },
 ];
 
-function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLast }) {
+function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLast, nextUrl }) {
   const VISIBLE = ['banner', 'inpage', 'native'];
   const inline = zones.filter((z) => z.format !== 'interstitial' && z.format !== 'vignette' && z.network !== 'house');
   const house = zones.filter((z) => z.network === 'house');
@@ -1641,7 +1644,7 @@ ${P4}
   ${S2}
   <div class="stat">Step ${n} of ${total} — scroll down to continue</div>
   <div class="spinrow" id="spinrow"><span class="spin"></span> Preparing your link</div>
-  <button class="bigbtn" id="go">Please wait…</button>
+  <button class="bigbtn" id="go" data-next="${nextUrl || ''}">Please wait…</button>
   <div id="taphint" style="display:none;margin-top:12px;font-size:11.5px;color:#8b90a6;line-height:1.5">
     A new tab may have opened. Close it and tap the button again.
   </div>
@@ -1750,21 +1753,24 @@ ${P4}
   });
 
   var busy = false;
+  var NEXT = btn.getAttribute('data-next') || '';
   function goNext(){
     if (!ready || busy) return;
     busy = true;
     if (!adsRendered()) { busy = false; showBlocked(); return; }
     btn.textContent = 'Loading…';
-    fetch('/api/step', { method:'POST', headers:{'content-type':'application/json'},
+    var p = fetch('/api/step', { method:'POST', headers:{'content-type':'application/json'},
       body: JSON.stringify({ sid:${JSON.stringify(sid)}, n:${n}, t:${JSON.stringify(stepToken)} }) })
       .then(function(r){ return r.json(); })
-      .then(function(d){
-        if (d && d.next) { location.href = d.next; return; }
-        busy = false;
-        btn.textContent = ${JSON.stringify(label)};
-        if (d && d.error === 'out_of_order') location.reload();
-      })
-      .catch(function(){ busy = false; btn.textContent = ${JSON.stringify(label)}; });
+      .catch(function(){ return null; });
+    // 2.5s ke andar jawab na aaye to bhi aage badho
+    var timer = new Promise(function(res){ setTimeout(function(){ res(null); }, 2500); });
+    Promise.race([p, timer]).then(function(d){
+      if (d && d.next) { location.href = d.next; return; }
+      if (NEXT) { location.href = NEXT; return; }
+      busy = false;
+      btn.textContent = ${JSON.stringify(label)};
+    });
   }
   btn.addEventListener('click', goNext);
   btn.addEventListener('touchend', function(e){ e.preventDefault(); goNext(); }, { passive:false });
