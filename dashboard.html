@@ -109,6 +109,8 @@ body{overflow-x:hidden}
   color:#5b6076;cursor:pointer;font-family:inherit;white-space:nowrap;transition:.15s}
 .fchip:hover{border-color:#c9cce0;color:#0b0e1c}
 .fchip.on{background:#3b3ff2;border-color:#3b3ff2;color:#fff}
+
+#tgt-modal:not(.hide){display:flex}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -228,6 +230,10 @@ body{overflow-x:hidden}
         <div class="kpi" style="padding:14px"><span>Referrers</span><div id="ref-list" style="font-size:12px;margin-top:8px;color:#5b6076">—</div></div>
       </div>
     </div>
+    <div class="panel" id="lb-panel">
+      <h2>Top earners — last 30 days</h2>
+      <div id="lb-list" style="font-size:13px"><div class="empty">Loading…</div></div>
+    </div>
     <div class="panel" id="rates-panel">
       <h2>How much you earn</h2>
       <p class="page-sub" style="margin:0 0 12px">Earnings per 1,000 valid views. <b>No withdrawal fee</b> — you keep what you earn.</p>
@@ -254,7 +260,10 @@ body{overflow-x:hidden}
   </div>
 
   <div id="tab-links" class="hide">
-    <div class="panel"><h2>All your links</h2><div id="list2"><div class="empty">Loading…</div></div></div>
+    <div class="panel"><h2>All your links</h2>
+      <div id="folder-bar" style="display:flex;gap:7px;overflow-x:auto;padding-bottom:12px;margin-bottom:6px"></div>
+      <div id="list2"><div class="empty">Loading…</div></div>
+    </div>
   </div>
 
   <div id="tab-withdraw" class="hide">
@@ -275,6 +284,9 @@ body{overflow-x:hidden}
         <div class="field hide" id="f-holder" style="flex:1 1 220px"><label>Account holder name</label><input id="w-holder" placeholder="Full name"></div>
       </div>
       <p class="page-sub" style="margin:0 0 14px" id="w-hint"></p>
+      <div class="hide" id="w-pending-note" style="background:#fdf3e0;border:1px solid #f3e0bd;color:#8a5b00;font-size:12.5px;padding:11px 13px;border-radius:10px;margin-bottom:12px;line-height:1.6">
+        <b>You already have a pending request.</b> Please wait until it is approved or rejected before requesting again.
+      </div>
       <button class="btn btn-primary" id="w-submit">Submit request</button>
       <div class="msg" id="w-msg"></div>
     </div>
@@ -291,6 +303,34 @@ body{overflow-x:hidden}
       <div class="field"><label>Your referral code</label><input id="a-ref" readonly></div>
       <button class="btn btn-primary" id="save-name">Save name</button>
       <div class="msg" id="n-msg"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Link-in-Bio page</h2>
+      <p class="page-sub" style="margin:0 0 12px">One page with all your links — perfect for Instagram bio.</p>
+      <div class="field"><label>Your username</label><input id="a-user" placeholder="e.g. rahul" maxlength="20" autocomplete="off"></div>
+      <div class="row" style="gap:10px">
+        <button class="btn btn-primary btn-sm" id="save-user">Save username</button>
+        <a class="btn btn-ghost btn-sm" id="bio-open" target="_blank" rel="noopener" style="display:none">Open my page</a>
+      </div>
+      <div class="msg" id="u-msg"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Custom domain</h2>
+      <p class="page-sub" style="margin:0 0 12px">Use your own domain for short links, e.g. <b>go.yourdomain.com/Ab123X</b>.</p>
+      <div class="field"><label>Your domain</label><input id="a-domain" placeholder="go.yourdomain.com" autocomplete="off"></div>
+      <div class="row" style="gap:10px">
+        <button class="btn btn-primary btn-sm" id="save-domain">Save domain</button>
+        <button class="btn btn-ghost btn-sm" id="verify-domain">Verify now</button>
+      </div>
+      <div class="msg" id="d-msg"></div>
+      <p style="font-size:11.5px;color:#8b90a8;margin:12px 0 0;line-height:1.7">
+        <b>How to set up:</b><br>
+        1. Your DNS provider → add a CNAME record:<br>
+        &nbsp;&nbsp;&nbsp;<code id="dns-hint">go → eliteofficial.in</code><br>
+        2. Wait 5-10 minutes, then click Verify.
+      </p>
     </div>
 
     <div class="panel">
@@ -325,7 +365,32 @@ body{overflow-x:hidden}
       <button class="btn btn-ghost" id="logout2">Sign out</button>
     </div>
   </div>
-</div></main>
+</div><div class="hide" id="tgt-modal" style="position:fixed;inset:0;background:rgba(8,10,24,.55);backdrop-filter:blur(3px);z-index:60;align-items:flex-end;justify-content:center;padding:0">
+  <div style="background:#fff;width:100%;max-width:560px;border-radius:20px 20px 0 0;padding:22px;max-height:88vh;overflow:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <h2 style="font-size:16px;margin:0">Traffic targeting</h2>
+      <button class="btn btn-ghost btn-sm" id="tgt-close" type="button">Close</button>
+    </div>
+    <p style="font-size:12px;color:#8b90a8;margin:0 0 16px;line-height:1.6">Send visitors to different URLs based on their country or device. Leave blank to use the default destination.</p>
+    <div style="font-size:11px;font-weight:750;color:#8b90a8;letter-spacing:.075em;text-transform:uppercase;margin:0 0 8px">By country</div>
+    <div class="row" style="gap:8px;margin-bottom:8px">
+      <div class="field" style="flex:0 0 110px"><label>Country</label><select id="tgt-country"><option value="">—</option><option>US</option><option>GB</option><option>CA</option><option>AU</option><option>IN</option><option>PK</option><option>BD</option><option>AE</option><option>SA</option><option>DE</option><option>FR</option><option>NL</option><option>SG</option><option>MY</option><option>ID</option><option>PH</option><option>NG</option><option>KE</option><option>ZA</option><option>BR</option><option>MX</option><option>TR</option><option>EG</option><option>LK</option><option>NP</option></select></div>
+      <div class="field" style="flex:1 1 200px"><label>Send them to</label><input id="tgt-url" placeholder="https://..."></div>
+      <button class="btn btn-ghost btn-sm" id="tgt-add" type="button" style="align-self:flex-end;margin-bottom:2px">Add</button>
+    </div>
+    <div id="tgt-geo-list" style="font-size:12.5px;margin-bottom:18px"></div>
+    <div style="font-size:11px;font-weight:750;color:#8b90a8;letter-spacing:.075em;text-transform:uppercase;margin:0 0 8px">By device</div>
+    <div class="row" style="gap:8px;margin-bottom:8px">
+      <div class="field" style="flex:0 0 130px"><label>Device</label><select id="tgt-device"><option value="">—</option><option>ANDROID</option><option>IOS</option><option>DESKTOP</option><option>MOBILE</option><option>TABLET</option></select></div>
+      <div class="field" style="flex:1 1 200px"><label>Send them to</label><input id="tgt-durl" placeholder="https://..."></div>
+      <button class="btn btn-ghost btn-sm" id="tgt-dadd" type="button" style="align-self:flex-end;margin-bottom:2px">Add</button>
+    </div>
+    <div id="tgt-dev-list" style="font-size:12.5px;margin-bottom:18px"></div>
+    <button class="btn btn-primary" id="tgt-save" style="width:100%">Save targeting</button>
+    <div class="msg" id="tgt-msg"></div>
+  </div>
+</div>
+</main>
 
 <div class="foot"><a href="/earn" style="color:#3b3ff2;text-decoration:none;margin-right:12px">Earn</a><a href="/payouts" style="color:#3b3ff2;text-decoration:none;margin-right:12px">Payout proof</a>© 2026 EliteURL · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></div>
 
@@ -408,12 +473,16 @@ function renderLinks(boxId){
        +'</div>'
        +'<div class="lk-act">'
        +'<button class="btn btn-primary btn-sm" data-copy="'+esc(full)+'">Copy</button>'
-       +'<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data='+encodeURIComponent(full)+'">QR</a>'
+       +'<a class="btn btn-ghost btn-sm" download="eliteurl-'+esc(l.slug)+'-qr.png" target="_blank" rel="noopener" href="https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=12&data='+encodeURIComponent(full)+'">QR</a>'
        +'<button class="btn btn-ghost btn-sm" data-edit="'+(l.id||'')+'" data-slug="'+esc(l.slug)+'" data-url="'+esc(l.destination_url)+'">Edit</button>'
+       +'<button class="btn btn-ghost btn-sm" data-target="'+esc(l.slug)+'">Target</button>'
        +'<button class="btn btn-ghost btn-sm" data-del="'+esc(l.slug)+'">Disable</button>'
        +'</div></div>';
     });
     box.innerHTML=h+'</div>';
+    box.querySelectorAll('[data-target]').forEach(function(b){
+      b.addEventListener('click',function(){ openTarget(b.getAttribute('data-target')); });
+    });
     box.querySelectorAll('[data-edit]').forEach(function(b){
       b.addEventListener('click',function(){ editLink(b.getAttribute('data-edit'),b.getAttribute('data-slug'),b.getAttribute('data-url')); });
     });
@@ -487,6 +556,53 @@ if(bg) bg.addEventListener('click',function(){
     ta.value=''; renderLinks('list'); renderLinks('list2'); loadFolders();
   }).catch(function(){ bg.disabled=false; bg.textContent='Shorten all'; msg.className='msg show err'; msg.textContent='Network error'; });
 });
+var TGT={slug:'',geo:{},device:{}};
+function renderTgt(){
+  var g=document.getElementById('tgt-geo-list');
+  var ks=Object.keys(TGT.geo);
+  g.innerHTML=ks.length?ks.map(function(k){
+    return '<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #f2f4fa"><span><b>'+esc(k)+'</b> → '+esc(TGT.geo[k].slice(0,42))+'</span><button class="btn btn-ghost btn-sm" data-rg="'+esc(k)+'">×</button></div>';
+  }).join(''):'<div style="color:#a8adc4;padding:6px 0">None</div>';
+  g.querySelectorAll('[data-rg]').forEach(function(b){ b.addEventListener('click',function(){ delete TGT.geo[b.getAttribute('data-rg')]; renderTgt(); }); });
+  var dv=document.getElementById('tgt-dev-list');
+  var ds=Object.keys(TGT.device);
+  dv.innerHTML=ds.length?ds.map(function(k){
+    return '<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #f2f4fa"><span><b>'+esc(k)+'</b> → '+esc(TGT.device[k].slice(0,42))+'</span><button class="btn btn-ghost btn-sm" data-rd="'+esc(k)+'">×</button></div>';
+  }).join(''):'<div style="color:#a8adc4;padding:6px 0">None</div>';
+  dv.querySelectorAll('[data-rd]').forEach(function(b){ b.addEventListener('click',function(){ delete TGT.device[b.getAttribute('data-rd')]; renderTgt(); }); });
+}
+function openTarget(slug){
+  TGT={slug:slug,geo:{},device:{}};
+  document.getElementById('tgt-modal').classList.remove('hide');
+  fetch('/api/targeting?slug='+encodeURIComponent(slug)).then(function(r){return r.json();}).then(function(d){
+    if(d&&d.ok){ TGT.geo=d.geo||{}; TGT.device=d.device||{}; renderTgt(); }
+  }).catch(function(){ renderTgt(); });
+}
+(function(){
+  var m=document.getElementById('tgt-modal');
+  if(!m) return;
+  document.getElementById('tgt-close').addEventListener('click',function(){ m.classList.add('hide'); });
+  m.addEventListener('click',function(e){ if(e.target===m) m.classList.add('hide'); });
+  document.getElementById('tgt-add').addEventListener('click',function(){
+    var c=document.getElementById('tgt-country').value, u=document.getElementById('tgt-url').value.trim();
+    if(!c||!u) return; TGT.geo[c]=u; document.getElementById('tgt-url').value=''; renderTgt();
+  });
+  document.getElementById('tgt-dadd').addEventListener('click',function(){
+    var c=document.getElementById('tgt-device').value, u=document.getElementById('tgt-durl').value.trim();
+    if(!c||!u) return; TGT.device[c]=u; document.getElementById('tgt-durl').value=''; renderTgt();
+  });
+  document.getElementById('tgt-save').addEventListener('click',function(){
+    var b=this,msg=document.getElementById('tgt-msg');
+    b.disabled=true; b.textContent='Saving…';
+    fetch('/api/targeting',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({slug:TGT.slug,geo:TGT.geo,device:TGT.device})})
+      .then(function(r){return r.json();}).then(function(d){
+        b.disabled=false; b.textContent='Save targeting';
+        if(d&&d.ok){ msg.className='msg show ok'; msg.textContent='Saved!'; setTimeout(function(){ m.classList.add('hide'); },700); }
+        else { msg.className='msg show err'; msg.textContent=(d&&d.error)||'Could not save'; }
+      }).catch(function(){ b.disabled=false; b.textContent='Save targeting'; });
+  });
+})();
+
 function editLink(id,slug,cur){
   var url=prompt('New destination URL for /'+slug, cur||'');
   if(url===null) return;
@@ -527,6 +643,20 @@ fetch('/api/stats/daily').then(function(r){return r.json();}).then(function(d){
       +'</div>';
   }).join('');
 });
+
+fetch('/api/leaderboard').then(function(r){return r.json();}).then(function(d){
+  var box=document.getElementById('lb-list'); if(!box||!d||!d.ok) return;
+  var L=d.leaders||[];
+  if(!L.length){ box.innerHTML='<div class="empty" style="padding:18px 0">No earnings yet this month. Be the first!</div>'; return; }
+  var medal=['🥇','🥈','🥉'];
+  box.innerHTML=L.map(function(x){
+    var m=x.rank<=3?medal[x.rank-1]:'<span style="display:inline-block;width:22px;text-align:center;color:#a8adc4;font-weight:800">'+x.rank+'</span>';
+    var me=(d.userName&&x.name===d.userName)?' style="background:#f2f4ff;border-radius:8px"':'';
+    return '<div'+me+' style="display:flex;justify-content:space-between;align-items:center;padding:9px 6px;border-bottom:1px solid #f2f4fa">'
+      +'<span>'+m+' <b style="margin-left:4px">'+esc(x.name)+'</b></span>'
+      +'<b style="color:#12833b">$'+x.amount+'</b></div>';
+  }).join('');
+}).catch(function(){});
 
 fetch('/api/analytics/countries').then(function(r){return r.json();}).then(function(d){
   var box=document.getElementById('country-list'); if(!box||!d||!d.ok) return;
@@ -695,6 +825,54 @@ document.getElementById('w-submit').addEventListener('click',function(){
 function doLogout(){fetch('/api/auth/logout',{method:'POST'}).then(function(){location.href='/';});}
 document.getElementById('logout').addEventListener('click',function(e){e.preventDefault();doLogout();});
 document.getElementById('logout2').addEventListener('click',doLogout);
+
+function loadAccount(){
+  fetch('/api/account').then(function(r){return r.json();}).then(function(d){
+    if(!d||!d.ok) return;
+    var u=document.getElementById('a-user'), dm=document.getElementById('a-domain'), b=document.getElementById('bio-open');
+    if(u) u.value=d.username||'';
+    if(dm) dm.value=d.custom_domain||'';
+    if(b&&d.username){ b.href=(SITE||location.origin)+'/u/'+d.username; b.style.display='inline-flex'; }
+    var hint=document.getElementById('dns-hint');
+    if(hint&&d.custom_domain){ hint.textContent=d.custom_domain.split('.')[0]+' → eliteofficial.in'; }
+    if(d.domain_verified){ var m=document.getElementById('d-msg'); if(m){ m.className='msg show ok'; m.textContent='Domain verified and active.'; } }
+  }).catch(function(){});
+}
+loadAccount();
+var su=document.getElementById('save-user');
+if(su) su.addEventListener('click',function(){
+  var m=document.getElementById('u-msg'), v=document.getElementById('a-user').value.trim();
+  su.disabled=true;
+  fetch('/api/account',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({username:v})})
+    .then(function(r){return r.json();}).then(function(d){
+      su.disabled=false;
+      if(d&&d.ok){ m.className='msg show ok'; m.textContent='Saved! Your page: '+(SITE||location.origin)+'/u/'+d.username;
+        var b=document.getElementById('bio-open'); if(b&&d.username){ b.href=(SITE||location.origin)+'/u/'+d.username; b.style.display='inline-flex'; } }
+      else { m.className='msg show err'; m.textContent=(d&&d.error)||'Could not save'; }
+    }).catch(function(){su.disabled=false;});
+});
+var sd=document.getElementById('save-domain');
+if(sd) sd.addEventListener('click',function(){
+  var m=document.getElementById('d-msg'), v=document.getElementById('a-domain').value.trim();
+  sd.disabled=true;
+  fetch('/api/account',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({custom_domain:v})})
+    .then(function(r){return r.json();}).then(function(d){
+      sd.disabled=false;
+      if(d&&d.ok){ m.className='msg show ok'; m.textContent='Domain saved. Now add the CNAME in your DNS, then click Verify.'; loadAccount(); }
+      else { m.className='msg show err'; m.textContent=(d&&d.error)||'Could not save'; }
+    }).catch(function(){sd.disabled=false;});
+});
+var vd=document.getElementById('verify-domain');
+if(vd) vd.addEventListener('click',function(){
+  var m=document.getElementById('d-msg');
+  vd.disabled=true; vd.textContent='Checking…';
+  fetch('/api/account/verify-domain',{method:'POST',headers:{'content-type':'application/json'},body:'{}'})
+    .then(function(r){return r.json();}).then(function(d){
+      vd.disabled=false; vd.textContent='Verify now';
+      if(d&&d.ok){ m.className='msg show ok'; m.textContent=d.message||'Verified!'; loadAccount(); }
+      else { m.className='msg show err'; m.textContent=(d&&d.error)||'Not verified yet'; }
+    }).catch(function(){vd.disabled=false;vd.textContent='Verify now';});
+});
 
 document.getElementById('save-name').addEventListener('click',function(){
   var b=this,m=document.getElementById('n-msg');m.className='msg';

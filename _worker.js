@@ -35,11 +35,12 @@ const BUILTIN_ADS = [
 <script data-cfasync="false" src="https://bauval.org/22/e8326d4cf7193ad998bc86ec814760d8"></script>` }
 ];
 
-async function confirmEarnings(env, onlyOlderThanDays) {
+async function confirmEarnings(env, onlyOlderThanDays, tag) {
   const SCc = await schemaMap(env);
   let moved = 0, total = 0;
-  // ledger append-only hai -> reversing rows se move karte hain
-  // bucket ka poora balance (earning + reversing rows dono)
+  // ledger append-only hai -> reversing rows se move karte hain.
+  // har run ka apna tag -> dobara chalne par duplicate nahi hota.
+  const runTag = String(tag || ('manual-' + Date.now().toString(36)));
   let q = "SELECT user_id, COALESCE(SUM(" + SCc.lgAmt + "),0) AS amt FROM ledger WHERE bucket='estimated'";
   const binds = [];
   if (onlyOlderThanDays && onlyOlderThanDays > 0) {
@@ -50,24 +51,37 @@ async function confirmEarnings(env, onlyOlderThanDays) {
   const rows = binds.length ? await env.DB.prepare(q).bind(binds[0]).all() : await env.DB.prepare(q).all();
   for (const rw of (rows.results || [])) {
     const amt = Number(rw.amt || 0);
-    if (amt <= 0) continue;
+    if (!Number.isFinite(amt) || amt <= 0) continue;
     let est = 0, conf = 0;
     try { const b = await env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id=?').bind(rw.user_id).first(); est = b ? Number(b.estimated_usd || 0) : 0; conf = b ? Number(b.confirmed_usd || 0) : 0; } catch (e) {}
     if (!conf) { try { const u = await env.DB.prepare(`SELECT ${SCc.usConf} AS b FROM users WHERE id=?`).bind(rw.user_id).first(); conf = u ? Number(u.b || 0) : 0; } catch (e) {} }
-    const estAfter = Math.max(0, est - amt);
-    const confAfter = conf + amt;
+    // kabhi bhi available se zyada nahi nikalna
+    const move = Math.min(amt, Math.max(0, est));
+    if (!(move > 0)) continue;
+    const estAfter = Math.max(0, est - move);
+    const confAfter = conf + move;
     try {
-      // estimated se nikalo
-      await env.DB.prepare(`INSERT INTO ledger (user_id,type,bucket,${SCc.lgAmt},${SCc.lgBal},ref_table,reason) VALUES (?,'adjustment','estimated',?,?,'system','confirmed: move out')`)
-        .bind(rw.user_id, -amt, estAfter).run();
-      // confirmed mein daalo
-      await env.DB.prepare(`INSERT INTO ledger (user_id,type,bucket,${SCc.lgAmt},${SCc.lgBal},ref_table,reason) VALUES (?,'adjustment','confirmed',?,?,'system','confirmed: move in')`)
-        .bind(rw.user_id, amt, confAfter).run();
+      // unique index (user_id, reason) -> same tag dobara insert nahi hoga (race-safe)
+      await env.DB.prepare(`INSERT INTO ledger (user_id,type,bucket,${SCc.lgAmt},${SCc.lgBal},ref_table,reason) VALUES (?,'adjustment','estimated',?,?,'system',?)`)
+        .bind(rw.user_id, -move, estAfter, 'move out ' + runTag).run();
+      await env.DB.prepare(`INSERT INTO ledger (user_id,type,bucket,${SCc.lgAmt},${SCc.lgBal},ref_table,reason) VALUES (?,'adjustment','confirmed',?,?,'system',?)`)
+        .bind(rw.user_id, move, confAfter, 'move in ' + runTag).run();
       await env.DB.prepare(`UPDATE users SET ${SCc.usConf}=?, ${SCc.usEst}=? WHERE id=?`).bind(confAfter, estAfter, rw.user_id).run();
     } catch (e) { console.error('confirm fail', e.message); continue; }
-    moved++; total += amt;
+    moved++; total += move;
   }
   return { users: moved, amount: total };
+}
+
+// job claim: sirf ek request chale (atomic conditional update)
+async function claimNightly(env, today) {
+  try {
+    await env.DB.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('last_nightly_confirm','')").run();
+    const r = await env.DB.prepare("UPDATE settings SET value=? WHERE key='last_nightly_confirm' AND value <> ?").bind(today, today).run();
+    const ch = r && r.meta ? Number(r.meta.changes || 0) : -1;
+    if (ch === 0) return false;   // koi aur le chuka
+    return true;                  // ch>0 ya pata nahi (shim) -> aage badho
+  } catch (e) { return false; }
 }
 
 // har raat 12 baje (IST) estimated -> confirmed
@@ -79,13 +93,9 @@ async function maybeNightlyConfirm(env, ctx) {
     const today = new Date(istMs).toISOString().slice(0, 10);
     const last = await setting(env, 'last_nightly_confirm', '');
     if (last === today) return;                  // aaj ho gaya
-    const job = (async () => {
-      const r = await confirmEarnings(env, acd > 0 ? acd : 0);
-      try {
-        await env.DB.prepare("INSERT INTO settings (key,value) VALUES ('last_nightly_confirm',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(today).run();
-      } catch (e) {}
-      return r;
-    })();
+    const claimed = await claimNightly(env, today);
+    if (!claimed) return;                        // koi aur request le chuki
+    const job = (async () => confirmEarnings(env, acd > 0 ? acd : 0, 'nightly-' + today))();
     if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(job); else await job;
   } catch (e) {}
 }
@@ -128,6 +138,26 @@ function fixSiteUrl(u, origin) {
   if (!v) return (o && !bad.test(o)) ? o.replace(/\/+$/, '') : CANONICAL_SITE;
   if (bad.test(v)) return CANONICAL_SITE;
   return v.replace(/\/+$/, '');
+}
+
+async function ensureProfile(env) {
+  try {
+    const done = await env.DB.prepare("SELECT value FROM settings WHERE key='migrated_profile'").first();
+    if (done) return;
+  } catch (e) {}
+  for (const sql of [
+    "ALTER TABLE users ADD COLUMN username TEXT",
+    "ALTER TABLE users ADD COLUMN custom_domain TEXT",
+    "ALTER TABLE users ADD COLUMN domain_verified INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE links ADD COLUMN geo_rules TEXT",
+    "ALTER TABLE links ADD COLUMN device_rules TEXT"
+  ]) { try { await env.DB.prepare(sql).run(); } catch (e) {} }
+  try { await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username) WHERE username IS NOT NULL").run(); } catch (e) {}
+  try { await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_users_domain ON users(custom_domain)").run(); } catch (e) {}
+  try { await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_ledger_move ON ledger(user_id, reason) WHERE reason LIKE 'move out %'").run(); } catch (e) {}
+  try {
+    await env.DB.prepare("INSERT INTO settings (key,value) VALUES ('migrated_profile','1') ON CONFLICT(key) DO UPDATE SET value='1'").run();
+  } catch (e) {}
 }
 
 async function ensureFolders(env) {
@@ -181,7 +211,10 @@ const SESSION_DAYS = 30;
 
 const RESERVED = new Set(['api','s','go','assets','admin','dashboard','login','register',
   'logout','about','terms','privacy','contact','features','how-it-works','earnings',
-  'cookie','withdrawal-policy','abuse','advertisers','index.html']);
+  'cookie','withdrawal-policy','abuse','advertisers','index.html',
+  'u','rates','rate-card','earn','payouts','proof','payout-proof','blog','help','docs',
+  'api-docs','api-documentation','sw.js','swdiag','favicon.ico','robots.txt','sitemap.xml',
+  'reset','forgot','verify','u']);
 
 // ---------- tiny helpers ----------
 const json = (o, s = 200, extra = {}) => new Response(JSON.stringify(o), {
@@ -285,6 +318,74 @@ async function sendMail(env, to, subject, html) {
   } catch (e) { console.error('mail failed', e); return false; }
 }
 
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function parseRules(txt) {
+  if (!txt) return {};
+  try { const o = JSON.parse(txt); return (o && typeof o === 'object') ? o : {}; } catch (e) { return {}; }
+}
+function pickTarget(rules, country, device) {
+  const g = rules || {};
+  if (country && g[country]) return g[country];
+  if (device && g[device]) return g[device];
+  if (g.ALL) return g.ALL;
+  return null;
+}
+function validHandle(s) { return /^[a-z0-9][a-z0-9_-]{2,19}$/i.test(String(s || '')); }
+
+function mailShell(title, body, origin) {
+  return `<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:28px 22px;background:#f6f7fc">
+  <div style="background:#0b0e1c;border-radius:16px 16px 0 0;padding:22px 24px;text-align:center">
+    <div style="display:inline-block;width:38px;height:38px;line-height:38px;border-radius:10px;background:linear-gradient(135deg,#3b3ff2,#7b3cf2);color:#fff;font-weight:900;font-size:20px">E</div>
+    <div style="color:#fff;font-weight:900;letter-spacing:.16em;font-size:13px;margin-top:9px">ELITEURL</div>
+  </div>
+  <div style="background:#fff;border:1px solid #e8eaf4;border-top:0;border-radius:0 0 16px 16px;padding:26px 24px">
+    <h1 style="margin:0 0 14px;font-size:19px;letter-spacing:-.02em;color:#0b0e1c">${title}</h1>
+    <div style="font-size:14px;line-height:1.7;color:#3f4459">${body}</div>
+    <div style="margin-top:24px;padding-top:18px;border-top:1px solid #f2f4fa;font-size:11.5px;color:#8b90a8;line-height:1.6">
+      EliteURL · <a href="${origin}" style="color:#3b3ff2;text-decoration:none">eliteofficial.in</a><br>
+      No withdrawal fee · $5 minimum · paid within 12 hours
+    </div>
+  </div>
+</div>`;
+}
+function pill(text, color, bg) {
+  return `<span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:800;color:${color};background:${bg}">${text}</span>`;
+}
+async function notifyWithdrawal(env, origin, to, status, amount, method) {
+  if (!to) return false;
+  const amt = '$' + Number(amount || 0).toFixed(2);
+  const m = String(method || 'upi').toUpperCase();
+  let subject, title, body;
+  if (status === 'pending') {
+    subject = `Withdrawal request received — ${amt}`;
+    title = 'Withdrawal request received';
+    body = `<p>We have received your withdrawal request for <b>${amt}</b> via <b>${m}</b>.</p>
+      <p style="margin:14px 0">${pill('PENDING REVIEW', '#a86b00', '#fdf3e0')}</p>
+      <p>It will be reviewed and paid within <b>12 hours</b>. You will get another email as soon as it is processed.</p>`;
+  } else if (status === 'approved') {
+    subject = `Withdrawal approved — ${amt}`;
+    title = 'Withdrawal approved';
+    body = `<p>Your withdrawal of <b>${amt}</b> has been approved.</p>
+      <p style="margin:14px 0">${pill('APPROVED', '#1d4ed8', '#e8efff')}</p>
+      <p>Payment is on its way to your ${m} account.</p>`;
+  } else if (status === 'paid') {
+    subject = `Payment sent — ${amt}`;
+    title = 'Payment sent';
+    body = `<p><b>${amt}</b> has been sent to your ${m} account.</p>
+      <p style="margin:14px 0">${pill('PAID', '#0f7a52', '#e9faf2')}</p>
+      <p>Thanks for using EliteURL. Keep sharing your links!</p>`;
+  } else if (status === 'rejected') {
+    subject = `Withdrawal not approved — ${amt}`;
+    title = 'Withdrawal not approved';
+    body = `<p>Your withdrawal request for <b>${amt}</b> was not approved.</p>
+      <p style="margin:14px 0">${pill('REJECTED', '#c02b2b', '#fdeeee')}</p>
+      <p>The amount has been returned to your confirmed balance. You can request again at any time.</p>`;
+  } else return false;
+  return sendMail(env, to, subject, mailShell(title, body, origin));
+}
+
 // ---------- auth ----------
 function cookieHeader(tok) {
   return `${COOKIE}=${tok}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${SESSION_DAYS * 86400}`;
@@ -337,6 +438,29 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const p = url.pathname;
+    // ---- custom domain routing ----
+    try {
+      const host = String(url.hostname || '').toLowerCase();
+      const isMain = !host || host === 'eliteofficial.in' || host === 'www.eliteofficial.in' ||
+        /\.pages\.dev$/.test(host) || host === 'localhost' || host === '127.0.0.1';
+      if (!isMain) {
+        if (p === '/api/health' || p === '/favicon.ico') { /* normal handling */ }
+        else {
+          const owner = await env.DB.prepare('SELECT id FROM users WHERE custom_domain=? AND domain_verified=1').bind(host).first();
+          if (owner) {
+            const seg = p.split('/').filter(Boolean)[0] || '';
+            if (!seg) return Response.redirect('https://' + CANONICAL_SITE.replace(/^https?:\/\//, '') + '/', 302);
+            const lk = await env.DB.prepare("SELECT slug,destination_url,status,advanced FROM links WHERE slug=? AND user_id=?")
+              .bind(seg, owner.id).first();
+            if (lk && lk.status === 'active') {
+              if (lk.advanced) return Response.redirect(`https://${host}/d/${lk.slug}`, 302);
+              return Response.redirect(lk.destination_url, 302);
+            }
+            return new Response('Link not found', { status: 404, headers: { 'content-type': 'text/plain' } });
+          }
+        }
+      }
+    } catch (e) {}
     // 2% requests par cleanup check (background) — user ko wait nahi
     if (Math.random() < 0.02) {
       try { maybeAutoCleanup(env, ctx); } catch (e) {}
@@ -464,6 +588,8 @@ ${BUILTIN_ADS.map((a) => a.snippet).join('\n')}
         } catch (e) {}
         return new Response('Not found', { status: 404, headers: { 'content-type': 'text/plain' } });
       }
+      if (p.startsWith('/u/')) { const r = await bioPage(env, new URL(request.url).origin, p.split('/')[2] || ''); return (r instanceof Response) ? r : html(r); }
+      if (p === '/api-docs' || p === '/docs' || p === '/api-documentation') return html(apiDocsPage(new URL(request.url).origin));
       if (p === '/rates' || p === '/rate-card') return html(await ratesPage(env, new URL(request.url).origin));
       if (p === '/proof' || p === '/payouts' || p === '/payout-proof') return html(await proofPage(env, new URL(request.url).origin));
       if (p === '/earn') return html(await earnPage(env, new URL(request.url).origin));
@@ -715,7 +841,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v54-folders', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v60-final', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -751,6 +877,19 @@ async function api(request, env, url) {
     return json({ ok: true, short: `${url.origin}/${s2}`, slug: s2 });
   }
 
+  if (p === '/api/v1/links' && m === 'GET') {
+    const key = request.headers.get('x-api-key') || '';
+    if (!env.API_KEY || key !== env.API_KEY) return json({ error: 'Invalid API key' }, 401);
+    const owner = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(ownerEmailOf(env)).first();
+    if (!owner) return json({ error: 'Owner account not found' }, 500);
+    let rows = [];
+    try {
+      const r = await env.DB.prepare("SELECT slug, destination_url, clicks, valid_views, status, created_at FROM links WHERE user_id=? ORDER BY id DESC LIMIT 200").bind(owner.id).all();
+      rows = r.results || [];
+    } catch (e) {}
+    return json({ ok: true, links: rows });
+  }
+
   if (p === '/api/public/shorten' && m === 'POST') {
     if (!user) return json({ error: 'Please sign in to create a link' }, 401);
   }
@@ -758,6 +897,118 @@ async function api(request, env, url) {
   if (!user) return json({ error: 'Please sign in' }, 401);
 
   // ---- links ----
+  if (p === '/api/account' && m === 'GET') {
+    if (!user) return json({ ok: false }, 401);
+    await ensureProfile(env);
+    const u = await env.DB.prepare('SELECT username, custom_domain, domain_verified FROM users WHERE id=?').bind(user.id).first();
+    return json({ ok: true, username: u ? u.username : null, custom_domain: u ? u.custom_domain : null, domain_verified: u ? Number(u.domain_verified || 0) : 0 });
+  }
+
+  if (p === '/api/account' && (m === 'PATCH' || m === 'POST')) {
+    if (!user) return json({ ok: false }, 401);
+    await ensureProfile(env);
+    const b = await request.json().catch(() => ({}));
+    if (b.username !== undefined) {
+      let h = String(b.username || '').trim().toLowerCase().replace(/^@/, '');
+      if (h === '') {
+        await env.DB.prepare('UPDATE users SET username=NULL WHERE id=?').bind(user.id).run();
+      } else {
+        if (!validHandle(h)) return json({ error: 'Username: 3-20 characters, letters/numbers/hyphen/underscore only' }, 400);
+        if (RESERVED.has(h)) return json({ error: 'This username is reserved' }, 400);
+        const taken = await env.DB.prepare('SELECT 1 FROM users WHERE username=? AND id<>?').bind(h, user.id).first();
+        if (taken) return json({ error: 'This username is already taken' }, 409);
+        await env.DB.prepare('UPDATE users SET username=? WHERE id=?').bind(h, user.id).run();
+      }
+    }
+    if (b.custom_domain !== undefined) {
+      let d = String(b.custom_domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+      if (d === '') {
+        await env.DB.prepare('UPDATE users SET custom_domain=NULL, domain_verified=0 WHERE id=?').bind(user.id).run();
+      } else {
+        if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(d)) return json({ error: 'Enter a valid domain like go.yourdomain.com' }, 400);
+        if (/eliteofficial\.in$/.test(d)) return json({ error: 'Use your own domain, not eliteofficial.in' }, 400);
+        const taken = await env.DB.prepare('SELECT 1 FROM users WHERE custom_domain=? AND id<>?').bind(d, user.id).first();
+        if (taken) return json({ error: 'This domain is already in use' }, 409);
+        await env.DB.prepare('UPDATE users SET custom_domain=?, domain_verified=0 WHERE id=?').bind(d, user.id).run();
+      }
+    }
+    const u = await env.DB.prepare('SELECT username, custom_domain, domain_verified FROM users WHERE id=?').bind(user.id).first();
+    return json({ ok: true, username: u.username, custom_domain: u.custom_domain, domain_verified: Number(u.domain_verified || 0) });
+  }
+
+  if (p === '/api/account/verify-domain' && m === 'POST') {
+    if (!user) return json({ ok: false }, 401);
+    await ensureProfile(env);
+    const u = await env.DB.prepare('SELECT custom_domain FROM users WHERE id=?').bind(user.id).first();
+    if (!u || !u.custom_domain) return json({ error: 'Add a custom domain first' }, 400);
+    const d = u.custom_domain;
+    let ok = false;
+    try {
+      const r = await fetch(`https://${d}/.well-known/eliteurl.txt`, { cf: { cacheTtl: 0 } });
+      if (r.ok) { const t = (await r.text()).trim(); ok = t.includes(String(user.id)); }
+    } catch (e) {}
+    if (!ok) {
+      try {
+        const r2 = await fetch(`https://${d}/api/health`, { cf: { cacheTtl: 0 } });
+        if (r2.ok) { const j = await r2.json().catch(() => null); ok = !!(j && j.ok); }
+      } catch (e) {}
+    }
+    if (!ok) return json({ ok: false, error: 'Domain not pointing here yet. Add the CNAME and wait 5-10 minutes.' }, 400);
+    await env.DB.prepare('UPDATE users SET domain_verified=1 WHERE id=?').bind(user.id).run();
+    return json({ ok: true, message: 'Domain verified!' });
+  }
+
+  if (p === '/api/targeting' && m === 'GET') {
+    if (!user) return json({ ok: false }, 401);
+    await ensureProfile(env);
+    const slug = new URL(request.url).searchParams.get('slug') || '';
+    const row = await env.DB.prepare('SELECT slug, geo_rules, device_rules, destination_url FROM links WHERE slug=? AND user_id=?').bind(slug, user.id).first();
+    if (!row) return json({ error: 'Link not found' }, 404);
+    return json({ ok: true, slug: row.slug, destination: row.destination_url, geo: parseRules(row.geo_rules), device: parseRules(row.device_rules) });
+  }
+
+  if (p === '/api/targeting' && m === 'POST') {
+    if (!user) return json({ ok: false }, 401);
+    await ensureProfile(env);
+    const b = await request.json().catch(() => ({}));
+    const slug = String(b.slug || '');
+    const row = await env.DB.prepare('SELECT id FROM links WHERE slug=? AND user_id=?').bind(slug, user.id).first();
+    if (!row) return json({ error: 'Link not found' }, 404);
+    const clean = (o, allowed) => {
+      const out = {};
+      if (o && typeof o === 'object') {
+        for (const k of Object.keys(o).slice(0, 30)) {
+          const key = String(k).toUpperCase();
+          if (allowed && !allowed.includes(key)) continue;
+          const v = validUrl(String(o[k] || ''));
+          if (v) out[key] = v;
+        }
+      }
+      return out;
+    };
+    const geo = clean(b.geo, null);
+    const dev = clean(b.device, ['ANDROID', 'IOS', 'DESKTOP', 'MOBILE', 'TABLET']);
+    await env.DB.prepare('UPDATE links SET geo_rules=?, device_rules=? WHERE id=?')
+      .bind(Object.keys(geo).length ? JSON.stringify(geo) : null, Object.keys(dev).length ? JSON.stringify(dev) : null, row.id).run();
+    return json({ ok: true, geo, device: dev });
+  }
+
+  if (p === '/api/admin/fraud' && m === 'GET') {
+    let rows = [], stats = { total: 0, high: 0, medium: 0, low: 0 };
+    try {
+      const r = await env.DB.prepare(`SELECT f.id, f.rule, f.severity, f.action, f.meta, f.created_at,
+        u.name AS user_name, u.email AS user_email, u.id AS uid
+        FROM fraud_events f LEFT JOIN users u ON u.id = f.user_id
+        ORDER BY f.id DESC LIMIT 100`).all();
+      rows = r.results || [];
+    } catch (e) {}
+    try {
+      const s = await env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN severity='high' THEN 1 ELSE 0 END) AS high, SUM(CASE WHEN severity='medium' THEN 1 ELSE 0 END) AS medium, SUM(CASE WHEN severity='low' THEN 1 ELSE 0 END) AS low FROM fraud_events").first();
+      if (s) stats = { total: Number(s.total||0), high: Number(s.high||0), medium: Number(s.medium||0), low: Number(s.low||0) };
+    } catch (e) {}
+    return json({ ok: true, events: rows, stats });
+  }
+
   if (p === '/api/folders' && m === 'GET') {
     if (!user) return json({ ok: false }, 401);
     await ensureFolders(env);
@@ -866,6 +1117,31 @@ async function api(request, env, url) {
       await env.DB.prepare(`UPDATE links SET ${sets.join(', ')} WHERE id=? AND user_id=?`).bind(...binds).run();
     } catch (e) { return json({ error: 'Could not update the link' }, 500); }
     return json({ ok: true, id, slug: row.slug });
+  }
+
+  if (p === '/api/leaderboard' && m === 'GET') {
+    let rows = [];
+    try {
+      const r = await env.DB.prepare(`SELECT u.name, COALESCE(SUM(l.amount_usd),0) AS total
+        FROM ledger l JOIN users u ON u.id = l.user_id
+        WHERE l.type='earning' AND l.created_at >= ?
+        GROUP BY l.user_id ORDER BY total DESC LIMIT 10`).bind(Math.floor(Date.now()/1000) - 30*86400).all();
+      rows = r.results || [];
+    } catch (e) {
+      try {
+        const r = await env.DB.prepare(`SELECT u.name, COALESCE(SUM(l.amount_inr),0) AS total
+          FROM ledger l JOIN users u ON u.id = l.user_id
+          WHERE l.type='earning' AND l.created_at >= ?
+          GROUP BY l.user_id ORDER BY total DESC LIMIT 10`).bind(Math.floor(Date.now()/1000) - 30*86400).all();
+        rows = r.results || [];
+      } catch (e2) {}
+    }
+    const out = rows.map((r, i) => ({
+      rank: i + 1,
+      name: String(r.name || 'Creator').split(' ')[0],
+      amount: Number(r.total || 0).toFixed(2)
+    }));
+    return json({ ok: true, leaders: out, period: '30 days' });
   }
 
   if (p === '/api/analytics/countries' && m === 'GET') {
@@ -1085,6 +1361,14 @@ async function api(request, env, url) {
       console.error('withdraw insert failed', e1.message);
       return json({ error: 'Could not save the request: ' + String(e1.message || e1) }, 500);
     }
+    try {
+      const origin = fixSiteUrl(await setting(env, 'site_url', ''), new URL(request.url).origin);
+      const u = await env.DB.prepare('SELECT email FROM users WHERE id=?').bind(user.id).first();
+      if (u && u.email) {
+        const j = notifyWithdrawal(env, origin, u.email, 'pending', amount, method);
+        if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(j);
+      }
+    } catch (e) {}
     return json({ ok: true, message: 'Withdrawal request submitted. It will be reviewed within 24 hours.' });
   }
 
@@ -1161,7 +1445,7 @@ async function api(request, env, url) {
 
     if (p === '/api/admin/confirm-earnings' && m === 'POST') {
       try {
-        const r = await confirmEarnings(env, 0);
+        const r = await confirmEarnings(env, 0, 'manual-' + Date.now().toString(36));
         return json({ ok: true, users: r.users, amount: r.amount, message: `Confirmed $${r.amount.toFixed(4)} for ${r.users} user(s).` });
       } catch (e) { return json({ error: String(e.message || e) }, 500); }
     }
@@ -1185,7 +1469,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v54-folders',
+        build: '2026-11-30-v60-final',
         total: zones.length,
         active: active.length,
         zones,
@@ -1252,7 +1536,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v54-folders', zones });
+      return json({ ok: true, build: '2026-11-30-v60-final', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1277,9 +1561,15 @@ async function api(request, env, url) {
         await env.DB.prepare("UPDATE withdrawals SET status='approved', processed_at=? WHERE id=?").bind(now, id).run();
         try { await env.DB.prepare('INSERT INTO admin_actions (admin_id,user_id,action,amount_usd,note) VALUES (?,?,?,?,?)')
           .bind(user.id, wd.user_id, 'withdrawal_approve', wd.amount_usd || wd.amount_inr || 0, null).run(); } catch (e) {}
-        const uu = await env.DB.prepare('SELECT email,name FROM users WHERE id=?').bind(wd.user_id).first();
-        if (uu) await sendMail(env, uu.email, 'Your EliteURL withdrawal was approved',
-          `<p>Hi ${uu.name || 'there'},</p><p>Your withdrawal of <strong>$${Number(wd.amount_usd).toFixed(2)}</strong> has been approved and will be paid within ${await numSetting(env, 'payout_hours', 12)} hours.</p><p>— EliteURL</p>`);
+        try {
+          const origin = fixSiteUrl(await setting(env, 'site_url', ''), new URL(request.url).origin);
+          const uu = await env.DB.prepare('SELECT email FROM users WHERE id=?').bind(wd.user_id).first();
+          if (uu && uu.email) {
+            const amtA = Number(wd.amount_usd !== undefined ? wd.amount_usd : wd.amount_inr) || 0;
+            const j = notifyWithdrawal(env, origin, uu.email, 'approved', amtA, wd.method);
+            if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(j); else await j;
+          }
+        } catch (e) {}
         return json({ ok: true });
       }
       if (action === 'reject') {
@@ -1332,12 +1622,14 @@ async function api(request, env, url) {
           .bind(target, now, b.note || null, id).run();
         await env.DB.prepare('INSERT INTO admin_actions (admin_id,user_id,action,amount_usd,note) VALUES (?,?,?,?,?)')
           .bind(user.id, wd.user_id, 'withdrawal_' + target, amt, b.note || null).run();
-        if (target === 'approved' || target === 'paid') {
-          const uu3 = await env.DB.prepare('SELECT email,name FROM users WHERE id=?').bind(wd.user_id).first();
-          if (uu3) await sendMail(env, uu3.email,
-            target === 'paid' ? 'Your EliteURL payout was sent' : 'Your EliteURL withdrawal was approved',
-            `<p>Hi ${uu3.name || 'there'},</p><p>Your withdrawal of <strong>$${amt.toFixed(2)}</strong> is now <strong>${target}</strong>.</p><p>— EliteURL</p>`);
-        }
+        try {
+          const origin2 = fixSiteUrl(await setting(env, 'site_url', ''), new URL(request.url).origin);
+          const uu3 = await env.DB.prepare('SELECT email FROM users WHERE id=?').bind(wd.user_id).first();
+          if (uu3 && uu3.email) {
+            const j = notifyWithdrawal(env, origin2, uu3.email, target, amt, wd.method);
+            if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(j); else await j;
+          }
+        } catch (e) {}
         return json({ ok: true });
       }
       if (action === 'paid') {
@@ -1796,7 +2088,17 @@ async function go(request, env, url) {
       await env.DB.prepare('UPDATE links SET invalid_views=invalid_views+1 WHERE id=?').bind(link.id).run();
     }
   }
-  return Response.redirect(link.destination_url, 302);
+  // geo / device targeting
+  let finalUrl = link.destination_url;
+  try {
+    const geo = parseRules(link.geo_rules);
+    const dev = parseRules(link.device_rules);
+    const ua = (request.headers.get('user-agent') || '').toLowerCase();
+    const deviceKey = /iphone|ipad|ipod/.test(ua) ? 'IOS' : /android/.test(ua) ? 'ANDROID' : /mobile/.test(ua) ? 'MOBILE' : 'DESKTOP';
+    const pick = pickTarget(dev, null, deviceKey) || pickTarget(geo, String(sess.country || '').toUpperCase(), deviceKey);
+    if (pick && validUrl(pick)) finalUrl = pick;
+  } catch (e) {}
+  return Response.redirect(finalUrl, 302);
 }
 
 // ---------- step page render ----------
@@ -2113,9 +2415,9 @@ ${P4}
 }
 
 function landingPage(link, origin) {
-  const tool = link.tool_name || 'Your file';
-  const creator = link.creator_name || '';
-  const initial = (creator || 'E').charAt(0).toUpperCase();
+  const tool = escHtml(link.tool_name || 'Your file');
+  const creator = escHtml(link.creator_name || '');
+  const initial = escHtml(((link.creator_name || 'E').trim().charAt(0) || 'E').toUpperCase());
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
@@ -2213,7 +2515,7 @@ button{width:100%;padding:14px;border:0;border-radius:11px;background:#3b3ff2;co
 .hintbox{background:#eef1ff;border:1px solid #d6dbff;color:#3b3ff2;font-size:12.5px;padding:10px 12px;border-radius:10px;margin-bottom:14px;text-align:left}
 .getp{margin:14px 0 0;font-size:12.5px}.getp a{color:#5b6076}</style></head><body>
 <div class="card"><h1>Protected link</h1><p>This link is password protected. Enter the password to continue.</p>
-${hint ? `<div class="hintbox"><b>Hint:</b> ${hint}</div>` : ''}
+${hint ? `<div class="hintbox"><b>Hint:</b> ${escHtml(hint)}</div>` : ''}
 ${wrong ? '<div class="err">Wrong password. Try again.</div>' : ''}
 <form method="get" action="/${slug}"><input name="pw" type="password" placeholder="Password" autofocus><button>Unlock</button></form>
 <p class="getp"><a href="/d/${slug}">Get password</a></p>
@@ -2294,6 +2596,150 @@ const COUNTRY_FLAGS = { US:'🇺🇸', GB:'🇬🇧', CA:'🇨🇦', AU:'🇦�
 
 async function getRates(env) {
   try { const r = await env.DB.prepare('SELECT country_code, cpm_usd FROM rate_card ORDER BY cpm_usd DESC').all(); return r.results || []; } catch (e) { return []; }
+}
+
+async function bioPage(env, origin, handle) {
+  await ensureProfile(env);
+  const u = await env.DB.prepare('SELECT id, name, username FROM users WHERE username=? AND status=\'active\'').bind(String(handle || '').toLowerCase()).first();
+  if (!u) return new Response(messagePage('Page not found', 'This link-in-bio page does not exist.'), { status: 404, headers: { 'content-type': 'text/html; charset=utf-8' } });
+  let links = [];
+  try {
+    const r = await env.DB.prepare("SELECT slug, title, destination_url FROM links WHERE user_id=? AND status='active' ORDER BY id DESC LIMIT 30").bind(u.id).all();
+    links = r.results || [];
+  } catch (e) {}
+  const esc2 = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  const initial = esc2((u.name || 'U').trim().charAt(0).toUpperCase());
+  const items = links.map((l) => {
+    let host = '';
+    try { host = new URL(l.destination_url).hostname.replace(/^www\./, ''); } catch (e) {}
+    const label = l.title && l.title.length > 3 ? l.title : host || l.slug;
+    return `<a class="lnk" href="${origin}/${esc2(l.slug)}" rel="noopener">
+      <span class="ic">${esc2((label || 'L').charAt(0).toUpperCase())}</span>
+      <span class="tx"><b>${esc2(String(label).slice(0, 48))}</b><i>${esc2(host)}</i></span>
+      <span class="ar">›</span>
+    </a>`;
+  }).join('');
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc2(u.name || u.username)} — Links | EliteURL</title>
+<meta name="description" content="All links from ${esc2(u.name || u.username)} in one place.">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#0b0e1c">
+<meta property="og:title" content="${esc2(u.name || u.username)} — All links">
+<meta property="og:description" content="All links from ${esc2(u.name || u.username)} in one place.">
+<meta property="og:image" content="${origin}/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,-apple-system,system-ui,sans-serif;background:#0b0e1c;color:#fff;line-height:1.6;
+  min-height:100vh;display:flex;justify-content:center;padding:38px 16px 60px;
+  background-image:radial-gradient(70% 50% at 50% 0%,rgba(123,92,255,.30),transparent 70%)}
+.wrap{width:100%;max-width:420px;text-align:center}
+.av{width:84px;height:84px;border-radius:50%;margin:0 auto 14px;display:grid;place-items:center;
+  font-size:34px;font-weight:900;color:#fff;background:linear-gradient(135deg,#3b3ff2,#7b3cf2);
+  box-shadow:0 18px 40px -18px rgba(90,60,255,.9);border:3px solid rgba(255,255,255,.14)}
+h1{font-size:20px;margin:0 0 4px;letter-spacing:-.02em}
+.sub{font-size:13px;color:#9ba1c0;margin:0 0 26px}
+.lnk{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;padding:13px 15px;margin-bottom:11px;text-decoration:none;color:#fff;
+  transition:transform .15s,background .15s,border-color .15s;text-align:left}
+.lnk:hover{background:rgba(255,255,255,.11);border-color:rgba(140,120,255,.5);transform:translateY(-1px)}
+.ic{width:36px;height:36px;border-radius:10px;flex:0 0 36px;display:grid;place-items:center;font-weight:900;font-size:15px;
+  background:linear-gradient(135deg,#3b3ff2,#7b3cf2)}
+.tx{flex:1;min-width:0}
+.tx b{display:block;font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tx i{display:block;font-style:normal;font-size:11px;color:#8b90a8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ar{color:#6b7086;font-size:20px;font-weight:700}
+.ft{margin-top:26px;font-size:11.5px;color:#6b7086}
+.ft a{color:#7c7fff;text-decoration:none;font-weight:700}
+.empty{background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.16);border-radius:14px;padding:30px 18px;color:#9ba1c0;font-size:13px}
+</style></head><body>
+<div class="wrap">
+  <div class="av">${initial}</div>
+  <h1>${esc2(u.name || u.username)}</h1>
+  <p class="sub">@${esc2(u.username)}</p>
+  ${items || '<div class="empty">No links yet.</div>'}
+  <p class="ft">Powered by <a href="${origin}">EliteURL</a></p>
+</div></body></html>`;
+}
+
+function apiDocsPage(origin) {
+  const code = (s) => `<pre style="background:#0b0e1c;color:#d7d9f0;padding:14px 16px;border-radius:12px;overflow-x:auto;font-size:12.5px;line-height:1.65;font-family:ui-monospace,Menlo,monospace">${s}</pre>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>API documentation — EliteURL</title>
+<meta name="description" content="EliteURL REST API: create short links programmatically. Simple JSON, one API key.">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#3b3ff2">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,-apple-system,system-ui,sans-serif;background:#f6f7fc;color:#0b0e1c;line-height:1.65;font-size:15px}
+.hd{background:#0b0e1c;color:#fff;padding:32px 20px 36px;text-align:center}
+.hd .lg{display:inline-block;width:44px;height:44px;line-height:44px;border-radius:12px;background:linear-gradient(135deg,#3b3ff2,#7b3cf2);font-weight:900;font-size:23px;margin-bottom:12px}
+.hd h1{margin:0 0 7px;font-size:26px;letter-spacing:-.03em}
+.hd p{margin:0;color:#9ba1c0;font-size:13.5px}
+.wrap{max-width:760px;margin:0 auto;padding:26px 18px 50px}
+.card{background:#fff;border:1px solid #e8eaf4;border-radius:16px;padding:22px;margin-bottom:18px}
+h2{font-size:16px;margin:0 0 12px;letter-spacing:-.02em}
+h3{font-size:13px;margin:20px 0 8px;text-transform:uppercase;letter-spacing:.07em;color:#8b90a8}
+.m{display:inline-block;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:900;letter-spacing:.04em;color:#fff;background:#0f7a52;margin-right:8px;vertical-align:middle}
+.m.get{background:#1d4ed8}
+.path{font-family:ui-monospace,Menlo,monospace;font-size:13.5px;font-weight:700}
+p{color:#3f4459;font-size:13.5px;margin:8px 0}
+code{background:#eef0f8;padding:2px 6px;border-radius:5px;font-size:12.5px;font-family:ui-monospace,Menlo,monospace}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+th{text-align:left;padding:8px 10px;background:#fafbff;border-bottom:1px solid #e8eaf4;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#8b90a8}
+td{padding:9px 10px;border-bottom:1px solid #f2f4fa;font-family:ui-monospace,Menlo,monospace}
+.note{background:#eef1ff;border:1px solid #d6dbff;border-radius:12px;padding:13px 15px;font-size:12.5px;color:#3f4459;margin-bottom:18px}
+a.btn{display:inline-block;background:#3b3ff2;color:#fff;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:11px;font-size:14px}
+</style></head><body>
+<div class="hd"><div class="lg">E</div><h1>API documentation</h1><p>Create short links programmatically</p></div>
+<div class="wrap">
+  <div class="note"><b>Base URL:</b> <code>${origin}</code><br>All endpoints return JSON. Rate limit: 60 requests per minute per account.</div>
+
+  <div class="card">
+    <h2><span class="m">POST</span><span class="path">/api/v1/shorten</span></h2>
+    <p>Create a short link. Requires your API key in the <code>X-API-Key</code> header.</p>
+    <h3>Headers</h3>
+    ${code('X-API-Key: your_api_key\nContent-Type: application/json')}
+    <h3>Body</h3>
+    ${code('{\n  "url": "https://example.com/very/long/link",\n  "alias": "my-link"      // optional\n}')}
+    <h3>Response 200</h3>
+    ${code('{\n  "ok": true,\n  "slug": "my-link",\n  "short": "' + origin + '/my-link"\n}')}
+    <h3>Errors</h3>
+    <table><tr><th>Code</th><th>Meaning</th></tr>
+      <tr><td>400</td><td>Invalid or missing URL</td></tr>
+      <tr><td>401</td><td>Missing or wrong API key</td></tr>
+      <tr><td>409</td><td>Alias already taken</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2><span class="m get">GET</span><span class="path">/api/v1/links</span></h2>
+    <p>List your links with click counts.</p>
+    ${code('curl -H "X-API-Key: your_api_key" \\\n  ' + origin + '/api/v1/links')}
+    <h3>Response 200</h3>
+    ${code('{\n  "ok": true,\n  "links": [\n    { "slug": "my-link", "clicks": 247, "valid_views": 189 }\n  ]\n}')}
+  </div>
+
+  <div class="card">
+    <h2>Where do I find my API key?</h2>
+    <p>Sign in, open <a href="${origin}/dashboard" style="color:#3b3ff2;font-weight:700">Dashboard → Account</a>. Your API key is shown there. Keep it secret — anyone with the key can create links on your account.</p>
+  </div>
+
+  <div class="card">
+    <h2>Rate limits</h2>
+    <p>60 requests per minute per account. Exceeding it returns <code>429</code>. If you need more, contact us.</p>
+  </div>
+
+  <a class="btn" href="${origin}/register">Create a free account</a>
+</div></body></html>`;
 }
 
 async function ratesPage(env, origin) {
