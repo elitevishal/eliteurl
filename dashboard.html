@@ -131,13 +131,13 @@ body{overflow-x:hidden}
 <link rel="manifest" href="/site.webmanifest">
 <meta name="theme-color" content="#3b3ff2">
 <meta name="apple-mobile-web-app-title" content="EliteURL">
-<meta property="og:image" content="https://eliteofficial.in/og.jpg">
+<meta property="og:image" content="https://eliteofficial.in/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="EliteURL — Shorten Links. Get Paid for Every View.">
 <meta property="og:site_name" content="EliteURL">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://eliteofficial.in/og.jpg">
+<meta name="twitter:image" content="https://eliteofficial.in/og.png">
 <meta name="twitter:title" content="EliteURL — Free URL Shortener That Pays You">
 <meta name="twitter:description" content="No withdrawal fee, $5 minimum, paid within 12 hours by UPI, PayPal or bank.">
 </head><body>
@@ -655,6 +655,7 @@ function editLink(id,slug,cur){
 }
 
 loadFolders();
+loadChart();
 renderLinks('list');renderLinks('list2');
 
 function loadChart(){
@@ -773,21 +774,8 @@ document.getElementById('create').addEventListener('click',function(){
       if(x.s===200){var o=document.getElementById('out'),s=document.getElementById('short');
         s.textContent=x.d.short;s.href=x.d.short;o.classList.add('show');u.value='';a.value='';document.getElementById('expdays').value='';document.getElementById('linkpw').value='';document.getElementById('useExp').checked=false;document.getElementById('usePw').checked=false;document.getElementById('useAdv').checked=false;document.getElementById('creator').value='';document.getElementById('toolname').value='';document.getElementById('videourl').value='';document.getElementById('pwhint').value='';document.getElementById('advRow').classList.add('hide');document.getElementById('expRow').classList.add('hide');document.getElementById('pwRow').classList.add('hide');
         renderLinks('list');renderLinks('list2');
-
-loadChart();
-
-fetch('/api/referrals').then(function(r){return r.json();}).then(function(d){
-  if(!d||!d.ok)return;
-  var link=(SITE||location.origin)+'/register?ref='+(d.code||'');
-  document.getElementById('ref-link').value=link;
-  document.getElementById('ref-count').textContent=d.count||0;
-  document.getElementById('ref-earned').textContent='$'+Number(d.earned_usd||0).toFixed(2);
-  document.getElementById('ref-reward').textContent=Math.round(Number(d.commission||0.1)*100)+'%';
-});
-document.getElementById('ref-copy').addEventListener('click',function(){
-  var i=document.getElementById('ref-link'); i.select(); try{navigator.clipboard.writeText(i.value);}catch(e){}
-  this.textContent='Copied'; var b=this; setTimeout(function(){b.textContent='Copy';},1200);
-});}
+        loadChart(); loadFolders();
+      }
       else show(m,x.d.error||'Could not create the link.',false);
     })
     .catch(function(){b.disabled=false;b.textContent='Shorten';show(m,'Network error.',false);});
