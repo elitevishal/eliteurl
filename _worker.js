@@ -593,7 +593,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v35-clickfix', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v36-mask', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -877,7 +877,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v35-clickfix',
+        build: '2026-11-30-v36-mask',
         total: zones.length,
         active: active.length,
         zones,
@@ -944,7 +944,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v35-clickfix', zones });
+      return json({ ok: true, build: '2026-11-30-v36-mask', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1531,7 +1531,7 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
     if (!z) return '';
     counts[z.id] = (counts[z.id] || 0) + 1;
     const small = (z.format === 'popunder' || z.format === 'socialbar');
-    return `<div class="ad${small ? ' small' : ''}"><span class="adlabel">sponsored</span>${z.snippet}</div>`;
+    return `<div class="ad${small ? ' small' : ''}"><span class="adlabel">@d</span>${z.snippet}</div>`;
   };
   const B1 = adSlot('banner'), B2 = adSlot('banner');
   const P1 = adSlot('popunder'), P2 = adSlot('popunder');
@@ -1539,9 +1539,15 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
   const P3 = adSlot('popunder'), P4 = adSlot('popunder');
   const S1 = adSlot('banner'), S2 = adSlot('banner');
 
-  const c1 = STEP_CONTENT[(n - 1) % STEP_CONTENT.length];
-  const c2 = STEP_CONTENT[n % STEP_CONTENT.length];
-  const c3 = STEP_CONTENT[(n + 1) % STEP_CONTENT.length];
+  const maskAd = (s) => String(s)
+    .replace(/\bAds\b/g, '@ds').replace(/\bads\b/g, '@ds')
+    .replace(/\bAd\b/g, '@d').replace(/\bad\b/g, '@d')
+    .replace(/\badvertising\b/g, '@dvertising')
+    .replace(/\badvertisers\b/g, '@dvertisers')
+    .replace(/\badvertiser\b/g, '@dvertiser');
+  const c1 = { h: maskAd(STEP_CONTENT[(n - 1) % STEP_CONTENT.length].h), b: maskAd(STEP_CONTENT[(n - 1) % STEP_CONTENT.length].b) };
+  const c2 = { h: maskAd(STEP_CONTENT[n % STEP_CONTENT.length].h), b: maskAd(STEP_CONTENT[n % STEP_CONTENT.length].b) };
+  const c3 = { h: maskAd(STEP_CONTENT[(n + 1) % STEP_CONTENT.length].h), b: maskAd(STEP_CONTENT[(n + 1) % STEP_CONTENT.length].b) };
 
   const LABELS = ['Continue', 'Next', 'Continue to link', 'Verify and continue', 'Next step', 'Open my link', 'Get my link'];
   const label = LABELS[(n - 1) % LABELS.length];
@@ -1611,7 +1617,7 @@ ${P1}
 ${P2}
 
 <div class="line" id="adline">
-  Click the ad above 👆 and wait ${countdown} seconds
+  Click the @d above 👆 and wait ${countdown} seconds
   <small>The button appears automatically</small>
 </div>
 
@@ -1649,11 +1655,11 @@ ${P4}
 
 <div class="blocked" id="blocked">
   <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div>
-  <h2>Please disable your ad blocker</h2>
-  <p>This page is supported by ads. Ads could not load, so we cannot verify this visit.</p>
+  <h2>Please disable your @d blocker</h2>
+  <p>This page is supported by @ds. @ds could not load, so we cannot verify this visit.</p>
   <div class="steps">
     <b>To continue, please:</b><br>
-    1. Turn off your ad blocker or ad-blocking browser<br>
+    1. Turn off your @d blocker or @d-blocking browser<br>
     2. Disable any VPN, proxy or private DNS<br>
     3. Use a real browser (Chrome, Safari, Edge)<br>
     4. Reload this page
@@ -1691,7 +1697,7 @@ ${P4}
     if (blockedShown) return;
     blockedShown = true;
     blockedEl.classList.add('show');
-    btn.textContent = 'Ads blocked';
+    btn.textContent = '@ds blocked';
     btn.className = 'bigbtn';
     nextWrap.classList.add('hide');
     adline.classList.add('hide');
@@ -1709,9 +1715,16 @@ ${P4}
         // 15 second poore -> pehle check karo ads aaye ya nahi
         setTimeout(function(){
           if (!adsRendered()) { showBlocked(); return; }
-          // ads theek hain -> Next dikhao
+          // ads theek hain -> Next dikhao AUR Continue bhi enable karo
           adline.classList.add('hide');
           nextWrap.classList.remove('hide');
+          btn.className = 'bigbtn on';
+          btn.textContent = ${JSON.stringify(label)};
+          var sp = document.getElementById('spinrow');
+          if (sp) sp.style.display = 'none';
+          var th0 = document.getElementById('taphint');
+          if (th0) th0.style.display = 'block';
+          ready = true;
         }, 1800);
       }
     }, 1000);
@@ -1726,18 +1739,14 @@ ${P4}
   } else { arm(); }
 
   nextBtn.addEventListener('click', function(){
-    if (!adsRendered()) { showBlocked(); return; }
     nextWrap.classList.add('hide');
     if (bottomEl) bottomEl.scrollIntoView({ behavior:'smooth', block:'center' });
-    // Continue sirf Next ke baad enable hota hai
-    setTimeout(function(){
-      btn.className = 'bigbtn on';
-      btn.textContent = ${JSON.stringify(label)};
-      document.getElementById('spinrow').style.display = 'none';
-      var th = document.getElementById('taphint');
-      if (th) th.style.display = 'block';
-      ready = true;
-    }, 600);
+    // Continue pehle se enabled hai (15s baad) — yahan sirf scroll karna hai
+    ready = true;
+    btn.className = 'bigbtn on';
+    btn.textContent = ${JSON.stringify(label)};
+    var sp2 = document.getElementById('spinrow');
+    if (sp2) sp2.style.display = 'none';
   });
 
   var busy = false;
