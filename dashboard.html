@@ -111,6 +111,18 @@ body{overflow-x:hidden}
 .fchip.on{background:#3b3ff2;border-color:#3b3ff2;color:#fff}
 
 #tgt-modal:not(.hide){display:flex}
+
+.lk-copy{display:flex;align-items:center;gap:8px;width:100%;background:#fff3f3;border:1.5px solid #ffc9c9;
+  border-radius:10px;padding:9px 11px;cursor:pointer;font-family:inherit;text-align:left;transition:.15s}
+.lk-copy:hover{background:#ffe8e8;border-color:#ffb0b0}
+.lk-copy:active{transform:scale(.99)}
+.lk-copy.done{background:#e9faf2;border-color:#a8e6c8}
+.lk-url-t{flex:1;min-width:0;font-size:12.5px;font-weight:800;color:#c02b2b;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em}
+.lk-copy.done .lk-url-t{color:#0f7a52}
+.lk-copy-ic{flex:0 0 auto;font-size:9.5px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;
+  color:#c02b2b;background:#fff;border:1px solid #ffc9c9;border-radius:6px;padding:3px 7px}
+.lk-copy-ic.ok{color:#0f7a52;border-color:#a8e6c8}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -256,7 +268,7 @@ body{overflow-x:hidden}
         <div class="kpi"><span>Commission earned</span><b id="ref-earned">$0.00</b></div>
       </div>
     </div>
-    <div class="panel"><h2>Recent links</h2><div id="list"><div class="empty">Loading…</div></div></div>
+    <div class="panel"><h2>Recent links</h2><div id="folder-bar2" style="display:flex;gap:7px;overflow-x:auto;padding-bottom:12px;margin-bottom:6px"></div><div id="list"><div class="empty">Loading…</div></div></div>
   </div>
 
   <div id="tab-links" class="hide">
@@ -456,7 +468,10 @@ function renderLinks(boxId){
       var full=(SITE||location.origin)+'/'+l.slug;
       h+='<div class="lk-card">'
        +'<div class="lk-top">'
-       +'<a class="lk-url" href="'+full+'" target="_blank" rel="noopener">'+esc(full.replace(/^https?:\/\//,''))+'</a>'
+       +'<button class="lk-url lk-copy" type="button" data-cp="'+esc(full)+'" title="Tap to copy">'
+       +  '<span class="lk-url-t">'+esc(full.replace(/^https?:\/\//,''))+'</span>'
+       +  '<span class="lk-copy-ic">Copy</span>'
+       +'</button>'
        +'<span class="lk-badges">'
        +(l.tool_name?'<span class="lk-tool">'+esc(l.tool_name)+'</span>':'')
        +'<span class="pill'+(l.status==='active'?'':' off')+'">'+esc(l.status)+'</span>'
@@ -480,6 +495,16 @@ function renderLinks(boxId){
        +'</div></div>';
     });
     box.innerHTML=h+'</div>';
+    box.querySelectorAll('.lk-copy').forEach(function(b){
+      b.addEventListener('click',function(e){
+        e.preventDefault();
+        var t=b.getAttribute('data-cp');
+        copyText(t);
+        var ic=b.querySelector('.lk-copy-ic');
+        if(ic){ ic.textContent='Copied'; ic.classList.add('ok'); setTimeout(function(){ ic.textContent='Copy'; ic.classList.remove('ok'); },1400); }
+        b.classList.add('done'); setTimeout(function(){ b.classList.remove('done'); },1400);
+      });
+    });
     box.querySelectorAll('[data-target]').forEach(function(b){
       b.addEventListener('click',function(){ openTarget(b.getAttribute('data-target')); });
     });
@@ -506,6 +531,17 @@ function renderLinks(boxId){
   });
 }
 
+function copyText(t){
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t); return true; }
+  }catch(e){}
+  try{
+    var ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    return true;
+  }catch(e){ return false; }
+}
+
 var FOLDERS=[], FOLD_FILTER='';
 function loadFolders(){
   return fetch('/api/folders').then(function(r){return r.json();}).then(function(d){
@@ -513,14 +549,18 @@ function loadFolders(){
     var sel=document.getElementById('folder-sel');
     if(sel){ sel.innerHTML='<option value="">No folder</option>'+FOLDERS.map(function(f){
       return '<option value="'+f.id+'">'+esc(f.name)+' ('+(f.link_count||0)+')</option>'; }).join(''); }
-    var bar=document.getElementById('folder-bar');
-    if(bar){
-      bar.innerHTML='<button class="fchip'+(FOLD_FILTER===''?' on':'')+'" data-f="">All links</button>'
-        +FOLDERS.map(function(f){ return '<button class="fchip'+(String(FOLD_FILTER)===String(f.id)?' on':'')+'" data-f="'+f.id+'">'+esc(f.name)+'</button>'; }).join('');
+    ['folder-bar','folder-bar2'].forEach(function(bid){
+      var bar=document.getElementById(bid);
+      if(!bar) return;
+      bar.innerHTML='<button class="fchip'+(FOLD_FILTER===''?' on':'')+'" data-f="">All links ('+(FOLDERS.reduce(function(s,f){return s+Number(f.link_count||0);},0))+')</button>'
+        +FOLDERS.map(function(f){ return '<button class="fchip'+(String(FOLD_FILTER)===String(f.id)?' on':'')+'" data-f="'+f.id+'">'+esc(f.name)+' ('+Number(f.link_count||0)+')</button>'; }).join('');
       bar.querySelectorAll('[data-f]').forEach(function(b){
-        b.addEventListener('click',function(){ FOLD_FILTER=b.getAttribute('data-f'); renderLinks('list'); });
+        b.addEventListener('click',function(){
+          FOLD_FILTER=b.getAttribute('data-f');
+          renderLinks('list'); renderLinks('list2'); loadFolders();
+        });
       });
-    }
+    });
   }).catch(function(){});
 }
 function newFolder(){
@@ -617,6 +657,7 @@ function editLink(id,slug,cur){
 loadFolders();
 renderLinks('list');renderLinks('list2');
 
+function loadChart(){
 fetch('/api/stats/daily').then(function(r){return r.json();}).then(function(d){
   var box=document.getElementById('chart'); if(!box) return;
   if(!d||!d.ok){ box.innerHTML='<div class="empty">No traffic yet.</div>'; return; }
@@ -643,6 +684,7 @@ fetch('/api/stats/daily').then(function(r){return r.json();}).then(function(d){
       +'</div>';
   }).join('');
 });
+}
 
 fetch('/api/leaderboard').then(function(r){return r.json();}).then(function(d){
   var box=document.getElementById('lb-list'); if(!box||!d||!d.ok) return;
@@ -732,17 +774,7 @@ document.getElementById('create').addEventListener('click',function(){
         s.textContent=x.d.short;s.href=x.d.short;o.classList.add('show');u.value='';a.value='';document.getElementById('expdays').value='';document.getElementById('linkpw').value='';document.getElementById('useExp').checked=false;document.getElementById('usePw').checked=false;document.getElementById('useAdv').checked=false;document.getElementById('creator').value='';document.getElementById('toolname').value='';document.getElementById('videourl').value='';document.getElementById('pwhint').value='';document.getElementById('advRow').classList.add('hide');document.getElementById('expRow').classList.add('hide');document.getElementById('pwRow').classList.add('hide');
         renderLinks('list');renderLinks('list2');
 
-fetch('/api/stats/daily').then(function(r){return r.json();}).then(function(d){
-  var box=document.getElementById('chart'); if(!box) return;
-  if(!d||!d.ok){ box.innerHTML='<div class="empty">No traffic yet.</div>'; return; }
-  var days=d.days||[], max=1;
-  days.forEach(function(x){ if((x.valid||0)>max) max=x.valid; });
-  if(!days.length){ box.innerHTML='<div class="empty">No traffic yet.</div>'; return; }
-  box.innerHTML=days.map(function(x){
-    var hgt=Math.max(6, Math.round((x.valid||0)/max*100));
-    return '<div style="flex:1;text-align:center"><div style="height:'+hgt+'px;background:linear-gradient(180deg,#3b3ff2,#7b5cff);border-radius:6px 6px 0 0"></div><div style="font-size:10px;color:#6b7086;margin-top:6px">'+(x.day||'').slice(5)+'</div><div style="font-size:11px;font-weight:700">'+(x.valid||0)+'</div></div>';
-  }).join('');
-});
+loadChart();
 
 fetch('/api/referrals').then(function(r){return r.json();}).then(function(d){
   if(!d||!d.ok)return;
