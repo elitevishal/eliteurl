@@ -841,7 +841,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v61-ui', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v62-copy', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -1469,7 +1469,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v61-ui',
+        build: '2026-11-30-v62-copy',
         total: zones.length,
         active: active.length,
         zones,
@@ -1536,7 +1536,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v61-ui', zones });
+      return json({ ok: true, build: '2026-11-30-v62-copy', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -2124,7 +2124,7 @@ const STEP_CONTENT = [
     b: `<p>Creators keep almost all of the advertising revenue their links generate. A small share covers servers, fraud checks and payment processing.</p>
         <ul><li><strong>Minimum payout:</strong> $5</li><li><strong>Methods:</strong> PayPal, UPI and direct bank transfer</li>
         <li><strong>Processing:</strong> reviewed and sent within 12 hours</li></ul>
-        <p>Earnings appear as <em>estimated</em> first, then become <em>confirmed</em> after the network reconciles them — usually 30 to 45 days.</p>` },
+        <p>Earnings appear as <em>estimated</em> during the day, then move to <em>confirmed</em> automatically every night at 12:00 AM IST. Once confirmed, you can withdraw.</p>` },
   { h: 'Why we built this in India',
     b: `<p>India has one of the largest creator economies in the world, but most link monetisation platforms pay out through PayPal or crypto only — both awkward for a creator in Jaipur or Patna.</p>
         <p>EliteURL was built around UPI first. Earnings are denominated in US dollars because advertising is bought globally, and conversion happens at withdrawal.</p>
@@ -2568,7 +2568,7 @@ const INFO_TEXT = {
     <h2>Five habits</h2><p>Check the destination domain. Never enter a password on a page you reached from a short link. Ignore "download ready" buttons that are really ads. Close pop-ups with the small cross. Report anything that looks wrong.</p>
     <h2>What a legitimate step looks like</h2><p>A sponsored step should be labelled, should show a timer, and should never hide its continue button or pretend to be a system message.</p>
     <h2>If something looks wrong</h2><p>Write to the abuse address on the site. We remove links that lead to malware or phishing.</p>`,
-  '/help': `<p><strong>Getting paid.</strong> Earnings appear as <em>estimated</em> first, then become <em>confirmed</em> once they are reconciled with the advertising network (usually 30–45 days). You can request a withdrawal once your confirmed balance reaches $5. Payouts are reviewed and sent within 12 hours.</p>
+  '/help': `<p><strong>Getting paid.</strong> Earnings appear as <em>estimated</em> during the day and move to <em>confirmed</em> automatically every night at 12:00 AM IST. You can request a withdrawal once your confirmed balance reaches $5. Payouts are reviewed and sent within 12 hours.</p>
     <p><strong>Payout methods.</strong> PayPal, UPI (India) and direct bank transfer. Enter your details in Dashboard → Withdrawals.</p>
     <p><strong>Why are my views not counting?</strong> Views are only counted when a real visitor completes the sponsored steps. Bots, VPNs, proxies, duplicate visits within 24 hours and your own clicks are filtered out.</p>
     <p><strong>Forgot password.</strong> Use the “Forgot password?” link on the sign-in page. A 6-digit code is emailed to you and expires in 10 minutes.</p>
@@ -2580,7 +2580,7 @@ const INFO_TEXT = {
     <li><strong>Get paid.</strong> Every verified view earns you a share of the advertising revenue.</li></ol>
     <p>A view is verified only when a real visitor completes the sponsored step and reaches the destination. Duplicate, automated and proxy traffic is not counted.</p>`,
   '/earnings': `<p>Creators keep <strong>80%</strong> of verified advertising revenue. Rates depend on the visitor's country and device, and on the advertising network's current demand.</p>
-    <p>Earnings are shown as <em>estimated</em> until they are reconciled against the advertising network's report, typically within 30 to 45 days. Only confirmed earnings can be withdrawn.</p>
+    <p>Earnings are shown as <em>estimated</em> during the day. Every night at 12:00 AM IST they move automatically to <em>confirmed</em>, and only confirmed earnings can be withdrawn.</p>
     <p>We do not guarantee any level of income. What you earn depends on your traffic.</p>`,
   '/terms': `<p>By using EliteURL you agree to use the service lawfully. The following are prohibited: automated or incentivised traffic, clicking your own links to generate earnings, shortening links to malware, phishing pages, adult content, gambling or pirated material, and any attempt to manipulate view counts.</p>
     <p>Accounts that violate these terms may be suspended and unpaid balances withheld. We may change the service, rates and these terms at any time.</p>`,
