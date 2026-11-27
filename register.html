@@ -4,7 +4,6 @@
 <title>Create your free account — EliteURL</title>
 <meta name="description" content="Create a free EliteURL account, shorten your links and earn from every verified view. No withdrawal fee, $5 minimum, paid within 12 hours.">
 <link rel="canonical" href="https://eliteofficial.in/register">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
 :root{--ink:#0b0d1a;--body:#41465c;--muted:#6b7086;--accent:#3b3ff2;--line:#e8eaf3;--bg:#f7f8fc}
 *{box-sizing:border-box}
@@ -58,6 +57,21 @@ input::placeholder{color:#a8adc2}
 }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#3b3ff2">
+<meta name="apple-mobile-web-app-title" content="EliteURL">
+<meta property="og:image" content="https://eliteofficial.in/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="EliteURL — Shorten Links. Get Paid for Every View.">
+<meta property="og:site_name" content="EliteURL">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://eliteofficial.in/og.jpg">
+<meta name="twitter:title" content="EliteURL — Free URL Shortener That Pays You">
+<meta name="twitter:description" content="No withdrawal fee, $5 minimum, paid within 12 hours by UPI, PayPal or bank.">
 </head><body>
 <div class="shell">
   <aside class="side">
@@ -95,6 +109,11 @@ input::placeholder{color:#a8adc2}
           </div>
           <div class="hint">Use at least 8 characters.</div>
         </div>
+        <div class="field">
+          <label for="ref">Referral code <span style="font-weight:500;text-transform:none;letter-spacing:0;color:#a8adc4">(optional)</span></label>
+          <div class="inp"><input id="ref" autocomplete="off" placeholder="e.g. ABC12345" maxlength="24"></div>
+          <div class="hint" id="refhint">Enter a friend's code to give them 10% of your earnings.</div>
+        </div>
         <button class="btn" id="btn">Create account</button>
         <div class="msg" id="msg"></div>
       </form>
@@ -110,6 +129,21 @@ document.getElementById('toggle').addEventListener('click',function(){
   if(p.type==='password'){p.type='text';this.textContent='Hide';}else{p.type='password';this.textContent='Show';}
 });
 function show(t,ok){msg.textContent=t;msg.className='msg show '+(ok?'ok':'err');}
+// referral code: URL se aaye to auto-fill + lock (editable nahi)
+(function(){
+  var refEl=document.getElementById('ref'), hint=document.getElementById('refhint');
+  if(!refEl) return;
+  var code=(new URLSearchParams(location.search).get('ref')||'').trim();
+  if(code){
+    refEl.value=code;
+    refEl.readOnly=true;
+    refEl.style.background='#f2f4fa';
+    refEl.style.color='#5b6076';
+    refEl.style.cursor='not-allowed';
+    if(hint){ hint.textContent='Referred by '+code+' — you both benefit.'; hint.style.color='#0f7a52'; }
+  }
+})();
+
 f.addEventListener('submit',function(e){
   e.preventDefault();
   var n=document.getElementById('name').value.trim(),
@@ -119,7 +153,7 @@ f.addEventListener('submit',function(e){
   if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(em)){show('Please enter a valid email address.',false);return;}
   if(pw.length<8){show('Password must be at least 8 characters.',false);return;}
   msg.className='msg';btn.disabled=true;btn.textContent='Creating account…';
-  fetch('/api/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:n,email:em,password:pw,ref:new URLSearchParams(location.search).get('ref')||''})})
+  fetch('/api/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:n,email:em,password:pw,ref:(document.getElementById('ref').value||'').trim()})})
     .then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
     .then(function(x){
       btn.disabled=false;btn.textContent='Create account';
