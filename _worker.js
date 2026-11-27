@@ -22,6 +22,10 @@ const BUILTIN_ADS = [
     snippet: '<script>(function(s){s.dataset.zone="12361015",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
   { id: 'm4', network: 'monetag', format: 'popunder', label: 'Monetag 4', step: 1,
     snippet: '<script>(function(s){s.dataset.zone="12361023",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
+  { id: 'm5', network: 'monetag', format: 'banner', cap: 1, label: 'Monetag Vignette', step: 1,
+    snippet: '<script>(function(s){s.dataset.zone="12364923",s.src="https://n6wxm.com/vignette.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
+  { id: 'm6', network: 'monetag', format: 'banner', cap: 1, label: 'Monetag In-Page Push', step: 1,
+    snippet: '<script>(function(s){s.dataset.zone="12364928",s.src="https://nap5k.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
   { id: 'b1', network: 'adsterra', format: 'banner', label: 'Banner 300x250', step: 1,
     snippet: `<script type="text/javascript">
   atOptions = {
@@ -592,7 +596,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v30-swdiag', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v33-admix', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -876,7 +880,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v30-swdiag',
+        build: '2026-11-30-v33-admix',
         total: zones.length,
         active: active.length,
         zones,
@@ -943,7 +947,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v30-swdiag', zones });
+      return json({ ok: true, build: '2026-11-30-v33-admix', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1222,8 +1226,9 @@ async function stepPage(request, env, url) {
   // Monetag OnClick click hijack karta hai — ek page par sirf 1 zone
   if (adNetwork === 'monetag') {
     const mons = zoneRows.filter((z) => z.format === 'popunder');
-    const pick = mons[(n / 2 - 1) % (mons.length || 1)];
-    zoneRows = pick ? [pick] : [];
+    const others = zoneRows.filter((z) => z.format !== 'popunder');
+    const pickM = mons[(n / 2 - 1) % (mons.length || 1)];
+    zoneRows = (pickM ? [pickM] : []).concat(others);
   }
   // page bhara rahe — dusre network ke banner fillers ke roop mein
   const fillers = BUILTIN_ADS.filter((z) => z.network !== adNetwork && z.format === 'banner');
@@ -1423,7 +1428,7 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
     // format diya hai to sirf wahi format — fallback nahi (warna slot badal jata hai)
     const cands = fmt ? pool.filter((z) => z.format === fmt) : pool;
     for (const c of cands) {
-      const cap = CAPS[c.format] || 1;
+      const cap = c.cap || CAPS[c.format] || 1;
       if ((counts[c.id] || 0) < cap) return c;
     }
     return null;
