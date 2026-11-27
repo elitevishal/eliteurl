@@ -76,6 +76,36 @@ body{overflow-x:hidden}
   padding:4px 9px;border-radius:6px;letter-spacing:.02em;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lk-creator{font-size:10.5px;color:#8b90a6;margin:-4px 0 8px}
 .lk-creator b{color:#3b3ff2}
+
+/* ---- dashboard polish ---- */
+.wrap{max-width:960px;margin:0 auto;padding:0 16px}
+.panel{border-radius:18px;box-shadow:0 1px 2px rgba(16,24,64,.04)}
+.panel h2{font-size:15px;letter-spacing:-.01em}
+.kpi{border-radius:14px;padding:16px}
+.kpi b{font-size:24px;letter-spacing:-.02em}
+.kpi span{font-size:10.5px;letter-spacing:.07em}
+.cards{gap:12px}
+@media(max-width:640px){
+  .wrap{padding:0 12px}
+  .kpi b{font-size:20px}
+  .panel{padding:16px}
+  h1,.page-title{font-size:22px}
+}
+@media(min-width:900px){
+  .cards{grid-template-columns:repeat(4,1fr)}
+}
+
+.hello{border-radius:18px}
+.hello-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.hello-top h2{margin:0 0 3px}
+.hello-top p{margin:0}
+.hello-cta{display:inline-flex;align-items:center;gap:6px;background:#fff;color:#3b3ff2;text-decoration:none;
+  font-size:12.5px;font-weight:800;padding:10px 16px;border-radius:10px;white-space:nowrap;
+  box-shadow:0 6px 18px -10px rgba(0,0,0,.5);transition:.15s}
+.hello-cta:hover{transform:translateY(-1px)}
+.bal{margin-top:16px}
+.bal i{display:block;font-style:normal;font-size:9.5px;color:rgba(255,255,255,.45);letter-spacing:.06em;text-transform:uppercase;margin-top:2px}
+@media(max-width:480px){.hello-cta{padding:9px 14px;font-size:12px}.bal b{font-size:19px}}
 </style>
 </head><body>
 
@@ -93,12 +123,17 @@ body{overflow-x:hidden}
   <p class="page-sub">Create links, track verified views and withdraw your earnings.</p>
 
   <div class="hello">
-    <h2 id="hello-name">Welcome back</h2>
-    <p>Here is how your links are performing.</p>
+    <div class="hello-top">
+      <div>
+        <h2 id="hello-name">Welcome back</h2>
+        <p>Here is how your links are performing.</p>
+      </div>
+      <a href="#withdraw" class="hello-cta" id="hello-withdraw">Withdraw</a>
+    </div>
     <div class="bal">
-      <div><span>Estimated</span><b class="acc" id="b-est">$0.0000</b></div>
-      <div><span>Confirmed</span><b id="b-conf">$0.0000</b></div>
-      <div><span>Valid views</span><b id="b-valid">0</b></div>
+      <div><span>Estimated</span><b class="acc" id="b-est">$0.0000</b><i>pending</i></div>
+      <div><span>Confirmed</span><b id="b-conf">$0.0000</b><i>withdrawable</i></div>
+      <div><span>Valid views</span><b id="b-valid">0</b><i>all time</i></div>
     </div>
   </div>
 
@@ -148,6 +183,16 @@ body{overflow-x:hidden}
     <div class="panel">
       <h2>Last 7 days</h2>
       <div id="chart" style="display:flex;align-items:flex-end;gap:10px;height:120px;padding-top:8px"></div>
+    </div>
+    <div class="panel" id="rates-panel">
+      <h2>How much you earn</h2>
+      <p class="page-sub" style="margin:0 0 12px">Earnings per 1,000 valid views. <b>No withdrawal fee</b> — you keep what you earn.</p>
+      <div id="rates-list" style="font-size:13px"><div class="empty">Loading…</div></div>
+      <div class="cards" style="margin:14px 0 0">
+        <div class="kpi"><span>Min payout</span><b id="r-min">$5</b></div>
+        <div class="kpi"><span>Payout time</span><b id="r-hrs">12h</b></div>
+        <div class="kpi"><span>Withdrawal fee</span><b style="color:#12833b">$0</b></div>
+      </div>
     </div>
     <div class="panel">
       <h2>Refer &amp; earn</h2>
@@ -344,13 +389,43 @@ renderLinks('list');renderLinks('list2');
 fetch('/api/stats/daily').then(function(r){return r.json();}).then(function(d){
   var box=document.getElementById('chart'); if(!box) return;
   if(!d||!d.ok){ box.innerHTML='<div class="empty">No traffic yet.</div>'; return; }
-  var days=d.days||[], max=1;
-  days.forEach(function(x){ if((x.valid||0)>max) max=x.valid; });
-  if(!days.length){ box.innerHTML='<div class="empty">No traffic yet.</div>'; return; }
-  box.innerHTML=days.map(function(x){
-    var hgt=Math.max(6, Math.round((x.valid||0)/max*100));
-    return '<div style="flex:1;text-align:center"><div style="height:'+hgt+'px;background:linear-gradient(180deg,#3b3ff2,#7b5cff);border-radius:6px 6px 0 0"></div><div style="font-size:10px;color:#6b7086;margin-top:6px">'+(x.day||'').slice(5)+'</div><div style="font-size:11px;font-weight:700">'+(x.valid||0)+'</div></div>';
+  // 7 din ka poora array banao (khali din 0)
+  var map={}; (d.days||[]).forEach(function(x){ map[x.day]=x; });
+  var arr=[], max=1;
+  for(var i=6;i>=0;i--){
+    var dt=new Date(); dt.setDate(dt.getDate()-i);
+    var key=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+    var row=map[key]||{day:key,clicks:0,valid:0};
+    arr.push(row);
+    if((row.valid||0)>max) max=row.valid;
+  }
+  var total=arr.reduce(function(s,x){return s+(x.valid||0);},0);
+  if(!total){ box.innerHTML='<div class="empty" style="height:100px;display:flex;align-items:center;justify-content:center">No traffic yet. Share your link to start earning.</div>'; return; }
+  box.innerHTML=arr.map(function(x){
+    var v=x.valid||0;
+    var hgt=v?Math.max(10, Math.round(v/max*100)):3;
+    var bg=v?'linear-gradient(180deg,#3b3ff2,#7b5cff)':'#eef0f7';
+    return '<div style="flex:1;max-width:46px;text-align:center">'
+      +'<div style="height:'+hgt+'px;background:'+bg+';border-radius:6px 6px 0 0;transition:height .3s"></div>'
+      +'<div style="font-size:9.5px;color:#8b90a6;margin-top:6px">'+(x.day||'').slice(5).replace('-','/')+'</div>'
+      +'<div style="font-size:11px;font-weight:800;color:'+(v?'#0b0d1a':'#c3c7d6')+'">'+v+'</div>'
+      +'</div>';
   }).join('');
+});
+
+fetch('/api/rates').then(function(r){return r.json();}).then(function(d){
+  var box=document.getElementById('rates-list'); if(!box||!d||!d.ok) return;
+  var names={US:'United States',GB:'United Kingdom',CA:'Canada',AU:'Australia',IN:'India',PK:'Pakistan',BD:'Bangladesh',ALL:'Other countries'};
+  var flags={US:'🇺🇸',GB:'🇬🇧',CA:'🇨🇦',AU:'🇦🇺',IN:'🇮🇳',PK:'🇵🇰',BD:'🇧🇩',ALL:'🌍'};
+  box.innerHTML=(d.rates||[]).map(function(x){
+    var c=String(x.country_code||'').toUpperCase();
+    return '<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f2f4fa">'
+      +'<span><b style="display:inline-block;min-width:30px;text-align:center;font-size:9px;font-weight:900;color:#3b3ff2;background:#eef1ff;border-radius:4px;padding:2px 4px;margin-right:7px">'+(c==='ALL'?'ALL':c)+'</b>'+(names[c]||c)+'</span>'
+      +'<b style="color:#12833b">$'+Number(x.cpm_usd||0).toFixed(2)+' <span style="font-weight:500;color:#8b90a6;font-size:11px">/ 1k views</span></b></div>';
+  }).join('') || '<div class="empty">Rate card not set yet.</div>';
+  var mn=document.getElementById('r-min'), hr=document.getElementById('r-hrs');
+  if(mn) mn.textContent='$'+Number(d.min_withdrawal_usd||5).toFixed(0);
+  if(hr) hr.textContent=Number(d.payout_hours||12)+'h';
 });
 
 fetch('/api/referrals').then(function(r){return r.json();}).then(function(d){

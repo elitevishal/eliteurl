@@ -35,6 +35,61 @@ const BUILTIN_ADS = [
 <script data-cfasync="false" src="https://bauval.org/22/e8326d4cf7193ad998bc86ec814760d8"></script>` }
 ];
 
+async function confirmEarnings(env, onlyOlderThanDays) {
+  const SCc = await schemaMap(env);
+  let moved = 0, total = 0;
+  // ledger append-only hai -> reversing rows se move karte hain
+  // bucket ka poora balance (earning + reversing rows dono)
+  let q = "SELECT user_id, COALESCE(SUM(" + SCc.lgAmt + "),0) AS amt FROM ledger WHERE bucket='estimated'";
+  const binds = [];
+  if (onlyOlderThanDays && onlyOlderThanDays > 0) {
+    q += " AND created_at < ?";
+    binds.push(Math.floor(Date.now() / 1000) - onlyOlderThanDays * 86400);
+  }
+  q += " GROUP BY user_id";
+  const rows = binds.length ? await env.DB.prepare(q).bind(binds[0]).all() : await env.DB.prepare(q).all();
+  for (const rw of (rows.results || [])) {
+    const amt = Number(rw.amt || 0);
+    if (amt <= 0) continue;
+    let est = 0, conf = 0;
+    try { const b = await env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id=?').bind(rw.user_id).first(); est = b ? Number(b.estimated_usd || 0) : 0; conf = b ? Number(b.confirmed_usd || 0) : 0; } catch (e) {}
+    if (!conf) { try { const u = await env.DB.prepare(`SELECT ${SCc.usConf} AS b FROM users WHERE id=?`).bind(rw.user_id).first(); conf = u ? Number(u.b || 0) : 0; } catch (e) {} }
+    const estAfter = Math.max(0, est - amt);
+    const confAfter = conf + amt;
+    try {
+      // estimated se nikalo
+      await env.DB.prepare(`INSERT INTO ledger (user_id,type,bucket,${SCc.lgAmt},${SCc.lgBal},ref_table,reason) VALUES (?,'adjustment','estimated',?,?,'system','confirmed: move out')`)
+        .bind(rw.user_id, -amt, estAfter).run();
+      // confirmed mein daalo
+      await env.DB.prepare(`INSERT INTO ledger (user_id,type,bucket,${SCc.lgAmt},${SCc.lgBal},ref_table,reason) VALUES (?,'adjustment','confirmed',?,?,'system','confirmed: move in')`)
+        .bind(rw.user_id, amt, confAfter).run();
+      await env.DB.prepare(`UPDATE users SET ${SCc.usConf}=?, ${SCc.usEst}=? WHERE id=?`).bind(confAfter, estAfter, rw.user_id).run();
+    } catch (e) { console.error('confirm fail', e.message); continue; }
+    moved++; total += amt;
+  }
+  return { users: moved, amount: total };
+}
+
+// har raat 12 baje (IST) estimated -> confirmed
+async function maybeNightlyConfirm(env, ctx) {
+  try {
+    const acd = await numSetting(env, 'auto_confirm_days', -1);
+    if (acd === 0) return;                       // instant mode
+    const istMs = Date.now() + 5.5 * 3600 * 1000;
+    const today = new Date(istMs).toISOString().slice(0, 10);
+    const last = await setting(env, 'last_nightly_confirm', '');
+    if (last === today) return;                  // aaj ho gaya
+    const job = (async () => {
+      const r = await confirmEarnings(env, acd > 0 ? acd : 0);
+      try {
+        await env.DB.prepare("INSERT INTO settings (key,value) VALUES ('last_nightly_confirm',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(today).run();
+      } catch (e) {}
+      return r;
+    })();
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(job); else await job;
+  } catch (e) {}
+}
+
 async function runCleanup(env, days) {
   const keep = Math.max(7, Number(days) || 60);
   const cutoff = Math.floor(Date.now() / 1000) - keep * 86400;
@@ -55,6 +110,8 @@ async function runCleanup(env, days) {
 }
 
 const CANONICAL_SITE = 'https://eliteofficial.in';
+
+function adNetworkForStep(n) { return (n % 2 === 1) ? 'adsterra' : 'monetag'; }
 
 function fixSiteUrl(u, origin) {
   const v = String(u || '').trim();
@@ -254,6 +311,11 @@ export default {
     // 2% requests par cleanup check (background) — user ko wait nahi
     if (Math.random() < 0.02) {
       try { maybeAutoCleanup(env, ctx); } catch (e) {}
+      try { maybeNightlyConfirm(env, ctx); } catch (e) {}
+    }
+    // raat 12 baje wala confirm — har request par sasta check
+    if (Math.random() < 0.10) {
+      try { maybeNightlyConfirm(env, ctx); } catch (e) {}
     }
     try {
       if (p === '/api/step') return await apiStep(request, env);
@@ -366,8 +428,9 @@ ${BUILTIN_ADS.map((a) => a.snippet).join('\n')}
           if (r.status === 200) return r;
         } catch (e) {}
       }
+      if (p === '/rates' || p === '/rate-card') return html(await ratesPage(env, new URL(request.url).origin));
       if (p === '/proof' || p === '/payouts' || p === '/payout-proof') return html(await proofPage(env, new URL(request.url).origin));
-      if (p === '/earn') return html(earnPage(new URL(request.url).origin));
+      if (p === '/earn') return html(await earnPage(env, new URL(request.url).origin));
       if (INFO_PAGES[p]) return html(infoPage(p));
       return await openShortLink(request, env, p.slice(1));
     } catch (err) {
@@ -561,6 +624,14 @@ async function api(request, env, url) {
 
   const user = await currentUser(request, env);
 
+  if (p === '/api/rates' && m === 'GET') {
+    let rows = [];
+    try { const r = await env.DB.prepare('SELECT country_code, cpm_usd FROM rate_card ORDER BY cpm_usd DESC').all(); rows = r.results || []; } catch (e) {}
+    const min = await numSetting(env, 'min_withdrawal_usd', 5);
+    const hrs = await numSetting(env, 'payout_hours', 12);
+    return json({ ok: true, rates: rows, min_withdrawal_usd: min, payout_hours: hrs, fee: 0 });
+  }
+
   if (p === '/api/me') {
     if (!user) return json({ ok: false }, 401);
     const safe = async (fn, fallback) => { try { return await fn(); } catch (e) { return fallback; } };
@@ -604,7 +675,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v39-gate', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v46-econ', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -869,6 +940,45 @@ async function api(request, env, url) {
       } catch (e) { return json({ ok: false, error: String(e.message || e) }, 500); }
     }
 
+    if (p === '/api/admin/economics' && m === 'GET') {
+      // 1 valid view = 7 steps x 6 visible banners + popunders
+      const steps = await numSetting(env, 'steps_count', 7);
+      const bannerPerPage = 6;
+      const popPerPage = (adNetworkForStep(1) === 'adsterra') ? 4 : 1;
+      const bannerImpr = steps * bannerPerPage;
+      const popImpr = 4 * 4 + 1 * 3;   // adsterra 4 pop x 4 pages + monetag 1 pop x 3 pages
+      // network CPM (admin badal sakta hai)
+      const cpmBanner = await numSetting(env, 'est_cpm_banner', 0.35);
+      const cpmPop = await numSetting(env, 'est_cpm_popunder', 1.50);
+      const revenuePerView = (bannerImpr / 1000) * cpmBanner + (popImpr / 1000) * cpmPop;
+      // payout per view (rate card se, India default)
+      let rc = 0;
+      try { const r = await env.DB.prepare("SELECT cpm_usd FROM rate_card WHERE country_code='IN' LIMIT 1").first(); rc = r ? Number(r.cpm_usd) : 2; } catch (e) { rc = 2; }
+      const payoutPerView = rc / 1000;
+      const margin = revenuePerView - payoutPerView;
+      const marginPct = revenuePerView > 0 ? (margin / revenuePerView) * 100 : 0;
+      return json({
+        ok: true,
+        steps,
+        impressions: { banners: bannerImpr, popunders: popImpr, total: bannerImpr + popImpr },
+        cpm: { banner: cpmBanner, popunder: cpmPop },
+        revenue_per_view_usd: Number(revenuePerView.toFixed(5)),
+        payout_per_view_usd: Number(payoutPerView.toFixed(5)),
+        margin_per_view_usd: Number(margin.toFixed(5)),
+        margin_percent: Number(marginPct.toFixed(1)),
+        safe: margin > 0,
+        warning: margin <= 0 ? 'Rate card is HIGHER than estimated ad revenue — you lose money on every view. Lower the rate card or raise real CPM.' : null,
+        note: 'Estimates use est_cpm_banner and est_cpm_popunder settings. Compare with your real Adsterra/Monetag eCPM monthly.'
+      });
+    }
+
+    if (p === '/api/admin/confirm-earnings' && m === 'POST') {
+      try {
+        const r = await confirmEarnings(env, 0);
+        return json({ ok: true, users: r.users, amount: r.amount, message: `Confirmed $${r.amount.toFixed(4)} for ${r.users} user(s).` });
+      } catch (e) { return json({ error: String(e.message || e) }, 500); }
+    }
+
     if (p === '/api/admin/cleanup' && m === 'POST') {
       const days = await numSetting(env, 'retention_days', 60);
       const r = await runCleanup(env, days);
@@ -888,7 +998,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v39-gate',
+        build: '2026-11-30-v46-econ',
         total: zones.length,
         active: active.length,
         zones,
@@ -955,7 +1065,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v39-gate', zones });
+      return json({ ok: true, build: '2026-11-30-v46-econ', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1364,7 +1474,7 @@ h1 span{background:linear-gradient(100deg,#7c7fff,#c084fc);-webkit-background-cl
   <p class="sub">EliteURL Shortener — high CPM, instant payouts, trusted by creators.</p>
 
   <div class="pills">
-    <div class="pill"><b>95%</b>Revenue share</div>
+    <div class="pill"><b>$0</b>Withdrawal fee</div>
     <div class="pill"><b>$5</b>Min payout</div>
     <div class="pill"><b>12h</b>Payout time</div>
   </div>
@@ -1459,12 +1569,17 @@ async function go(request, env, url) {
           .bind(link.id, earn, earn).run();
       } catch (e) {}
       let after = 0;
-      try { const bal = await env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id=?').bind(sess.user_id).first(); after = (bal ? Number(bal.estimated_usd || 0) : 0) + earn; } catch (e) { after = earn; }
+      // auto_confirm_days = 0 -> seedha confirmed (turant withdrawal)
+      const acd = await numSetting(env, 'auto_confirm_days', -1);
+      const instant = (acd === 0);                 // 0 = instant, -1 = nightly, N = N din
+      const bucket = instant ? 'confirmed' : 'estimated';
+      const balCol = instant ? 'confirmed_usd' : 'estimated_usd';
+      try { const bal = await env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id=?').bind(sess.user_id).first(); after = (bal ? Number(bal[balCol] || 0) : 0) + earn; } catch (e) { after = earn; }
       try {
-        await env.DB.prepare(`INSERT INTO ledger (user_id,type,bucket,${SC.lgAmt},${SC.lgBal},ref_table,ref_id,reason) VALUES (?,'earning','estimated',?,?,'click_sessions',?,'valid view')`)
-          .bind(sess.user_id, earn, after, sid).run();
+        await env.DB.prepare(`INSERT INTO ledger (user_id,type,bucket,${SC.lgAmt},${SC.lgBal},ref_table,ref_id,reason) VALUES (?,'earning',?,?,?,'click_sessions',?,'valid view')`)
+          .bind(sess.user_id, bucket, earn, after, sid).run();
       } catch (e) {}
-      try { await env.DB.prepare(`UPDATE users SET ${SC.usEst}=? WHERE id=?`).bind(after, sess.user_id).run(); } catch (e) {}
+      try { await env.DB.prepare(`UPDATE users SET ${instant ? SC.usConf : SC.usEst}=? WHERE id=?`).bind(after, sess.user_id).run(); } catch (e) {}
     } else if (valid && (!adsLive || !ownerActive)) {
       // view valid hai par koi ad serve nahi hua -> koi earning nahi
       const SC2 = await schemaMap(env);
@@ -1495,10 +1610,10 @@ const STEP_CONTENT = [
         <div class="callout"><strong>Good to know:</strong> a view only counts when a real person completes the steps. Automated traffic, VPNs and duplicate visits are filtered out, so honest creators are never penalised.</div>` },
   { h: 'Why advertising funds free link shortening',
     b: `<p>Hosting, fraud detection and payment processing all cost money. Instead of charging creators a subscription, EliteURL shows a small number of sponsored placements per page.</p>
-        <p>That is the entire business model: advertisers pay for attention, creators keep <strong>95%</strong> of what their links earn, and visitors pay nothing.</p>
+        <p>That is the entire business model: advertisers pay for attention, creators keep almost all of what their links earn, and visitors pay nothing.</p>
         <p>We cap the number of placements per step so the page stays usable, and every sponsored block is clearly labelled.</p>` },
   { h: 'How creators earn on EliteURL',
-    b: `<p>Creators keep <strong>95%</strong> of the advertising revenue their links generate. The remaining 5% covers servers, fraud checks and payment processing.</p>
+    b: `<p>Creators keep almost all of the advertising revenue their links generate. A small share covers servers, fraud checks and payment processing.</p>
         <ul><li><strong>Minimum payout:</strong> $5</li><li><strong>Methods:</strong> PayPal, UPI and direct bank transfer</li>
         <li><strong>Processing:</strong> reviewed and sent within 12 hours</li></ul>
         <p>Earnings appear as <em>estimated</em> first, then become <em>confirmed</em> after the network reconciles them — usually 30 to 45 days.</p>` },
@@ -1958,6 +2073,73 @@ const INFO_TEXT = {
     <p>We reply within two business days.</p>`,
 };
 
+const COUNTRY_NAMES = { US:'United States', GB:'United Kingdom', CA:'Canada', AU:'Australia', IN:'India', PK:'Pakistan', BD:'Bangladesh', AE:'UAE', SA:'Saudi Arabia', DE:'Germany', FR:'France', NL:'Netherlands', SG:'Singapore', MY:'Malaysia', ID:'Indonesia', PH:'Philippines', NG:'Nigeria', KE:'Kenya', ZA:'South Africa', BR:'Brazil', MX:'Mexico', TR:'Turkey', EG:'Egypt', LK:'Sri Lanka', NP:'Nepal', ALL:'Other countries' };
+const COUNTRY_FLAGS = { US:'🇺🇸', GB:'🇬🇧', CA:'🇨🇦', AU:'🇦🇺', IN:'🇮🇳', PK:'🇵🇰', BD:'🇧🇩', AE:'🇦🇪', SA:'🇸🇦', DE:'🇩🇪', FR:'🇫🇷', NL:'🇳🇱', SG:'🇸🇬', MY:'🇲🇾', ID:'🇮🇩', PH:'🇵🇭', NG:'🇳🇬', KE:'🇰🇪', ZA:'🇿🇦', BR:'🇧🇷', MX:'🇲🇽', TR:'🇹🇷', EG:'🇪🇬', LK:'🇱🇰', NP:'🇳🇵', ALL:'🌍' };
+
+async function getRates(env) {
+  try { const r = await env.DB.prepare('SELECT country_code, cpm_usd FROM rate_card ORDER BY cpm_usd DESC').all(); return r.results || []; } catch (e) { return []; }
+}
+
+async function ratesPage(env, origin) {
+  const rates = await getRates(env);
+  const min = await numSetting(env, 'min_withdrawal_usd', 5);
+  const hrs = await numSetting(env, 'payout_hours', 12);
+  const rows = rates.map((r) => {
+    const code = String(r.country_code || '').toUpperCase();
+    const name = COUNTRY_NAMES[code] || code;
+    const flag = COUNTRY_FLAGS[code] || '🌍';
+    const cpm = Number(r.cpm_usd || 0);
+    return `<tr><td><span class="fl">${code === 'ALL' ? 'ALL' : code}</span>${name}</td><td class="rate">$${cpm.toFixed(2)}</td><td class="per">per 1,000 views</td></tr>`;
+  }).join('');
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rate card — how much you earn | EliteURL</title>
+<meta name="description" content="EliteURL rate card: earnings per 1,000 views by country. No withdrawal fee, $5 minimum payout, paid within 12 hours.">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,-apple-system,system-ui,sans-serif;background:#f7f8fc;color:#0e1020;line-height:1.6}
+.hd{background:#0b0d1a;color:#fff;padding:30px 18px 34px;text-align:center}
+.hd .logo{font-size:14px;font-weight:900;letter-spacing:.14em;color:#7c7fff;margin-bottom:10px}
+.hd h1{margin:0 0 6px;font-size:24px;letter-spacing:-.02em}
+.hd p{margin:0;font-size:13px;color:#9ba1c0}
+.stats{display:flex;justify-content:center;gap:22px;margin-top:18px;flex-wrap:wrap}
+.stats div{text-align:center}
+.stats b{display:block;font-size:18px;color:#ffd76e}
+.stats span{font-size:10px;color:#9ba1c0;text-transform:uppercase;letter-spacing:.08em}
+.wrap{max-width:600px;margin:0 auto;padding:22px 16px 44px}
+.card{background:#fff;border:1px solid #e6e8f2;border-radius:14px;overflow:hidden;margin-bottom:16px}
+.card h2{font-size:12px;margin:0;padding:13px 16px;border-bottom:1px solid #eef0f7;text-transform:uppercase;letter-spacing:.07em;color:#5b6076}
+table{width:100%;border-collapse:collapse}
+td{padding:12px 16px;border-bottom:1px solid #f2f4fa;font-size:13px}
+tr:last-child td{border-bottom:0}
+.fl{display:inline-block;min-width:34px;text-align:center;margin-right:9px;font-size:9.5px;font-weight:900;letter-spacing:.04em;color:#3b3ff2;background:#eef1ff;border-radius:5px;padding:3px 5px;vertical-align:middle}
+.rate{text-align:right;font-weight:900;color:#12833b;white-space:nowrap}
+.per{text-align:right;font-size:10.5px;color:#8b90a6;white-space:nowrap;padding-left:6px}
+.note{background:#eef1ff;border:1px solid #d6dbff;border-radius:12px;padding:14px;font-size:12.5px;color:#3f4459;line-height:1.7;margin-bottom:16px}
+.note b{color:#3b3ff2}
+.cta{display:block;text-align:center;background:#3b3ff2;color:#fff;text-decoration:none;font-weight:800;padding:16px;border-radius:12px;font-size:15px}
+.tiny{font-size:11px;color:#8b90a6;text-align:center;margin-top:14px;line-height:1.7}
+</style></head><body>
+<div class="hd">
+  <div class="logo">ELITEURL</div>
+  <h1>Rate card</h1>
+  <p>Earnings per 1,000 verified views</p>
+  <div class="stats">
+    <div><b>$${min.toFixed(0)}</b><span>Min payout</span></div>
+    <div><b>${hrs}h</b><span>Payout time</span></div>
+    <div><b>$0</b><span>Withdrawal fee</span></div>
+  </div>
+</div>
+<div class="wrap">
+  <div class="note"><b>No withdrawal fee.</b> You keep what you earn. Minimum payout is $${min.toFixed(0)} and requests are paid within ${hrs} hours. Earnings become withdrawable every night at 12:00 AM IST.</div>
+  <div class="card"><h2>Earnings by country</h2>
+    <table>${rows || '<tr><td colspan="3" style="text-align:center;color:#8b90a6">Rate card not set yet.</td></tr>'}</table>
+  </div>
+  <a class="cta" href="${origin}/register">Start earning with EliteURL</a>
+  <p class="tiny">Rates are per 1,000 valid views. A view counts only when a real visitor completes all steps. Bots, VPNs and duplicate visits earn nothing.</p>
+</div></body></html>`;
+}
+
 async function proofPage(env, origin) {
   let rows = [];
   try {
@@ -2028,11 +2210,20 @@ body{margin:0;font-family:Inter,-apple-system,system-ui,sans-serif;background:#f
 </div></body></html>`;
 }
 
-function earnPage(origin) {
+async function earnPage(env, origin) {
+  const rl = await getRates(env);
+  const rates = rl.map((r) => {
+    const code = String(r.country_code || '').toUpperCase();
+    return `<tr><td><span class="cc">${code === 'ALL' ? 'ALL' : code}</span> ${COUNTRY_NAMES[code] || code}</td><td class="r">$${Number(r.cpm_usd || 0).toFixed(2)}</td></tr>`;
+  }).join('') || '<tr><td>Rate card not set yet</td><td class="r">—</td></tr>';
+  const options = rl.map((r) => {
+    const code = String(r.country_code || '').toUpperCase();
+    return `<option value="${Number(r.cpm_usd || 0)}">${COUNTRY_NAMES[code] || code}</option>`;
+  }).join('') || '<option value="1.5">Other countries</option>';
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Earn money with your links — EliteURL</title>
-<meta name="description" content="Turn any link into income. 95% payout, $5 minimum, UPI PayPal and bank, paid within 12 hours.">
+<meta name="description" content="Turn any link into income. No withdrawal fee, $5 minimum, UPI PayPal and bank, paid within 12 hours.">
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Inter,-apple-system,system-ui,sans-serif;background:#0b0d1a;color:#f5f6fb;line-height:1.65}
@@ -2057,14 +2248,28 @@ h1 em{color:#ffd76e;font-style:normal}
 .q{margin-bottom:14px}
 .q b{display:block;font-size:13.5px;margin-bottom:3px}
 .q p{margin:0;font-size:12.5px;color:#9ba1c0}
+.rates{margin-bottom:26px}
+.rates h2,.calc h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#7c7fff;margin:0 0 12px}
+.rates table{width:100%;border-collapse:collapse;background:#12172a;border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden}
+.rates td{padding:11px 14px;font-size:12.5px;border-bottom:1px solid rgba(255,255,255,.06)}
+.rates tr:last-child td{border-bottom:0}
+.rates td.r{text-align:right;font-weight:900;color:#4ade80;white-space:nowrap}
+.rates .cc{display:inline-block;min-width:32px;text-align:center;font-size:9px;font-weight:900;color:#7c7fff;background:rgba(124,127,255,.14);border-radius:5px;padding:2px 5px;margin-right:7px}
+.calc{background:#12172a;border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:16px;margin-bottom:26px}
+.calc label{display:block;font-size:11px;color:#9ba1c0;margin:10px 0 5px;text-transform:uppercase;letter-spacing:.06em}
+.calc input,.calc select{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:#0b0d1a;color:#fff;font-family:inherit;font-size:14px}
+.calc .out{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1)}
+.calc .out span{font-size:12px;color:#9ba1c0}
+.calc .out b{font-size:20px;color:#ffd76e}
+.calc .small{font-size:11px;color:#7b80a0;margin:8px 0 0;line-height:1.5}
 </style></head><body>
 <div class="wrap">
   <div class="logo">ELITEURL</div>
   <h1>Turn your links into <em>real income</em></h1>
-  <p class="sub">Share any link. Your audience sees a short, clean page. You keep 95% of the ad revenue.</p>
+  <p class="sub">Share any link. Your audience sees a short, clean page. No withdrawal fee. You keep what you earn.</p>
 
   <div class="grid">
-    <div class="box"><b>95%</b><span>Revenue share</span></div>
+    <div class="box"><b>$0</b><span>Withdrawal fee</span></div>
     <div class="box"><b>$5</b><span>Minimum payout</span></div>
     <div class="box"><b>12h</b><span>Payout window</span></div>
     <div class="box"><b>3</b><span>Payout methods</span></div>
@@ -2078,16 +2283,46 @@ h1 em{color:#ffd76e;font-style:normal}
   </div>
 
   <a class="cta" href="${origin}/register">Create my free account</a>
+  <a class="cta2" href="${origin}/rates">See the full rate card →</a>
   <a class="cta2" href="${origin}/payouts">See real payout proof →</a>
+
+  <div class="rates">
+    <h2>Earnings per 1,000 views</h2>
+    <table>${rates}</table>
+  </div>
+
+  <div class="calc">
+    <h2>Earnings calculator</h2>
+    <label>Views per day</label>
+    <input id="cv" type="number" value="1000" min="1" inputmode="numeric">
+    <label>Country</label>
+    <select id="cc">${options}</select>
+    <div class="out"><span>Monthly estimate</span><b id="cout">$0.00</b></div>
+    <p class="small">Estimate only. Real earnings depend on valid views, country mix and advertiser demand.</p>
+  </div>
 
   <div class="faq">
     <h2>Common questions</h2>
-    <div class="q"><b>How much can I earn?</b><p>It depends on your traffic. Traffic from the US, UK and Europe pays roughly 10x more than traffic from India. What you earn depends entirely on your audience.</p></div>
+    <div class="q"><b>Is there a withdrawal fee?</b><p>No. You keep everything you earn. The minimum payout is $5 and requests are paid within 12 hours.</p></div>
+    <div class="q"><b>When can I withdraw?</b><p>Earnings become withdrawable every night at 12:00 AM IST. Once your confirmed balance reaches $5 you can request a payout.</p></div>
     <div class="q"><b>When do I get paid?</b><p>Request a withdrawal any time above $5. Requests are reviewed and paid within 12 hours on business days.</p></div>
     <div class="q"><b>What is not allowed?</b><p>Bots, VPN traffic, self-clicks and fake views earn nothing and will close your account. Every view is checked.</p></div>
     <div class="q"><b>Do I need a website?</b><p>No. Any link works — a Telegram channel, a Google Drive file, a video, or a page you own.</p></div>
   </div>
-</div></body></html>`;
+</div>
+<script>
+(function(){
+  var v=document.getElementById('cv'), c=document.getElementById('cc'), o=document.getElementById('cout');
+  function calc(){
+    var views=Number(v.value||0), cpm=Number(c.value||0);
+    var monthly=views*30/1000*cpm;
+    o.textContent='$'+monthly.toFixed(2);
+  }
+  if(v) v.addEventListener('input',calc);
+  if(c) c.addEventListener('change',calc);
+  calc();
+})();
+</script></body></html>`;
 }
 
 function infoPage(path) {
