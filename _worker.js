@@ -870,7 +870,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v75-bio', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v77-click', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -1538,7 +1538,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v75-bio',
+        build: '2026-11-30-v77-click',
         total: zones.length,
         active: active.length,
         zones,
@@ -1605,7 +1605,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v75-bio', zones });
+      return json({ ok: true, build: '2026-11-30-v77-click', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -2294,12 +2294,12 @@ body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Robo
 .mini{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
 .mini b{display:block;font-size:13px;margin-bottom:4px}
 .mini p{margin:0;font-size:12px;color:var(--muted);line-height:1.5}
-.bottom{padding:22px 18px 30px;text-align:center;background:#fff;border-top:1px solid var(--line)}
+.bottom{padding:22px 18px 30px;text-align:center;background:#fff;border-top:1px solid var(--line);position:relative;z-index:2147482000;isolation:isolate}
 .bottom .stat{font-size:12.5px;color:var(--muted);margin-bottom:12px}
 .spinrow{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12.5px;color:var(--muted);margin-bottom:14px}
 .spin{width:13px;height:13px;border:2px solid #dfe3ee;border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
-.bigbtn{display:block;width:100%;max-width:400px;margin:0 auto;padding:19px 22px;font-size:17px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border:0;border-radius:10px;background:#e3e7f2;color:#9aa0b8;cursor:not-allowed;font-family:inherit;transition:.2s}
+.bigbtn{position:relative;z-index:2147482001;display:block;width:100%;max-width:400px;margin:0 auto;padding:19px 22px;font-size:17px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border:0;border-radius:10px;background:#e3e7f2;color:#9aa0b8;cursor:not-allowed;font-family:inherit;transition:.2s}
 .bigbtn.on{background:var(--green);color:#fff;cursor:pointer;box-shadow:0 12px 26px -14px rgba(22,163,74,.95)}
 .foot{padding:15px;text-align:center;font-size:11px;color:#9aa0b8;border-top:1px solid var(--line);line-height:1.6}
 .foot a{color:#9aa0b8;text-decoration:none;margin:0 7px}
@@ -2334,15 +2334,31 @@ body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Robo
     setTimeout(function(){ b.__lock = false; }, 150);
     try { b.__act(); } catch (err) {}
   }
-  ['pointerdown','touchstart','mousedown','pointerup','mouseup','touchend','click','auxclick','contextmenu'].forEach(function(ev){
-    document.addEventListener(ev, function(e){
+  // window par capture — ad scripts se PEHLE chalta hai (document se bhi pehle)
+  ['pointerdown','touchstart','mousedown','pointerup','mouseup','touchend','click','auxclick','contextmenu','keydown'].forEach(function(ev){
+    window.addEventListener(ev, function(e){
       var b = btnOf(e);
       if (!b) return;
+      if (ev === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
       try { e.stopImmediatePropagation(); } catch (x) {}
+      try { e.stopPropagation(); } catch (x) {}
       try { e.preventDefault(); } catch (x) {}
-      if (ev === 'pointerdown' || ev === 'touchstart' || ev === 'click') fire(b);
+      if (ev === 'pointerdown' || ev === 'touchstart' || ev === 'click' || ev === 'keydown') fire(b);
     }, true);
   });
+  // extra safety: button par koi bhi ad listener chipke to hata do
+  function scrub(){
+    ['go','nextbtn'].forEach(function(id){
+      var b = document.getElementById(id);
+      if (!b) return;
+      b.onclick = null;
+      try { b.setAttribute('onclick','return false'); } catch (x) {}
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scrub);
+  else scrub();
+  setTimeout(scrub, 1200);
+  setTimeout(scrub, 3000);
 })();
 </script>
 
@@ -2503,8 +2519,13 @@ ${B4}
     // 2.5s ke andar jawab na aaye to bhi aage badho
     var timer = new Promise(function(res){ setTimeout(function(){ res(null); }, 2500); });
     Promise.race([p, timer]).then(function(d){
-      if (d && d.next) { location.href = d.next; return; }
-      if (NEXT) { location.href = NEXT; return; }
+      var target = (d && d.next) ? d.next : NEXT;
+      if (target) {
+        try { location.href = target; } catch (e) {}
+        // agar 900ms tak navigate na hua (ad ne roka) to dobara force
+        setTimeout(function(){ try { if (location.href.indexOf('/access/') === -1 && location.href !== target) location.replace(target); } catch (e) {} }, 900);
+        return;
+      }
       busy = false;
       btn.textContent = ${JSON.stringify(label)};
     });

@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="/assets/app.css?v=3.1">
+<link rel="stylesheet" href="/assets/app.css?v=3.2">
 </head>
 <body>
 <div class="app">
@@ -51,6 +51,20 @@
         <input class="input alias" id="q-alias" placeholder="Alias (optional)" autocomplete="off" aria-label="Custom alias">
         <button class="btn btn-primary" id="q-btn" type="submit">Shorten</button>
       </form>
+      <div class="opts" id="q-opts" style="margin-top:14px">
+        <label class="check"><input type="checkbox" id="qUsePw"> <span>Password protect</span></label>
+        <label class="check"><input type="checkbox" id="qUseExp"> <span>Set an expiry</span></label>
+        <label class="check"><input type="checkbox" id="qUseAdv"> <span>Advanced download page</span></label>
+      </div>
+      <div class="subform hide" id="qPwRow"><div class="row">
+        <div class="field"><label for="qLinkpw">Password for this link</label><input class="input" id="qLinkpw" type="text" placeholder="Minimum 4 characters" autocomplete="off"></div>
+        <div class="field"><label for="qPwhint">Password hint <span class="muted">(optional)</span></label><input class="input" id="qPwhint" maxlength="120" placeholder="e.g. Password is in the video"></div>
+      </div></div>
+      <div class="subform hide" id="qExpRow"><div class="field"><label for="qExpdays">Link expires after (days)</label><input class="input" id="qExpdays" type="number" min="1" max="365" placeholder="e.g. 7"></div></div>
+      <div class="subform hide" id="qAdvRow"><div class="row">
+        <div class="field"><label for="qCreator">Creator name</label><input class="input" id="qCreator" maxlength="40" placeholder="e.g. Vishal"></div>
+        <div class="field"><label for="qToolname">App / tool name</label><input class="input" id="qToolname" maxlength="60" placeholder="e.g. CapCut Video"></div>
+      </div><div class="field"><label for="qVideourl">Direct download link <span class="muted">(opens without ads)</span></label><input class="input" id="qVideourl" placeholder="https://example.com/video.mp4"></div></div>
       <div class="result" id="q-res"><a id="q-short" href="#" target="_blank" rel="noopener"></a><div class="act"><button class="btn btn-secondary btn-sm" id="q-copy" type="button">Copy</button><button class="btn btn-secondary btn-sm" id="q-qr" type="button">QR code</button></div></div>
       <div class="alert" id="q-msg" role="alert"></div>
     </div>
@@ -230,7 +244,7 @@
 </main></div>
 <div class="scrim" id="scrim"></div>
 </div>
-<script src="/assets/app.js?v=3.1" defer></script>
-<script src="/assets/dashboard.js?v=3.1" defer></script>
+<script src="/assets/app.js?v=3.2" defer></script>
+<script src="/assets/dashboard.js?v=3.2" defer></script>
 </body>
 </html>
