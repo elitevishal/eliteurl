@@ -63,7 +63,8 @@
     var list = DATA.users.filter(function (u) {
       var tot = (u.valid_views || 0) + (u.invalid_views || 0), bad = tot > 3 ? (u.invalid_views || 0) * 100 / tot >= 40 : false;
       if (f === 'active' && u.status !== 'active') return false; if (f === 'blocked' && u.status === 'active') return false; if (f === 'flagged' && !(bad || u.fraud_flag)) return false;
-      return !q || (u.name + ' ' + u.email).toLowerCase().indexOf(q) > -1;
+      var hay = (String(u.name || '') + ' ' + String(u.email || '') + ' ' + String(u.username || '') + ' #' + String(u.id || '')).toLowerCase();
+      return !q || hay.indexOf(q) > -1 || hay.indexOf(q.replace(/^@/, '')) > -1;
     });
     $('#u-sub').textContent = list.length + ' of ' + DATA.users.length + ' users';
     var box = $('#u-list');
@@ -105,7 +106,11 @@
   /* ---- links ---- */
   function renderLinks() {
     var q = ($('#al-search').value || '').toLowerCase().trim(), box = $('#l-list');
-    var list = DATA.links.filter(function (l) { return !q || (l.slug + ' ' + l.email + ' ' + l.destination_url).toLowerCase().indexOf(q) > -1; });
+    var st = (($('#al-status') || {}).value || 'all');
+    var list = DATA.links.filter(function (l) {
+      if (st !== 'all' && String(l.status || 'active') !== st) return false;
+      return !q || (l.slug + ' ' + l.email + ' ' + l.destination_url).toLowerCase().indexOf(q) > -1;
+    });
     if (!list.length) { box.innerHTML = emptyRow(DATA.links.length ? 'No links match.' : 'No links yet.'); return; }
     box.innerHTML = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Slug</th><th>Owner</th><th>Destination</th><th class="num">Clicks</th><th class="num">Valid</th><th>Status</th></tr></thead><tbody>' + list.map(function (l) {
       return '<tr><td><a class="cell-link" href="/' + esc(l.slug) + '" target="_blank" rel="noopener">/' + esc(l.slug) + '</a></td><td>' + esc(l.email) + '</td><td><div class="truncate" title="' + esc(l.destination_url) + '">' + esc(l.destination_url) + '</div></td><td class="num">' + EU.num(l.clicks) + '</td><td class="num">' + EU.num(l.valid_views) + '</td><td><span class="badge ' + esc(l.status || 'active') + '">' + esc(l.status || 'active') + '</span></td></tr>';
@@ -113,10 +118,18 @@
   }
   function loadLinks() { return API('/api/admin/links').then(function (r) { if (!r.ok) return; DATA.links = r.links || []; renderLinks(); }); }
   $('#al-search').addEventListener('input', renderLinks);
+  if ($('#al-status')) $('#al-status').addEventListener('change', renderLinks);
 
   /* ---- payouts ---- */
   function renderPayouts() {
-    var box = $('#w-list'), list = DATA.wd.filter(function (w) { return WSTATUS === 'all' || w.status === WSTATUS; });
+    var box = $('#w-list');
+    var q = (($('#w-search') || {}).value || '').toLowerCase().trim();
+    var list = DATA.wd.filter(function (w) {
+      if (WSTATUS !== 'all' && w.status !== WSTATUS) return false;
+      if (!q) return true;
+      var hay = (String(w.name || '') + ' ' + String(w.email || '') + ' ' + String(w.method || '') + ' ' + String(w.amount_usd || '') + ' ' + String(w.status || '') + ' #' + String(w.id || '')).toLowerCase();
+      return hay.indexOf(q) > -1;
+    });
     if (!list.length) { box.innerHTML = emptyRow('No withdrawal requests here.'); return; }
     box.innerHTML = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>User</th><th class="num">Amount</th><th>Method</th><th>Payout details</th><th>Status</th><th></th></tr></thead><tbody>' + list.map(function (w) {
       var a = '';
@@ -144,6 +157,7 @@
   }
   function loadPayouts() { return API('/api/admin/withdrawals').then(function (r) { if (!r.ok) return; DATA.wd = r.withdrawals || []; renderPayouts(); }); }
   $$('#w-seg button').forEach(function (b) { b.addEventListener('click', function () { WSTATUS = b.getAttribute('data-s'); $$('#w-seg button').forEach(function (x) { x.classList.toggle('on', x === b); }); renderPayouts(); }); });
+  if ($('#w-search')) $('#w-search').addEventListener('input', renderPayouts);
 
   /* ---- settings ---- */
   API('/api/admin/settings').then(function (r) {

@@ -549,3 +549,11 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14.5px}
   background:var(--brand);opacity:.85;mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'><path d='M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1'/><path d='M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1'/></svg>") center/contain no-repeat;
   -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'><path d='M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1'/><path d='M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1'/></svg>") center/contain no-repeat}
 .ro-field:hover{border-color:var(--brand)}
+
+/* hero CTA inside shorten-res */
+.shorten-res .btn-primary{color:#fff;background:var(--brand);border-color:transparent}
+.shorten-res .btn-primary:hover{background:var(--brand-600);color:#fff}
+.shorten-res .btn-secondary{color:var(--ink);background:var(--surface);border-color:var(--line-2)}
+.shorten-res .btn-secondary:hover{background:var(--surface-2);color:var(--ink)}
+.shorten-res b{color:var(--ink)}
+.shorten-res span{color:var(--muted)}

@@ -54,6 +54,9 @@
       if (!box || !inp) return;
       if (rc) {
         inp.value = rc; box.style.display = '';
+        inp.readOnly = true; inp.setAttribute('readonly', 'readonly');
+        inp.addEventListener('input', function () { inp.value = rc; });
+        inp.addEventListener('keydown', function (e) { e.preventDefault(); });
         if (hint) hint.textContent = 'Referred by ' + rc + ' — you both benefit.';
       }
     })();

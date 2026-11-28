@@ -97,18 +97,19 @@
       b.addEventListener('click', function () {
         var slug = b.getAttribute('data-edit');
         var l = LINKS.filter(function (x) { return String(x.slug) === String(slug); })[0] || {};
+        var lid = (l.id != null) ? l.id : slug;
         var opts = [{ value: '', label: 'No folder' }].concat(FOLDERS.map(function (f) { return { value: String(f.id), label: f.name }; }));
         EU.modal({
           title: 'Edit link', text: '/' + slug,
           fields: [
             { name: 'destination_url', label: 'Destination URL', value: l.destination_url || '' },
             { name: 'folder_id', label: 'Folder', type: 'select', options: opts, value: l.folder_id == null ? '' : String(l.folder_id) },
-            { name: 'status', label: 'Status', type: 'select', options: [{ value: 'active', label: 'Active' }, { value: 'disabled', label: 'Disabled' }], value: l.status || 'active' }
+            { name: 'status', label: 'Status', type: 'select', options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Disabled' }], value: (l.status === 'inactive' ? 'inactive' : 'active') }
           ],
           okText: 'Save changes'
         }).then(function (v) {
           if (!v) return;
-          EU.api('/api/links/' + encodeURIComponent(slug), { method: 'PATCH', json: { destination_url: v.destination_url, folder_id: v.folder_id || null, status: v.status } })
+          EU.api('/api/links/' + encodeURIComponent(lid), { method: 'PATCH', json: { url: v.destination_url, folder_id: v.folder_id || null, status: v.status } })
             .then(function (r) {
               if (r.status === 200) { EU.toast('Link updated', 'ok'); loadLinks(); loadFolders(); }
               else EU.toast((r.data && r.data.error) || 'Could not update', 'err');
@@ -136,7 +137,7 @@
   }
   function renderAllLinks() {
     var box = $('#links-list'), q = ($('#l-search').value || '').toLowerCase().trim(), f = $('#l-filter').value, s = $('#l-sort').value;
-    var list = LINKS.filter(function (l) { return (FOLD_FILTER == null || FOLD_FILTER === '' || String(l.folder_id) === String(FOLD_FILTER)) && (f === 'all' || l.status === f) && (!q || (l.slug + ' ' + l.destination_url + ' ' + (l.tool_name || '')).toLowerCase().indexOf(q) > -1); });
+    var list = LINKS.filter(function (l) { return (FOLD_FILTER == null || FOLD_FILTER === '' || String(l.folder_id) === String(FOLD_FILTER)) && (f === 'all' || l.status === f || (f === 'disabled' && l.status === 'inactive')) && (!q || (l.slug + ' ' + l.destination_url + ' ' + (l.tool_name || '')).toLowerCase().indexOf(q) > -1); });
     list.sort(function (a, b) { return s === 'views' ? (b.valid_views || 0) - (a.valid_views || 0) : s === 'clicks' ? (b.clicks || 0) - (a.clicks || 0) : (b.created_at || 0) - (a.created_at || 0); });
     $('#links-sub').textContent = LINKS.length ? list.length + ' of ' + LINKS.length + ' links' : 'All the links you have created.';
     if (!LINKS.length) { box.innerHTML = emptyLinks(); }
@@ -407,7 +408,7 @@
   go((location.hash || '#overview').slice(1));
   window.addEventListener('hashchange', function () { go((location.hash || '#overview').slice(1)); });
   // link typed on the home page before sign-up
-  try { var pend = sessionStorage.getItem('eu-pending-url'); if (pend) { sessionStorage.removeItem('eu-pending-url'); $('#url').value = pend; go('create'); EU.toast('We saved your link — create it below', 'info'); } } catch (e) {}
+  try { var pend = sessionStorage.getItem('eu-pending-url'); if (pend) { sessionStorage.removeItem('eu-pending-url'); $('#url').value = pend; go('create'); setTimeout(function(){ var el=document.getElementById('url'); if(el) el.focus(); }, 250); EU.toast('We saved your link — press Create to finish', 'ok'); } } catch (e) {}
 
 
   /* ---- folders ---- */

@@ -17,22 +17,23 @@
     e.preventDefault(); err.classList.remove('show');
     var url = normalise(inp.value);
     if (!url) { showErr('Please paste a valid link, for example https://example.com/page'); inp.focus(); return; }
-    btn.disabled = true; var old = btn.textContent; btn.innerHTML = '<span class="spin"></span> Working…';
+    // link yahin nahi banti — pehle account, phir short link
+    try { sessionStorage.setItem('eu-pending-url', url); } catch (x) {}
+    btn.disabled = true; var old = btn.textContent; btn.innerHTML = '<span class="spin"></span> Saving your link…';
     EU.api('/api/me').then(function (m) {
-      if (!m.ok || !m.data.ok) {
-        // visitor is not signed in: remember the link and continue to sign-up
-        try { sessionStorage.setItem('eu-pending-url', url); } catch (x) {}
-        location.href = '/register?from=home';
-        return null;
+      btn.disabled = false; btn.textContent = old;
+      if (m.ok && m.data && m.data.ok) {
+        // already signed in -> dashboard create page par le jao
+        location.href = '/dashboard#create';
+        return;
       }
-      return EU.api('/api/links', { json: { url: url } }).then(function (r) {
-        btn.disabled = false; btn.textContent = old;
-        if (r.ok && r.data.short) {
-          short.textContent = r.data.short.replace(/^https?:\/\//, ''); short.href = r.data.short; res.classList.add('show'); inp.value = '';
-          $('#hero-copy').onclick = function () { EU.copy(r.data.short, this); };
-        } else showErr(r.data.error || 'Could not create the link. Please try again.');
-      });
-    }).catch(function () { btn.disabled = false; btn.textContent = old; showErr('Network error. Please check your connection and try again.'); });
+      res.classList.add('show');
+      var go = $('#hero-go');
+      if (go) go.href = '/register?from=home';
+    }).catch(function () {
+      btn.disabled = false; btn.textContent = old;
+      res.classList.add('show');
+    });
   });
 
   /* ---------- live rates + calculator ---------- */
