@@ -201,14 +201,16 @@
     EU.api('/api/referrals').then(function (r) {
       var data = r.data; if (!data || !data.ok) return;
       var link = origin() + '/register?ref=' + (data.code || ''), pct = Math.round(Number(data.commission || 0.1) * 100) + '%';
+      ['', '2'].forEach(function (s) { var l = $('#ref-show' + s); if (l) l.textContent = link; });
       ['', '2'].forEach(function (s) { var l = $('#ref-link' + s); if (l) l.value = link; });
       $('#ref-count').textContent = data.count || 0; $('#ref-count2').textContent = data.count || 0;
       var earned = '$' + Number(data.earned_usd || 0).toFixed(2); $('#ref-earned').textContent = earned; $('#ref-earned2').textContent = earned;
       $('#ref-reward').textContent = pct; $('#ref-reward2').textContent = pct;
     });
   }
-  $('#ref-copy').addEventListener('click', function () { EU.copy($('#ref-link').value, this, 'Referral link copied'); });
-  $('#ref-copy2').addEventListener('click', function () { EU.copy($('#ref-link2').value, this, 'Referral link copied'); });
+  function refText(id) { var el = $(id); return el ? (el.textContent || '').trim() : ''; }
+  $('#ref-copy').addEventListener('click', function () { EU.copy(refText('#ref-show'), this, 'Referral link copied'); });
+  $('#ref-copy2').addEventListener('click', function () { EU.copy(refText('#ref-show2'), this, 'Referral link copied'); });
 
   /* ---------- create link ---------- */
   function addUtm(url) {
@@ -360,6 +362,18 @@
   });
 
   /* ---------- boot ---------- */
+  /* password: pehle button, phir form */
+  (function () {
+    var start = $('#pw-start'), form = $('#pw-form'), idle = $('#pw-idle'), cancel = $('#pw-cancel');
+    if (!start) return;
+    start.addEventListener('click', function () { idle.classList.add('hide'); form.classList.remove('hide'); var c = $('#p-cur'); if (c) c.focus(); });
+    if (cancel) cancel.addEventListener('click', function () {
+      form.classList.add('hide'); idle.classList.remove('hide');
+      ['p-cur', 'p-new'].forEach(function (id) { var el = $('#' + id); if (el) el.value = ''; });
+      var m = $('#p-msg'); if (m) m.className = 'alert';
+    });
+  })();
+
   loadMe().then(function () { return Promise.all([loadLinks(), loadWithdrawals()]); }).then(renderTodo);
   loadChart(); loadRates(); loadRefs(); loadFolders(); loadAudience(); loadLeaderboard();
   go((location.hash || '#overview').slice(1));

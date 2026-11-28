@@ -22,8 +22,8 @@
   function applyTheme(t) { if (t) root.setAttribute('data-theme', t); else root.removeAttribute('data-theme'); }
   function currentTheme() {
     var t = root.getAttribute('data-theme');
-    if (t) return t;
-    return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    if (t === 'dark' || t === 'light') return t;
+    return 'light';
   }
   $$('.theme-btn').forEach(function (b) {
     b.addEventListener('click', function () {

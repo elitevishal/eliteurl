@@ -39,24 +39,6 @@
   --ring:0 0 0 3px rgba(124,120,255,.35);
   color-scheme:dark;
 }
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --bg:#0a0c18; --surface:#11142a; --surface-2:#171b36; --surface-3:#1e2342;
-    --line:#242a4a; --line-2:#323a63;
-    --ink:#f1f3fb; --body:#c4c9de; --muted:#8f97b6; --faint:#6a7294;
-    --brand:#7c78ff; --brand-600:#8f8bff; --brand-700:#a9a6ff; --brand-50:#1b1f45; --brand-100:#262b5e; --brand-ink:#0a0c18;
-    --money:#4ade9b; --money-bg:#0f2a21; --money-line:#1b4d3a;
-    --warn:#fbbf6a; --warn-bg:#2d2310; --warn-line:#5a4417;
-    --danger:#ff8f8f; --danger-bg:#2e1416; --danger-line:#5d2a2d;
-    --info:#8db3ff; --info-bg:#12204a; --info-line:#243a78;
-    --dark:#070913; --dark-2:#0e1124;
-    --sh-sm:0 1px 2px rgba(0,0,0,.4);
-    --sh:0 1px 2px rgba(0,0,0,.35),0 10px 28px -14px rgba(0,0,0,.6);
-    --sh-lg:0 2px 4px rgba(0,0,0,.4),0 30px 64px -28px rgba(0,0,0,.8);
-    --ring:0 0 0 3px rgba(124,120,255,.35);
-    color-scheme:dark;
-  }
-}
 
 /* ---------- base ---------- */
 *,*::before,*::after{box-sizing:border-box}
@@ -186,7 +168,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .theme-btn .i-moon{display:none}
 :root[data-theme="dark"] .theme-btn .i-sun{display:none}
 :root[data-theme="dark"] .theme-btn .i-moon{display:block}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .theme-btn .i-sun{display:none}:root:not([data-theme="light"]) .theme-btn .i-moon{display:block}}
+.theme-btn .i-moon{display:block}.theme-btn .i-sun{display:none}
 .burger{display:none}
 .mobile-menu{display:none;position:fixed;inset:var(--hdr) 0 0 0;z-index:59;background:var(--bg);padding:16px 20px 28px;overflow:auto;flex-direction:column;gap:4px;border-top:1px solid var(--line)}
 .mobile-menu.open{display:flex}
@@ -432,8 +414,8 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .page-head p{color:var(--muted);font-size:14.5px;margin-top:4px}
 
 /* balance hero */
-.balance{position:relative;overflow:hidden;border-radius:var(--r-xl);background:linear-gradient(135deg,#1e1b4b,#312e81 55%,#3730a3);color:#fff;padding:28px;margin-bottom:20px;isolation:isolate}
-.balance::before{content:"";position:absolute;right:-80px;top:-100px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(129,140,248,.45),transparent 65%);z-index:-1}
+.balance{position:relative;overflow:hidden;border-radius:var(--r-xl);background:linear-gradient(135deg,#3b3ff2 0%,#5b46f0 45%,#7b5cff 100%);color:#fff;padding:28px;margin-bottom:20px;isolation:isolate}
+.balance::before{content:"";position:absolute;right:-80px;top:-100px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.28),transparent 65%);z-index:-1}
 .balance-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
 .balance h2{color:#fff;font-size:22px;letter-spacing:-.03em}
 .balance p{color:#c7cbf5;font-size:14px;margin-top:4px}
@@ -558,3 +540,12 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14.5px}
   .reveal{opacity:1;transform:none}
 }
 @media print{.site-header,.site-footer,.cookie,.toasts{display:none!important}}
+
+/* read-only link display (referral, bio URL) */
+.ro-field{flex:1;min-width:0;display:flex;align-items:center;gap:8px;padding:12px 14px;border:1px solid var(--line-2);
+  border-radius:var(--r-md);background:var(--surface-2);color:var(--body);font-size:13.5px;font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:all;cursor:default;position:relative;padding-left:34px}
+.ro-field::before{content:"";position:absolute;left:12px;top:50%;transform:translateY(-50%);width:14px;height:14px;
+  background:var(--brand);opacity:.85;mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'><path d='M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1'/><path d='M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1'/></svg>") center/contain no-repeat;
+  -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'><path d='M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1'/><path d='M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1'/></svg>") center/contain no-repeat}
+.ro-field:hover{border-color:var(--brand)}
