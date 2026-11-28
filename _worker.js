@@ -870,7 +870,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v74-tier', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v75-bio', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -1538,7 +1538,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v74-tier',
+        build: '2026-11-30-v75-bio',
         total: zones.length,
         active: active.length,
         zones,
@@ -1605,7 +1605,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v74-tier', zones });
+      return json({ ok: true, build: '2026-11-30-v75-bio', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -2709,7 +2709,7 @@ async function bioPage(env, origin, handle) {
   try {
     let r = null;
     try {
-      r = await env.DB.prepare("SELECT slug, title, tool_name, creator_name, destination_url FROM links WHERE user_id=? AND status='active' ORDER BY id DESC LIMIT 30").bind(u.id).all();
+      r = await env.DB.prepare("SELECT slug, title, tool_name, creator_name, destination_url, clicks FROM links WHERE user_id=? AND status='active' ORDER BY id DESC LIMIT 30").bind(u.id).all();
     } catch (e) {
       r = await env.DB.prepare("SELECT slug, title, destination_url FROM links WHERE user_id=? AND status='active' ORDER BY id DESC LIMIT 30").bind(u.id).all();
     }
@@ -2717,65 +2717,138 @@ async function bioPage(env, origin, handle) {
   } catch (e) {}
   const esc2 = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
   const initial = esc2((u.name || 'U').trim().charAt(0).toUpperCase());
-  const items = links.map((l) => {
+
+  // platform detect -> colour + letter
+  const PLAT = [
+    [/t\.me|telegram/i, '#229ED9', 'T'],
+    [/instagram/i, 'linear-gradient(135deg,#f58529,#dd2a7b 55%,#8134af)', 'I'],
+    [/youtube|youtu\.be/i, '#FF0033', 'Y'],
+    [/whatsapp|wa\.me/i, '#25D366', 'W'],
+    [/facebook|fb\.me/i, '#1877F2', 'F'],
+    [/twitter|x\.com/i, '#0f1419', 'X'],
+    [/drive\.google|docs\.google/i, '#0F9D58', 'D'],
+    [/capcut/i, '#111', 'C'],
+    [/github/i, '#24292f', 'G'],
+    [/linkedin/i, '#0A66C2', 'L'],
+    [/snapchat/i, '#FFFC00', 'S'],
+    [/pinterest/i, '#E60023', 'P'],
+    [/spotify/i, '#1DB954', 'S'],
+    [/amazon/i, '#FF9900', 'A'],
+    [/play\.google|apk/i, '#01875F', 'P'],
+  ];
+  const platOf = (host) => {
+    for (const [re, colour, letter] of PLAT) if (re.test(host)) return { colour, letter };
+    return { colour: 'linear-gradient(135deg,#4f46e5,#7c5cff)', letter: '' };
+  };
+
+  const items = links.map((l, i) => {
     let host = '';
     try { host = new URL(l.destination_url).hostname.replace(/^www\./, ''); } catch (e) {}
-    // tool name > title > domain
     const tn = String(l.tool_name || '').trim();
     const ti = String(l.title || '').trim();
     let label = tn || (ti.length > 3 ? ti : '') || host || l.slug;
-    if (label === host && !tn && !ti) label = host || l.slug;
-    return `<a class="lnk" href="${origin}/${esc2(l.slug)}" rel="noopener">
-      <span class="ic">${esc2((label || 'L').charAt(0).toUpperCase())}</span>
-      <span class="tx"><b>${esc2(String(label).slice(0, 48))}</b><i>${esc2(host)}</i></span>
-      <span class="ar">›</span>
+    const p = platOf(host + ' ' + label);
+    const letter = p.letter || (label || 'L').charAt(0).toUpperCase();
+    const isGrad = p.colour.indexOf('gradient') !== -1;
+    const bg = isGrad ? ('background:' + p.colour) : ('background:' + p.colour);
+    return `<a class="lnk" href="${origin}/${esc2(l.slug)}" rel="noopener" style="--d:${(i * 55)}ms">
+      <span class="ic" style="${bg};color:${p.letter === 'S' && /snapchat/i.test(host) ? '#111' : '#fff'}">${esc2(letter)}</span>
+      <span class="tx"><b>${esc2(String(label).slice(0, 48))}</b><i>${esc2(host || 'link')}</i></span>
+      <span class="ar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
     </a>`;
   }).join('');
+
+  const count = links.length;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>${esc2(u.name || u.username)} — Links | EliteURL</title>
 <meta name="description" content="All links from ${esc2(u.name || u.username)} in one place.">
+<meta name="robots" content="index,follow">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="theme-color" content="#0b0e1c">
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<meta name="theme-color" content="#080a14">
+<meta property="og:type" content="profile">
 <meta property="og:title" content="${esc2(u.name || u.username)} — All links">
 <meta property="og:description" content="All links from ${esc2(u.name || u.username)} in one place.">
-<meta property="og:image" content="${origin}/og.png">
+<meta property="og:image" content="${origin}/assets/og-image.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box}
-body{margin:0;font-family:Inter,-apple-system,system-ui,sans-serif;background:#0b0e1c;color:#fff;line-height:1.6;
-  min-height:100vh;display:flex;justify-content:center;padding:38px 16px 60px;
-  background-image:radial-gradient(70% 50% at 50% 0%,rgba(123,92,255,.30),transparent 70%)}
-.wrap{width:100%;max-width:420px;text-align:center}
-.av{width:84px;height:84px;border-radius:50%;margin:0 auto 14px;display:grid;place-items:center;
-  font-size:34px;font-weight:900;color:#fff;background:linear-gradient(135deg,#3b3ff2,#7b3cf2);
-  box-shadow:0 18px 40px -18px rgba(90,60,255,.9);border:3px solid rgba(255,255,255,.14)}
-h1{font-size:20px;margin:0 0 4px;letter-spacing:-.02em}
-.sub{font-size:13px;color:#9ba1c0;margin:0 0 26px}
-.lnk{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
-  border-radius:14px;padding:13px 15px;margin-bottom:11px;text-decoration:none;color:#fff;
-  transition:transform .15s,background .15s,border-color .15s;text-align:left}
-.lnk:hover{background:rgba(255,255,255,.11);border-color:rgba(140,120,255,.5);transform:translateY(-1px)}
-.ic{width:36px;height:36px;border-radius:10px;flex:0 0 36px;display:grid;place-items:center;font-weight:900;font-size:15px;
-  background:linear-gradient(135deg,#3b3ff2,#7b3cf2)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:Inter,-apple-system,system-ui,sans-serif;background:#080a14;color:#fff;line-height:1.6;
+  min-height:100vh;display:flex;justify-content:center;padding:44px 18px 56px;position:relative;overflow-x:hidden}
+/* animated backdrop */
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bg::after{content:"";position:absolute;inset:0;background:
+  radial-gradient(60% 44% at 50% -8%,rgba(124,92,255,.34),transparent 72%),
+  radial-gradient(42% 34% at 88% 22%,rgba(59,63,242,.20),transparent 70%),
+  radial-gradient(46% 36% at 6% 62%,rgba(14,165,233,.16),transparent 72%)}
+.orb{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;animation:float 16s ease-in-out infinite}
+.o1{width:260px;height:260px;background:rgba(124,92,255,.55);top:-90px;left:-70px}
+.o2{width:220px;height:220px;background:rgba(14,165,233,.42);bottom:6%;right:-80px;animation-delay:-7s}
+.o3{width:180px;height:180px;background:rgba(236,72,153,.30);top:42%;left:-60px;animation-delay:-11s}
+@keyframes float{50%{transform:translate(26px,-22px) scale(1.10)}}
+
+.wrap{width:100%;max-width:430px;text-align:center;position:relative;z-index:1}
+
+/* avatar */
+.av-wrap{position:relative;width:96px;height:96px;margin:0 auto 16px;animation:pop .55s cubic-bezier(.2,.9,.25,1.2) both}
+.av-ring{position:absolute;inset:-4px;border-radius:50%;background:conic-gradient(from 0deg,#7c5cff,#22d3ee,#f472b6,#7c5cff);
+  animation:spin 7s linear infinite;filter:blur(.4px)}
+.av{position:absolute;inset:0;border-radius:50%;display:grid;place-items:center;font-size:38px;font-weight:900;
+  font-family:"Plus Jakarta Sans",Inter,sans-serif;color:#fff;background:linear-gradient(150deg,#4f46e5,#7c3aed);
+  box-shadow:0 20px 44px -18px rgba(124,92,255,.95),inset 0 1px 0 rgba(255,255,255,.22)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pop{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:none}}
+
+h1{font-family:"Plus Jakarta Sans",Inter,sans-serif;font-size:21px;margin:0 0 5px;letter-spacing:-.025em;font-weight:800;
+  animation:rise .5s .1s ease both}
+.sub{font-size:13px;color:#9aa1c0;margin:0 0 6px;animation:rise .5s .16s ease both}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#c7cbf5;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);border-radius:999px;padding:5px 12px;
+  margin-bottom:26px;animation:rise .5s .22s ease both}
+.chip i{width:6px;height:6px;border-radius:50%;background:#3ddc97;box-shadow:0 0 0 3px rgba(61,220,151,.18);font-style:normal}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* link cards */
+.lnk{display:flex;align-items:center;gap:13px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.11);
+  border-radius:16px;padding:13px 14px;margin-bottom:11px;text-decoration:none;color:#fff;text-align:left;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transition:transform .18s cubic-bezier(.2,.8,.3,1),background .18s,border-color .18s,box-shadow .18s;
+  animation:rise .5s ease both;animation-delay:calc(.26s + var(--d,0ms))}
+.lnk:hover,.lnk:focus-visible{background:rgba(255,255,255,.10);border-color:rgba(140,120,255,.55);
+  transform:translateY(-2px);box-shadow:0 16px 34px -18px rgba(124,92,255,.85);outline:none}
+.lnk:active{transform:translateY(0) scale(.985)}
+.ic{width:40px;height:40px;border-radius:12px;flex:0 0 40px;display:grid;place-items:center;font-weight:900;font-size:16px;
+  box-shadow:0 8px 18px -10px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.2)}
 .tx{flex:1;min-width:0}
-.tx b{display:block;font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tx i{display:block;font-style:normal;font-size:11px;color:#8b90a8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ar{color:#6b7086;font-size:20px;font-weight:700}
-.ft{margin-top:26px;font-size:11.5px;color:#6b7086}
-.ft a{color:#7c7fff;text-decoration:none;font-weight:700}
-.empty{background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.16);border-radius:14px;padding:30px 18px;color:#9ba1c0;font-size:13px}
+.tx b{display:block;font-size:14px;font-weight:750;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tx i{display:block;font-style:normal;font-size:11.5px;color:#8b90a8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.ar{flex:0 0 auto;width:22px;height:22px;color:#6b7086;transition:transform .18s,color .18s}
+.ar svg{width:100%;height:100%}
+.lnk:hover .ar{color:#a9a6ff;transform:translateX(3px)}
+
+.ft{margin-top:30px;font-size:11.5px;color:#6b7086;animation:rise .5s .5s ease both}
+.ft a{color:#9a97ff;text-decoration:none;font-weight:800;letter-spacing:-.01em}
+.empty{background:rgba(255,255,255,.045);border:1px dashed rgba(255,255,255,.16);border-radius:16px;padding:34px 20px;
+  color:#9aa1c0;font-size:13.5px;animation:rise .5s .26s ease both}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  .av-ring{animation:none}
+}
 </style></head><body>
-<div class="wrap">
-  <div class="av">${initial}</div>
+<div class="bg" aria-hidden="true"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span></div>
+<main class="wrap">
+  <div class="av-wrap"><span class="av-ring"></span><span class="av">${initial}</span></div>
   <h1>${esc2(u.name || u.username)}</h1>
   <p class="sub">@${esc2(u.username)}</p>
+  <div class="chip"><i></i>${count} link${count === 1 ? '' : 's'} · all in one place</div>
   ${items || '<div class="empty">No links yet.</div>'}
   <p class="ft">Powered by <a href="${origin}">EliteURL</a></p>
-</div></body></html>`;
+</main></body></html>`;
 }
 
 function apiDocsPage(origin) {
@@ -2785,7 +2858,7 @@ function apiDocsPage(origin) {
 <title>API documentation — EliteURL</title>
 <meta name="description" content="EliteURL REST API: create short links programmatically. Simple JSON, one API key.">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
 <meta name="theme-color" content="#3b3ff2">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
