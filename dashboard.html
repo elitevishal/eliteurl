@@ -75,7 +75,7 @@
       <div class="panel">
         <div class="panel-h"><div><h3>Refer &amp; earn</h3><p>Earn <b id="ref-reward">10%</b> of what your friends make.</p></div></div>
         <div class="panel-b">
-          <div class="copy-field"><input class="input" id="ref-link" readonly aria-label="Referral link"><button class="btn btn-secondary" id="ref-copy" type="button">Copy</button></div>
+          <div class="copy-field"><div class="ro-field" id="ref-show" aria-label="Referral link">Loading…</div><button class="btn btn-secondary" id="ref-copy" type="button">Copy</button></div>
           <div class="kpis c3" style="margin:16px 0 0;grid-template-columns:1fr 1fr"><div class="kpi" style="box-shadow:none"><span>Friends</span><b id="ref-count">0</b></div><div class="kpi" style="box-shadow:none"><span>Commission</span><b id="ref-earned">$0.00</b></div></div>
         </div>
       </div>
@@ -182,7 +182,7 @@
   <div class="page-head"><div><h2>Referrals</h2><p>Invite creators and earn a commission on their traffic.</p></div></div>
   <div class="panel"><div class="panel-b">
     <label class="label" for="ref-link2">Your personal referral link</label>
-    <div class="copy-field"><input class="input" id="ref-link2" readonly><button class="btn btn-primary" id="ref-copy2" type="button">Copy link</button></div>
+    <div class="copy-field"><div class="ro-field" id="ref-show2">Loading…</div><button class="btn btn-primary" id="ref-copy2" type="button">Copy link</button></div>
     <div class="kpis c3" style="margin:20px 0 0;grid-template-columns:repeat(3,1fr)"><div class="kpi" style="box-shadow:none"><span>Friends joined</span><b id="ref-count2">0</b></div><div class="kpi" style="box-shadow:none"><span>Commission earned</span><b id="ref-earned2">$0.00</b></div><div class="kpi" style="box-shadow:none"><span>Your commission</span><b id="ref-reward2">10%</b></div></div>
   </div></div>
 </section>
@@ -210,8 +210,15 @@
         <div class="alert" id="u-msg" role="alert"></div>
       </div></div>
       <div class="panel"><div class="panel-h"><div><h3>Password</h3><p>Use a strong password you don’t use elsewhere.</p></div></div><div class="panel-b">
-        <div class="row"><div class="field"><label for="p-cur">Current password</label><input class="input" id="p-cur" type="password" autocomplete="current-password"></div><div class="field"><label for="p-new">New password</label><input class="input" id="p-new" type="password" autocomplete="new-password" placeholder="At least 8 characters"></div></div>
-        <button class="btn btn-primary" id="save-pass" type="button">Update password</button><div class="alert" id="p-msg" role="alert"></div>
+        <div id="pw-idle">
+          <p class="muted" style="font-size:13.5px;margin:0 0 14px">Your password was last changed when you created the account.</p>
+          <button class="btn btn-secondary" id="pw-start" type="button">Change password</button>
+        </div>
+        <div id="pw-form" class="hide">
+          <div class="row"><div class="field"><label for="p-cur">Current password</label><input class="input" id="p-cur" type="password" autocomplete="current-password"></div><div class="field"><label for="p-new">New password</label><input class="input" id="p-new" type="password" autocomplete="new-password" placeholder="At least 8 characters"></div></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-primary" id="save-pass" type="button">Update password</button><button class="btn btn-secondary" id="pw-cancel" type="button">Cancel</button></div>
+          <div class="alert" id="p-msg" role="alert"></div>
+        </div>
       </div></div>
     </div>
     <div>
