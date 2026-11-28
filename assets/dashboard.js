@@ -201,8 +201,16 @@
     EU.api('/api/referrals').then(function (r) {
       var data = r.data; if (!data || !data.ok) return;
       var link = origin() + '/register?ref=' + (data.code || ''), pct = Math.round(Number(data.commission || 0.1) * 100) + '%';
-      ['', '2'].forEach(function (s) { var l = $('#ref-show' + s); if (l) l.textContent = link; });
-      ['', '2'].forEach(function (s) { var l = $('#ref-link' + s); if (l) l.value = link; });
+      ['', '2'].forEach(function (s) {
+        var d = $('#ref-show' + s); if (d) { d.textContent = link; d.setAttribute('title', link); }
+        var i = $('#ref-link' + s); if (i) i.value = link;
+      });
+      // koi bhi element na mile to bhi kaam kare
+      ['', '2'].forEach(function (s) {
+        var box = $('#ref-show' + s) || $('#ref-link' + s);
+        if (!box) return;
+        if (box.textContent === 'Loading…') box.textContent = link;
+      });
       $('#ref-count').textContent = data.count || 0; $('#ref-count2').textContent = data.count || 0;
       var earned = '$' + Number(data.earned_usd || 0).toFixed(2); $('#ref-earned').textContent = earned; $('#ref-earned2').textContent = earned;
       $('#ref-reward').textContent = pct; $('#ref-reward2').textContent = pct;
