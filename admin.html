@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="/assets/app.css?v=3.2">
+<link rel="stylesheet" href="/assets/app.css?v=3.6">
 </head>
 <body>
 <div class="app">
@@ -44,13 +44,13 @@
 
 <section class="view" id="view-links">
   <div class="page-head"><div><h2>All links</h2><p>Latest 200 links on the platform.</p></div><button class="btn btn-secondary" id="csvLinks" type="button"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg> Export CSV</button></div>
-  <div class="panel"><div class="toolbar"><input class="input grow" id="al-search" type="search" placeholder="Search alias, owner or destination…" aria-label="Search links"></div><div id="l-list"><div class="empty"><div class="skel" style="width:60%;margin:0 auto"></div></div></div></div>
+  <div class="panel"><div class="toolbar"><input class="input grow" id="al-search" type="search" placeholder="Search alias, owner or destination…" aria-label="Search links"><select class="select" id="al-status" aria-label="Filter status"><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Disabled</option><option value="blocked">Blocked</option></select></div><div id="l-list"><div class="empty"><div class="skel" style="width:60%;margin:0 auto"></div></div></div></div>
 </section>
 
 <section class="view" id="view-payouts">
   <div class="page-head"><div><h2>Payouts</h2><p>Review, approve and mark withdrawals as paid.</p></div><button class="btn btn-secondary" id="csvWd" type="button"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg> Export CSV</button></div>
   <div class="seg" id="w-seg" style="margin-bottom:16px"><button class="on" data-s="all" type="button">All</button><button data-s="pending" type="button">Pending</button><button data-s="approved" type="button">Approved</button><button data-s="paid" type="button">Paid</button><button data-s="rejected" type="button">Rejected</button></div>
-  <div class="panel"><div id="w-list"><div class="empty"><div class="skel" style="width:60%;margin:0 auto"></div></div></div></div>
+  <div class="panel"><div class="toolbar"><input class="input grow" id="w-search" type="search" placeholder="Search user, email or amount…" aria-label="Search payouts"></div><div id="w-list"><div class="empty"><div class="skel" style="width:60%;margin:0 auto"></div></div></div></div>
 </section>
 
 <section class="view" id="view-fraud">
@@ -115,7 +115,7 @@
 </main></div>
 <div class="scrim" id="scrim"></div>
 </div>
-<script src="/assets/app.js?v=3.2" defer></script>
-<script src="/assets/admin.js?v=3.2" defer></script>
+<script src="/assets/app.js?v=3.6" defer></script>
+<script src="/assets/admin.js?v=3.6" defer></script>
 </body>
 </html>

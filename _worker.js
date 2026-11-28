@@ -870,7 +870,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v77-click', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v83-final', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -1114,11 +1114,16 @@ async function api(request, env, url) {
   if (p.startsWith('/api/links/') && (m === 'PATCH' || m === 'PUT')) {
     if (!user) return json({ ok: false }, 401);
     await ensureFolders(env);
-    const id = Number(p.split('/')[3]);
-    if (!Number.isFinite(id)) return json({ error: 'Bad link' }, 400);
+    const key = decodeURIComponent((p.split('/')[3] || '')).trim();
+    if (!key) return json({ error: 'Bad link' }, 400);
     const b = await request.json().catch(() => ({}));
-    const row = await env.DB.prepare('SELECT * FROM links WHERE id=? AND user_id=?').bind(id, user.id).first();
+    // numeric = id, warna slug — dono support
+    const numId = Number(key);
+    const row = (String(numId) === key && Number.isFinite(numId))
+      ? await env.DB.prepare('SELECT * FROM links WHERE id=? AND user_id=?').bind(numId, user.id).first()
+      : await env.DB.prepare('SELECT * FROM links WHERE slug=? AND user_id=?').bind(key, user.id).first();
     if (!row) return json({ error: 'Link not found' }, 404);
+    const id = row.id;
     const sets = [], binds = [];
     if (b.url !== undefined) {
       const dest = validUrl(String(b.url || ''));
@@ -1135,8 +1140,10 @@ async function api(request, env, url) {
       sets.push('folder_id=?'); binds.push(fid);
     }
     if (b.status !== undefined) {
-      const st = String(b.status);
-      if (!['active', 'inactive'].includes(st)) return json({ error: 'Bad status' }, 400);
+      let st = String(b.status).toLowerCase();
+      if (st === 'disabled' || st === 'paused') st = 'inactive';   // UI alias
+      if (st === 'enabled' || st === 'live') st = 'active';
+      if (!['active', 'inactive', 'blocked'].includes(st)) return json({ error: 'Bad status' }, 400);
       sets.push('status=?'); binds.push(st);
     }
     if (!sets.length) return json({ error: 'Nothing to update' }, 400);
@@ -1538,7 +1545,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v77-click',
+        build: '2026-11-30-v83-final',
         total: zones.length,
         active: active.length,
         zones,
@@ -1568,7 +1575,7 @@ async function api(request, env, url) {
       return json({ ok: true, code: r.code_plain || null, expires_at: r.expires_at, used: !!r.used_at });
     }
     if (p === '/api/admin/users' && m === 'GET') {
-      const r = await env.DB.prepare(`SELECT u.id,u.name,u.email,u.role,u.status,u.created_at,u.fraud_flag,u.fraud_note,COALESCE(u.rate_multiplier,1) AS rate_multiplier,
+      const r = await env.DB.prepare(`SELECT u.id,u.name,u.email,u.username,u.role,u.status,u.created_at,u.fraud_flag,u.fraud_note,COALESCE(u.rate_multiplier,1) AS rate_multiplier,
         COALESCE(b.confirmed_usd,0) AS confirmed_usd, COALESCE(b.estimated_usd,0) AS estimated_usd,
         COALESCE(v.valid,0) AS valid_views, COALESCE(v.invalid,0) AS invalid_views
       FROM users u
@@ -1605,7 +1612,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v77-click', zones });
+      return json({ ok: true, build: '2026-11-30-v83-final', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -2663,6 +2670,9 @@ const INFO_PAGES = {
   '/blog/how-to-earn-with-link-shortening': 'How to earn with link shortening',
   '/blog/why-indian-creators-need-upi-payouts': 'Why Indian creators need UPI payouts',
   '/blog/staying-safe-with-short-links': 'Staying safe with short links',
+  '/blog/cpm-explained': 'CPM explained: what advertisers actually pay',
+  '/blog/valid-vs-invalid-views': 'Valid vs invalid views: why your payout is lower',
+  '/blog/share-short-links-on-whatsapp-and-telegram': 'Sharing short links on WhatsApp and Telegram',
   '/help': 'Help Center',
   '/about': 'About',
   '/terms': 'Terms of Service',
@@ -2670,6 +2680,7 @@ const INFO_PAGES = {
   '/contact': 'Contact',
   '/how-it-works': 'How It Works',
   '/earnings': 'Earnings',
+  '/report-abuse': 'Report abuse',
 };
 
 const INFO_TEXT = {
@@ -2692,6 +2703,18 @@ const INFO_TEXT = {
     <h2>Five habits</h2><p>Check the destination domain. Never enter a password on a page you reached from a short link. Ignore "download ready" buttons that are really ads. Close pop-ups with the small cross. Report anything that looks wrong.</p>
     <h2>What a legitimate step looks like</h2><p>A sponsored step should be labelled, should show a timer, and should never hide its continue button or pretend to be a system message.</p>
     <h2>If something looks wrong</h2><p>Write to the abuse address on the site. We remove links that lead to malware or phishing.</p>`,
+  '/blog/cpm-explained': `<p>CPM means cost per mille — the price an advertiser pays for one thousand ad impressions. As a creator you receive a share of that, so understanding CPM explains almost every difference in your earnings.</p>
+    <h2>Why the same view pays differently</h2><p>An advertiser selling a $400 product in the United States can afford a much higher bid than one selling a $4 app in a lower-income market. Your rate follows their bid, not your effort. That is why two creators with identical traffic can earn very different amounts.</p>
+    <h2>What moves your number</h2><p>Country of the visitor, device type, the ad format shown, how many steps the visitor completes, and the season all matter. December usually pays more than February because advertisers spend more.</p>
+    <h2>What does not move it</h2><p>Refresh counts, repeat clicks from the same device, and traffic that arrives through proxies. Networks remove these before paying, so inflated numbers never become money.</p>`,
+  '/blog/valid-vs-invalid-views': `<p>A click is not a view. A view counts only when a real person completes the sponsored steps and reaches the destination. Everything else is filtered out before your balance moves.</p>
+    <h2>What gets marked invalid</h2><p>Automated browsers, known datacentre and VPN addresses, duplicate visits from the same device within 24 hours, and your own clicks on your own links. Each of these is recorded, but none of them earn.</p>
+    <h2>Why your payout can look smaller</h2><p>Estimated earnings appear first and are reconciled before they become withdrawable. If a batch of traffic is later judged invalid, the estimated figure drops. That is normal and it protects the platform from paying for traffic advertisers will not fund.</p>
+    <h2>How to keep your ratio healthy</h2><p>Share with people who actually want the link. Avoid buying clicks, avoid traffic exchanges, and never ask a group to open a link repeatedly. A steady 90% valid rate is worth far more than a spike at 40%.</p>`,
+  '/blog/share-short-links-on-whatsapp-and-telegram': `<p>Most Indian link traffic moves through two apps: WhatsApp and Telegram. Both treat links slightly differently, and small habits change how many people actually open yours.</p>
+    <h2>WhatsApp</h2><p>Send the link with one line explaining what is behind it. A bare short link in a group looks like spam and gets ignored. If you run a broadcast list, space messages out — identical links sent repeatedly are throttled.</p>
+    <h2>Telegram</h2><p>Channels show a link preview pulled from the destination page, so make sure that page has a title and an image. Pin your most useful link so new members find it without scrolling.</p>
+    <h2>Both</h2><p>Do not shorten the same destination into dozens of aliases for one audience. One clean link per offer is easier to trust and easier to track. And never promise money for clicking — that is incentivised traffic and it is not paid.</p>`,
   '/help': `<p><strong>Getting paid.</strong> Earnings appear as <em>estimated</em> during the day and move to <em>confirmed</em> automatically every night at 12:00 AM IST. You can request a withdrawal once your confirmed balance reaches $5. Payouts are reviewed and sent within 12 hours.</p>
     <p><strong>Payout methods.</strong> PayPal, UPI (India) and direct bank transfer. Enter your details in Dashboard → Withdrawals.</p>
     <p><strong>Why are my views not counting?</strong> Views are only counted when a real visitor completes the sponsored steps. Bots, VPNs, proxies, duplicate visits within 24 hours and your own clicks are filtered out.</p>
@@ -2713,6 +2736,13 @@ const INFO_TEXT = {
   '/contact': `<p>Support: <a href="mailto:support@eliteofficial.in">support@eliteofficial.in</a></p>
     <p>Abuse reports: <a href="mailto:abuse@eliteofficial.in">abuse@eliteofficial.in</a></p>
     <p>We reply within two business days.</p>`,
+  '/report-abuse': `<p>EliteURL does not allow links to malware, phishing pages, adult content, gambling, pirated material or anything unlawful. If you received a short link that breaks these rules, please tell us.</p>
+    <p><strong>What to include</strong></p>
+    <ol><li>The full short link (for example <code>eliteofficial.in/Ab123X</code>).</li>
+    <li>What happens when you open it.</li>
+    <li>A screenshot, if you have one.</li></ol>
+    <p>Email <a href="mailto:abuse@eliteofficial.in">abuse@eliteofficial.in</a> with these details. We review every report and disable links that break our terms, usually within one business day.</p>
+    <p>For copyright complaints, include the original work and proof that you own it.</p>`,
 };
 
 const COUNTRY_NAMES = { US:'United States', GB:'United Kingdom', CA:'Canada', AU:'Australia', IN:'India', PK:'Pakistan', BD:'Bangladesh', AE:'UAE', SA:'Saudi Arabia', DE:'Germany', FR:'France', NL:'Netherlands', SG:'Singapore', MY:'Malaysia', ID:'Indonesia', PH:'Philippines', NG:'Nigeria', KE:'Kenya', ZA:'South Africa', BR:'Brazil', MX:'Mexico', TR:'Turkey', EG:'Egypt', LK:'Sri Lanka', NP:'Nepal', ALL:'Other countries' };
