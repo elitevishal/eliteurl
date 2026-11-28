@@ -82,7 +82,7 @@
       rows.map(function (r) {
         return '<tr><td><a class="cell-link" href="' + esc(r.full) + '" target="_blank" rel="noopener">/' + esc(r.l.slug) + '</a><span class="sub-line">' + fmtDate(r.l.created_at) + r.tags + '</span></td>' +
           '<td><div class="truncate" title="' + esc(r.l.destination_url) + '">' + esc(r.l.destination_url) + '</div></td><td class="num">' + EU.num(r.l.clicks) + '</td><td class="num"><b>' + EU.num(r.l.valid_views) + '</b></td>' +
-          '<td><span class="badge ' + r.st + '">' + r.st + '</span></td><td><div class="act" style="justify-content:flex-end"><button class="btn btn-secondary btn-sm" data-copy="' + esc(r.full) + '">Copy</button><button class="btn btn-ghost btn-sm" data-qr="' + esc(r.full) + '">QR</button>' +
+          '<td><span class="badge ' + r.st + '">' + r.st + '</span></td><td><div class="act" style="justify-content:flex-end"><button class="btn btn-secondary btn-sm" data-copy="' + esc(r.full) + '">Copy</button><button class="btn btn-ghost btn-sm" data-qr="' + esc(r.full) + '">QR</button><button class="btn btn-ghost btn-sm" data-edit="' + esc(r.l.slug) + '">Edit</button>' +
           (r.l.status === 'active' ? '<button class="btn btn-ghost btn-sm" data-del="' + esc(r.l.slug) + '">Disable</button>' : '') + '</div></td></tr>';
       }).join('') + '</tbody></table></div>';
     var cards = rows.map(function (r) {
@@ -238,15 +238,35 @@
     var u = $('#q-url'), a = $('#q-alias'), m = $('#q-msg'), b = $('#q-btn'); m.className = 'alert';
     if (!u.value.trim()) { showMsg(m, 'Paste a link first.', false); u.focus(); return; }
     setBusy(b, true, 'Creating…');
-    EU.api('/api/links', { json: { url: normaliseUrl(u.value), alias: a.value.trim() } }).then(function (r) {
+    var qPw = document.getElementById('qUsePw'), qExp = document.getElementById('qUseExp'), qAdv = document.getElementById('qUseAdv');
+    if (qPw && qPw.checked && (document.getElementById('qLinkpw').value || '').length < 4) { setBusy(b, false, 'Shorten'); showMsg(m, 'The link password needs at least 4 characters.', false); return; }
+    var qBody = {
+      url: normaliseUrl(u.value), alias: a.value.trim(),
+      password: (qPw && qPw.checked) ? document.getElementById('qLinkpw').value : '',
+      pw_hint: (qPw && qPw.checked) ? document.getElementById('qPwhint').value : '',
+      expires_in_days: (qExp && qExp.checked) ? document.getElementById('qExpdays').value : '',
+      advanced: !!(qAdv && qAdv.checked),
+      creator_name: document.getElementById('qCreator').value,
+      tool_name: document.getElementById('qToolname').value,
+      video_url: document.getElementById('qVideourl').value
+    };
+    EU.api('/api/links', { json: qBody }).then(function (r) {
       setBusy(b, false, 'Shorten');
-      if (r.status === 200) { showResult('#q-res', '#q-short', r.data.short); u.value = ''; a.value = ''; loadLinks(); loadMe(); EU.toast('Short link created', 'ok'); }
+      if (r.status === 200) { showResult('#q-res', '#q-short', r.data.short); u.value = ''; a.value = '';
+        ['qLinkpw','qPwhint','qExpdays','qCreator','qToolname','qVideourl'].forEach(function(id){var el=document.getElementById(id); if(el) el.value='';});
+        ['qUsePw','qUseExp','qUseAdv'].forEach(function(id){var el=document.getElementById(id); if(el) el.checked=false;});
+        ['qPwRow','qExpRow','qAdvRow'].forEach(function(id){var el=document.getElementById(id); if(el) el.classList.add('hide');});
+        loadLinks(); loadMe(); EU.toast('Short link created', 'ok'); }
       else showMsg(m, r.data.error || 'Could not create the link.', false);
     }).catch(function () { setBusy(b, false, 'Shorten'); showMsg(m, 'Network error.', false); });
   });
   $('#q-copy').addEventListener('click', function () { EU.copy(lastShort, this, 'Short link copied'); });
   $('#q-qr').addEventListener('click', function () { openQR(lastShort); });
 
+  [['qUsePw','qPwRow'],['qUseExp','qExpRow'],['qUseAdv','qAdvRow']].forEach(function (p) {
+    var cb = document.getElementById(p[0]), row = document.getElementById(p[1]);
+    if (cb && row) cb.addEventListener('change', function () { row.classList.toggle('hide', !cb.checked); });
+  });
   [['useUtm', 'utmRow'], ['useExp', 'expRow'], ['usePw', 'pwRow'], ['useAdv', 'advRow']].forEach(function (p) {
     $('#' + p[0]).addEventListener('change', function () { $('#' + p[1]).classList.toggle('hide', !this.checked); });
   });
