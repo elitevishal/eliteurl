@@ -612,7 +612,7 @@ importScripts('https://5gvci.com/act/files/service-worker.min.js?r=sw')
 
 const STATIC_FILES = new Set([
   '/robots.txt','/sitemap.xml','/favicon.svg','/site.webmanifest','/sw.js','/ads.txt','/app-ads.txt',
-  '/og.png','/og.jpg','/icon-192.png','/icon-512.png','/apple-touch-icon.png','/favicon-32.png',
+  '/og.png','/og.jpg','/icon-192.png','/icon-96.png','/favicon-48.png','/favicon.ico','/icon-512.png','/apple-touch-icon.png','/favicon-32.png',
   '/icon.png','/logo.png','/logo.svg','/og.png'
 ]);
 
@@ -841,7 +841,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v65-match', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v67-bioicon', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -1504,7 +1504,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v65-match',
+        build: '2026-11-30-v67-bioicon',
         total: zones.length,
         active: active.length,
         zones,
@@ -1571,7 +1571,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v65-match', zones });
+      return json({ ok: true, build: '2026-11-30-v67-bioicon', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -2639,7 +2639,12 @@ async function bioPage(env, origin, handle) {
   if (!u) return new Response(messagePage('Page not found', 'This link-in-bio page does not exist.'), { status: 404, headers: { 'content-type': 'text/html; charset=utf-8' } });
   let links = [];
   try {
-    const r = await env.DB.prepare("SELECT slug, title, destination_url FROM links WHERE user_id=? AND status='active' ORDER BY id DESC LIMIT 30").bind(u.id).all();
+    let r = null;
+    try {
+      r = await env.DB.prepare("SELECT slug, title, tool_name, creator_name, destination_url FROM links WHERE user_id=? AND status='active' ORDER BY id DESC LIMIT 30").bind(u.id).all();
+    } catch (e) {
+      r = await env.DB.prepare("SELECT slug, title, destination_url FROM links WHERE user_id=? AND status='active' ORDER BY id DESC LIMIT 30").bind(u.id).all();
+    }
     links = r.results || [];
   } catch (e) {}
   const esc2 = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -2647,7 +2652,11 @@ async function bioPage(env, origin, handle) {
   const items = links.map((l) => {
     let host = '';
     try { host = new URL(l.destination_url).hostname.replace(/^www\./, ''); } catch (e) {}
-    const label = l.title && l.title.length > 3 ? l.title : host || l.slug;
+    // tool name > title > domain
+    const tn = String(l.tool_name || '').trim();
+    const ti = String(l.title || '').trim();
+    let label = tn || (ti.length > 3 ? ti : '') || host || l.slug;
+    if (label === host && !tn && !ti) label = host || l.slug;
     return `<a class="lnk" href="${origin}/${esc2(l.slug)}" rel="noopener">
       <span class="ic">${esc2((label || 'L').charAt(0).toUpperCase())}</span>
       <span class="tx"><b>${esc2(String(label).slice(0, 48))}</b><i>${esc2(host)}</i></span>
