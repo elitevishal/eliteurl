@@ -1,513 +1,121 @@
 <!doctype html>
-<html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Admin — EliteURL</title>
+<meta name="description" content="EliteURL admin panel.">
 <meta name="robots" content="noindex,nofollow">
-<link rel="stylesheet" href="/assets/app.css">
-<style>
-@media(max-width:640px){
-  .cards{grid-template-columns:repeat(2,1fr);gap:10px}
-  .kpi{padding:14px}.kpi b{font-size:20px}.kpi span{font-size:10px}
-  .panel{padding:16px}.tabs button{padding:9px 10px;font-size:13px}h1.page{font-size:22px}
-}
-.kpi b,.kpi span{overflow-wrap:anywhere;word-break:break-word}
-#u-list table,#l-list table,#z-list table,#w-list table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
-td,th{white-space:nowrap}.td-url{max-width:170px}
-.pill.approved{background:#eafaf2;color:#0d6b47}
-.pill.pending{background:#fff5e0;color:#8a5b00}
-.pill.paid{background:#eef0ff;color:#3b3ff2}
-.pill.rejected{background:#fdeeee;color:#b3261e}
-.rowbtn{display:flex;gap:6px}
-.rowbtn .btn{padding:6px 10px;font-size:12px;border-radius:8px}
-
-@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-.panel{animation:fadeUp .45s cubic-bezier(.2,.8,.2,1) both;transition:box-shadow .25s,border-color .25s}
-.panel:nth-child(2){animation-delay:.06s}
-.panel:nth-child(3){animation-delay:.12s}
-.panel:nth-child(4){animation-delay:.18s}
-.kpi{transition:transform .2s,box-shadow .2s}
-.kpi:hover{transform:translateY(-2px);box-shadow:0 16px 30px -26px rgba(20,24,80,.55)}
-.btn{transition:transform .12s,background .18s}
-.btn:active{transform:scale(.97)}
-tbody tr{transition:background .15s}
-tbody tr:hover{background:#fafbff}
-@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-.st{font-size:10px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;padding:5px 11px;border-radius:99px;border:1px solid transparent;display:inline-block}
-.st-pending{background:#fff6e5;color:#b45309;border-color:#fde3ae}
-.st-approved{background:#eef1ff;color:#3b3ff2;border-color:#dbdfff}
-.st-paid{background:#e8f9ef;color:#12833b;border-color:#c7eed8}
-.st-rejected{background:#fdecec;color:#b3261e;border-color:#f7c9c9}
-</style>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<meta property="og:image" content="https://eliteofficial.in/og.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="EliteURL — Shorten Links. Get Paid for Every View.">
-<meta property="og:site_name" content="EliteURL">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://eliteofficial.in/og.png">
-<meta name="twitter:title" content="EliteURL — Free URL Shortener That Pays You">
-<meta name="twitter:description" content="No withdrawal fee, $5 minimum, paid within 12 hours by UPI, PayPal or bank.">
-<link rel="icon" href="/favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
-<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
-<link rel="icon" type="image/png" sizes="96x96" href="/icon-96.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#4f46e5">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<meta name="theme-color" content="#3b3ff2">
-</head><body>
-
-<header><div class="wrap nav">
-  <a class="brand" href="/">ELITEURL</a>
-  <div class="nav-right">
-    <span class="who">Admin</span>
-    <a href="/dashboard">My dashboard</a>
-    <a href="#" id="logout">Sign out</a>
+<script>try{var t=localStorage.getItem("eu-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="/assets/app.css?v=3.0">
+</head>
+<body>
+<div class="app">
+<aside class="sidebar" id="sidebar" aria-label="Sidebar"><div class="sb-brand"><a class="brand" href="/" aria-label="EliteURL home"><span class="mark"><svg viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg></span><span>Elite<b>URL</b></span></a></div><nav class="sb-nav"><button class="sb-link" data-view="overview" type="button"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/></svg><span>Overview</span></button><div class="sb-label">Manage</div><button class="sb-link" data-view="users" type="button"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg><span>Users</span></button><button class="sb-link" data-view="links" type="button"><svg viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg><span>Links</span></button><button class="sb-link" data-view="payouts" type="button"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h13v4"/><path d="M3 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2z"/><circle cx="16.5" cy="14" r="1.2"/></svg><span>Payouts</span><em class="cnt hide" id="nav-pending">0</em></button><div class="sb-label">Platform</div><button class="sb-link" data-view="fraud" type="button"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/><path d="M12 9v4M12 16h.01"/></svg><span>Fraud monitor</span></button><button class="sb-link" data-view="zones" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 22h10M12 18v4"/></svg><span>Ad zones</span></button><button class="sb-link" data-view="settings" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span></button><button class="sb-link" data-view="tools" type="button"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0 5 5L21 12.6 12.6 21a2.1 2.1 0 0 1-3-3L18 9.6"/><path d="M15 3l6 6"/></svg><span>Maintenance</span></button></nav><div class="sb-foot"><a class="sb-link" href="/dashboard"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/></svg><span>My dashboard</span></a><div class="sb-user"><div class="avatar" id="avatar">U</div><div><b id="who-name">Loading…</b><span id="who-email">&nbsp;</span></div></div><button class="sb-link" id="logout" type="button"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg><span>Sign out</span></button></div></aside>
+<div class="app-main"><header class="topbar"><button class="icon-btn menu-btn" id="menu-btn" type="button" aria-label="Open menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><h1 id="page-title">Overview</h1><button class="icon-btn theme-btn" type="button" aria-label="Toggle dark mode"><svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></header>
+<main class="content" id="main">
+<section class="view on" id="view-overview">
+  <div class="page-head"><div><h2>Platform overview</h2><p>Live totals across all creators.</p></div><button class="btn btn-secondary" id="refresh" type="button">Refresh</button></div>
+  <div id="ovErr" class="alert danger err">Could not load admin data. You are signed in, but this account is not the owner account. Only the email set in <code>OWNER_EMAIL</code> can open the admin panel.</div>
+  <div id="ovWarn" class="alert warn"></div>
+  <div class="kpis c6">
+    <div class="kpi"><span>Users</span><b id="o-users">0</b></div><div class="kpi"><span>Links</span><b id="o-links">0</b></div><div class="kpi"><span>Clicks</span><b id="o-clicks">0</b></div>
+    <div class="kpi"><span>Valid views</span><b id="o-valid">0</b></div><div class="kpi"><span>Invalid views</span><b id="o-invalid">0</b></div><div class="kpi"><span>Pending payouts</span><b id="o-pending">0</b></div>
   </div>
-</div></header>
-
-<main><div class="wrap">
-  <h1 class="page">Admin panel</h1>
-  <p class="page-sub">Platform overview, users, links, payouts and ad configuration.</p>
-
-  <div class="tabs">
-    <button class="on" data-tab="overview">Overview</button>
-    <button data-tab="users">Users</button>
-    <button data-tab="links">Links</button>
-    <button data-tab="payouts">Payouts</button>
-    <button data-tab="settings">Settings</button>
-    <button data-tab="zones">Ad zones</button>
+  <div class="two">
+    <div class="panel"><div class="panel-h"><div><h3>Creator balances</h3><p>Platform-wide liabilities</p></div></div><div class="panel-b"><div class="kpis c3" style="grid-template-columns:1fr 1fr;margin:0"><div class="kpi" style="box-shadow:none"><span>Estimated</span><b id="o-est">$0.0000</b></div><div class="kpi" style="box-shadow:none"><span>Confirmed (owed)</span><b class="money" id="o-conf">$0.0000</b></div></div></div></div>
+    <div class="panel"><div class="panel-h"><div><h3>Economics check</h3><p>Is each view profitable?</p></div></div><div class="panel-b" id="econ-body"><div class="skel" style="height:90px"></div></div></div>
   </div>
+</section>
 
-  <div id="tab-overview">
-    <div class="cards">
-      <div class="kpi"><span>Users</span><b id="o-users">0</b></div>
-      <div class="kpi"><span>Links</span><b id="o-links">0</b></div>
-      <div class="kpi"><span>Clicks</span><b id="o-clicks">0</b></div>
-      <div class="kpi"><span>Valid views</span><b id="o-valid">0</b></div>
-      <div class="kpi"><span>Invalid</span><b id="o-invalid">0</b></div>
-      <div class="kpi"><span>Pending payouts</span><b id="o-pending">0</b></div>
-    </div>
-    <div class="panel">
-      <h2>Creator balances (platform-wide)</h2>
-      <div class="cards" style="margin:0">
-        <div class="kpi"><span>Estimated</span><b class="money" id="o-est">$0.0000</b></div>
-        <div class="kpi"><span>Confirmed</span><b id="o-conf">$0.0000</b></div>
-      </div>
-    </div>
+<section class="view" id="view-users">
+  <div class="page-head"><div><h2>Users</h2><p id="u-sub">Registered creators.</p></div><button class="btn btn-secondary" id="csvUsers" type="button"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg> Export CSV</button></div>
+  <div class="panel"><div class="toolbar"><input class="input grow" id="u-search" type="search" placeholder="Search name or email…" aria-label="Search users"><select class="select" id="u-filter" aria-label="Filter users"><option value="all">All users</option><option value="active">Active</option><option value="blocked">Blocked</option><option value="flagged">Flagged / suspicious</option></select></div><div id="u-list"><div class="empty"><div class="skel" style="width:60%;margin:0 auto"></div></div></div></div>
+</section>
+
+<section class="view" id="view-links">
+  <div class="page-head"><div><h2>All links</h2><p>Latest 200 links on the platform.</p></div><button class="btn btn-secondary" id="csvLinks" type="button"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg> Export CSV</button></div>
+  <div class="panel"><div class="toolbar"><input class="input grow" id="al-search" type="search" placeholder="Search alias, owner or destination…" aria-label="Search links"></div><div id="l-list"><div class="empty"><div class="skel" style="width:60%;margin:0 auto"></div></div></div></div>
+</section>
+
+<section class="view" id="view-payouts">
+  <div class="page-head"><div><h2>Payouts</h2><p>Review, approve and mark withdrawals as paid.</p></div><button class="btn btn-secondary" id="csvWd" type="button"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg> Export CSV</button></div>
+  <div class="seg" id="w-seg" style="margin-bottom:16px"><button class="on" data-s="all" type="button">All</button><button data-s="pending" type="button">Pending</button><button data-s="approved" type="button">Approved</button><button data-s="paid" type="button">Paid</button><button data-s="rejected" type="button">Rejected</button></div>
+  <div class="panel"><div id="w-list"><div class="empty"><div class="skel" style="width:60%;margin:0 auto"></div></div></div></div>
+</section>
+
+<section class="view" id="view-fraud">
+  <div class="page-head"><div><h2>Fraud monitor</h2><p>Suspicious traffic, blocked views and risky accounts.</p></div><button class="btn btn-secondary" id="fraud-refresh" type="button">Refresh</button></div>
+  <div class="kpis c4" style="margin-bottom:18px">
+    <div class="kpi"><span>Blocked views</span><b id="f-blocked">0</b></div>
+    <div class="kpi"><span>Bot hits</span><b id="f-bots">0</b></div>
+    <div class="kpi"><span>VPN / proxy</span><b id="f-vpn">0</b></div>
+    <div class="kpi"><span>Risky accounts</span><b id="f-risky">0</b></div>
   </div>
+  <div class="panel"><div class="panel-h"><div><h3>Recent events</h3><p>Last 200 flagged sessions</p></div></div>
+    <div class="panel-b" id="fraud-body"><div class="skel" style="height:120px"></div></div></div>
+</section>
 
-  <div id="tab-users" class="hide"><div class="panel"><h2>Registered users <button class="btn btn-ghost btn-sm" id="csvUsers" style="float:right">Export CSV</button></h2><div id="u-list"><div class="empty">Loading…</div></div></div></div>
-  <div id="tab-links" class="hide"><div class="panel"><h2>All links <button class="btn btn-ghost btn-sm" id="csvLinks" style="float:right">Export CSV</button></h2><div id="l-list"><div class="empty">Loading…</div></div></div></div>
-  <div id="tab-payouts" class="hide"><div class="panel"><h2>Withdrawal requests <button class="btn btn-ghost btn-sm" id="csvWd" style="float:right">Export CSV</button></h2><div id="w-list"><div class="empty">Loading…</div></div><div class="msg" id="w-msg"></div></div></div>
-
-  <div id="tab-settings" class="hide"><div class="panel">
-    <h2>Platform settings</h2>
-    <div class="row" style="gap:16px">
-      <div class="field" style="flex:1 1 170px"><label>Ad steps (1–8)</label><input id="s-steps" type="number" min="1" max="8"></div>
-      <div class="field" style="flex:1 1 170px"><label>Countdown (seconds)</label><input id="s-count" type="number" min="3" max="60"></div>
-      <div class="field" style="flex:1 1 170px"><label>Creator share (0–1)</label><input id="s-share" type="number" step="0.01" min="0" max="1"></div>
-      <div class="field" style="flex:1 1 170px"><label>Min withdrawal (USD)</label><input id="s-min" type="number" min="0"></div>
-      <div class="field" style="flex:1 1 210px"><label>Show destination on step pages</label>
-        <select id="s-dest"><option value="0">No (recommended)</option><option value="1">Yes</option></select></div>
-      <div class="field" style="flex:1 1 240px"><label>Support email (shown to users)</label>
-        <input id="s-support" type="email" placeholder="support@eliteofficial.in"></div>
-      <div class="field" style="flex:1 1 150px"><label>Payout window (hours)</label>
-        <input id="s-payout" type="number" min="1" max="168" placeholder="12"></div>
+<section class="view" id="view-zones">
+  <div class="page-head"><div><h2>Ad zones</h2><p>Ad network codes used on visitor step pages.</p></div></div>
+  <div class="panel"><div class="panel-h"><h3>Add an ad zone</h3></div><div class="panel-b">
+    <div class="row">
+      <div class="field"><label for="z-network">Network</label><select class="select" id="z-network"><option>adsterra</option><option>monetag</option><option>propellerads</option><option>admaven</option><option value="house">house (our own promo)</option></select></div>
+      <div class="field"><label for="z-format">Format</label><select class="select" id="z-format"><option>socialbar</option><option>interstitial</option><option>banner</option><option>popunder</option><option>vignette</option><option>inpage</option></select></div>
+      <div class="field" style="flex:0 1 120px"><label for="z-step">Step (1–8)</label><input class="input" id="z-step" type="number" min="1" max="8" value="1"></div>
+      <div class="field"><label for="z-label">Label</label><input class="input" id="z-label" placeholder="Step 1 social bar"></div>
     </div>
-    <button class="btn btn-primary" id="save-settings">Save settings</button>
-    <div class="msg" id="s-msg"></div>
+    <div class="field"><label for="z-snippet">Ad code</label><textarea class="textarea" id="z-snippet" rows="4" placeholder="Paste the network's script tag here"></textarea></div>
+    <button class="btn btn-primary" id="add-zone" type="button">Add zone</button><div class="alert" id="z-msg" role="alert"></div>
   </div></div>
+  <div class="panel"><div class="panel-h"><h3>Existing zones</h3></div><div id="z-list"><div class="empty"><div class="skel" style="width:60%;margin:0 auto"></div></div></div></div>
+</section>
 
-  <div id="tab-zones" class="hide">
-    <div class="panel">
-      <h2>Add an ad zone</h2>
-      <div class="row" style="gap:16px">
-        <div class="field" style="flex:1 1 150px"><label>Network</label>
-          <select id="z-network"><option>adsterra</option><option>monetag</option><option>propellerads</option><option>admaven</option><option value="house">house (our own promo)</option></select></div>
-        <div class="field" style="flex:1 1 150px"><label>Format</label>
-          <select id="z-format"><option>socialbar</option><option>interstitial</option><option>banner</option><option>popunder</option><option>vignette</option><option>inpage</option></select></div>
-        <div class="field" style="flex:1 1 110px"><label>Step (1–8)</label><input id="z-step" type="number" min="1" max="8" value="1"></div>
-        <div class="field" style="flex:1 1 160px"><label>Label</label><input id="z-label" placeholder="Step 1 social bar"></div>
-      </div>
-      <div class="field"><label>Ad code (paste the network's script tag)</label>
-        <textarea id="z-snippet" rows="4" placeholder="Ad network: paste the &lt;script&gt; tag.  House promo: paste HTML like &lt;a href=&quot;https://eliteofficial.in&quot;&gt;&lt;img src=&quot;https://...&quot; alt=&quot;EliteURL&quot;&gt;&lt;/a&gt;"></textarea></div>
-      <button class="btn btn-primary" id="add-zone">Add zone</button>
-      <div class="msg" id="z-msg"></div>
+<section class="view" id="view-settings">
+  <div class="page-head"><div><h2>Settings</h2><p>Platform behaviour and payout rules.</p></div></div>
+  <div class="panel"><div class="panel-h"><h3>Platform settings</h3></div><div class="panel-b">
+    <div class="row">
+      <div class="field"><label for="s-steps">Ad steps (1–8)</label><input class="input" id="s-steps" type="number" min="1" max="8"></div>
+      <div class="field"><label for="s-count">Countdown (seconds)</label><input class="input" id="s-count" type="number" min="3" max="60"></div>
+      <div class="field"><label for="s-share">Creator share (0–1)</label><input class="input" id="s-share" type="number" step="0.01" min="0" max="1"></div>
+      <div class="field"><label for="s-min">Min withdrawal (USD)</label><input class="input" id="s-min" type="number" min="0"></div>
     </div>
-    <div class="panel" id="fraud-panel"><h2>Fraud monitor</h2>
-      <div id="fraud-stats" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"></div>
-      <div id="fraud-list" style="font-size:12.5px"><div class="empty">Loading…</div></div>
+    <div class="row">
+      <div class="field"><label for="s-payout">Payout window (hours)</label><input class="input" id="s-payout" type="number" min="1" max="168"></div>
+      <div class="field"><label for="s-support">Support email</label><input class="input" id="s-support" type="email" placeholder="support@eliteofficial.in"></div>
+      <div class="field"><label for="s-dest">Show destination on step pages</label><select class="select" id="s-dest"><option value="0">No (recommended)</option><option value="1">Yes</option></select></div>
     </div>
-    <div class="panel" id="econ-panel"><h2>Economics — profit check</h2>
-      <div id="econ-body" style="font-size:13px"><div class="empty">Loading…</div></div>
-      <p style="font-size:11.5px;color:#8b90a6;margin:12px 0 0;line-height:1.6">
-        Revenue = ad impressions per view × your network CPM. Payout = rate card.
-        If payout &gt; revenue, you lose money on every view.
-      </p>
+    <div class="divider"></div>
+    <div class="row" style="gap:28px">
+      <label class="check"><span class="switch"><input type="checkbox" id="s-signup"><i></i></span><span>New sign-ups enabled</span></label>
+      <label class="check"><span class="switch"><input type="checkbox" id="s-maint"><i></i></span><span>Maintenance mode (only admins can browse)</span></label>
     </div>
-    <div class="panel"><h2>Confirm pending earnings</h2>
-      <p style="font-size:12.5px;color:#5b6076;margin:0 0 12px;line-height:1.6">
-        Moves <b>estimated</b> earnings to <b>confirmed</b> so creators can withdraw.
-        (Abhi auto_confirm_days = 0 hai, isliye earnings turant confirmed hote hain — yeh button purane pending earnings ke liye hai.)
-      </p>
-      <button class="btn btn-primary" id="confirm-earn-btn">Confirm all estimated earnings</button>
-      <div class="msg" id="confirm-earn-msg"></div>
-    </div>
-    <div class="panel"><h2>Database cleanup</h2>
-      <p style="font-size:12.5px;color:#5b6076;margin:0 0 12px;line-height:1.6">
-        Deletes visit logs older than 60 days. <b>Users, links, earnings and withdrawals are never deleted.</b>
-      </p>
-      <button class="btn btn-primary" id="cleanup-btn">Run cleanup now</button>
-      <div class="msg" id="cleanup-msg"></div>
-    </div>
-    <div class="panel"><h2>Existing zones</h2><div id="z-list"><div class="empty">Loading…</div></div></div>
+    <div style="margin-top:20px"><button class="btn btn-primary" id="save-settings" type="button">Save settings</button></div><div class="alert" id="s-msg" role="alert"></div>
+  </div></div>
+</section>
+
+<section class="view" id="view-tools">
+  <div class="page-head"><div><h2>Maintenance tools</h2><p>Housekeeping actions. Money and accounts are never deleted.</p></div></div>
+  <div class="grid c2">
+    <div class="panel"><div class="panel-h"><h3>Confirm pending earnings</h3></div><div class="panel-b"><p style="margin-bottom:16px">Moves <b>estimated</b> earnings to <b>confirmed</b> so creators can withdraw. Useful for older pending earnings.</p><button class="btn btn-primary" id="confirm-earn-btn" type="button">Confirm all estimated earnings</button><div class="alert" id="confirm-earn-msg" role="alert"></div></div></div>
+    <div class="panel"><div class="panel-h"><h3>Database cleanup</h3></div><div class="panel-b"><p style="margin-bottom:16px">Deletes visit logs older than the retention period. <b>Users, links, earnings and withdrawals are never deleted.</b></p><button class="btn btn-secondary" id="cleanup-btn" type="button">Run cleanup now</button><div class="alert" id="cleanup-msg" role="alert"></div></div></div>
+    <div class="panel"><div class="panel-h"><h3>Test email</h3></div><div class="panel-b"><div class="field"><label for="tm-to">Send a test email to</label><input class="input" id="tm-to" type="email" placeholder="you@example.com"></div><button class="btn btn-secondary" id="tm-send" type="button">Send test email</button><div class="alert" id="tm-msg" role="alert"></div></div></div>
+    <div class="panel"><div class="panel-h"><h3>Build info</h3></div><div class="panel-b"><p class="muted">Backend build: <span id="buildtag" class="mono">?</span></p></div></div>
   </div>
-</div></main>
-
-<div class="foot">© 2026 EliteURL · admin · <span id="buildtag" style="opacity:.6">build ?</span></div>
-
-<script>
-function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-function money(n){return '$'+Number(n||0).toFixed(4);}
-function API(p,o){return fetch(p,o).then(function(r){return r.json().then(function(d){if(r.status===403){location.href='/dashboard';}return d;});});}
-function hide(id){document.getElementById(id).classList.add('hide');}
-
-document.querySelectorAll('.tabs button').forEach(function(b){
-  b.addEventListener('click',function(){
-    document.querySelectorAll('.tabs button').forEach(function(x){x.classList.remove('on');});
-    b.classList.add('on');
-    ['overview','users','links','payouts','settings','zones'].forEach(function(t){hide('tab-'+t);});
-    document.getElementById('tab-'+b.getAttribute('data-tab')).classList.remove('hide');
-  });
-});
-
-API('/api/admin/overview').then(function(d){
-  if(!d || !d.ok){
-    var st=(d&&d._status)||0;
-    document.getElementById('o-users').closest('.panel,div') && null;
-    var box=document.querySelector('#panel-overview') || document.body;
-    if(!document.getElementById('ovErr')){
-      var e=document.createElement('div'); e.id='ovErr';
-      e.style.cssText='background:#fff4f4;border:1px solid #f3c9c9;color:#a3261e;padding:14px 16px;border-radius:12px;margin:0 0 16px;font-size:13.5px';
-      e.innerHTML='<b>Could not load admin data.</b> You are signed in, but this account is not the owner account. Only the email set in <code>OWNER_EMAIL</code> can open the admin panel.';
-      box.insertBefore(e, box.firstChild);
-    }
-    return;
-  }
-  if(!d.ok)return;
-  if(d.warnings && d.warnings.length){
-    var we=document.getElementById('ovWarn');
-    if(!we){ we=document.createElement('div'); we.id='ovWarn';
-      we.style.cssText='background:#fffbe8;border:1px solid #f0e0a8;color:#7a5c00;padding:12px 14px;border-radius:12px;margin:0 0 16px;font-size:12.5px';
-      var p=document.getElementById('panel-overview')||document.body; p.insertBefore(we,p.firstChild); }
-    we.innerHTML='<b>Database needs an update.</b> Some columns are missing:<br><code style="font-size:11px">'+d.warnings.join('<br>')+'</code>';
-  }
-  document.getElementById('o-users').textContent=d.users.total||0;
-  document.getElementById('o-links').textContent=d.links.links||0;
-  document.getElementById('o-clicks').textContent=d.links.clicks||0;
-  document.getElementById('o-valid').textContent=d.links.valid_views||0;
-  document.getElementById('o-invalid').textContent=d.links.invalid_views||0;
-  document.getElementById('o-pending').textContent=d.withdrawals.pending||0;
-  document.getElementById('o-est').textContent=money(d.ledger.est);
-  document.getElementById('o-conf').textContent=money(d.ledger.conf);
-});
-
-function loadUsers(){
-  API('/api/admin/users').then(function(d){
-    if(!d.ok)return;
-    var box=document.getElementById('u-list');
-    var h='<table><tr><th>User</th><th>Status</th><th>Valid / Invalid</th><th>Balance</th><th>Actions</th></tr>';
-    d.users.forEach(function(u){
-      var total=(u.valid_views||0)+(u.invalid_views||0);
-      var badPct = total>3 ? Math.round((u.invalid_views||0)*100/total) : 0;
-      var warn = badPct>=40 ? '<div style="color:#b3261e;font-weight:700;font-size:11px">⚠ '+badPct+'% invalid traffic</div>' : '';
-      if(u.fraud_flag) warn += '<div style="color:#8a5b00;font-weight:700;font-size:11px">⚑ flagged: '+esc(u.fraud_flag)+'</div>';
-      h+='<tr><td><strong>'+esc(u.name)+'</strong><br><span style="color:#6b7086;font-size:11.5px">'+esc(u.email)+'</span></td>'
-       +'<td><span class="pill'+(u.status==='active'?'':' off')+'">'+esc(u.status)+'</span></td>'
-       +'<td>'+ (u.valid_views||0) +' / '+ (u.invalid_views||0) + warn +'</td>'
-       +'<td>'+money(u.confirmed_usd)+'</td>'
-       +'<td><div style="font-size:11px;color:#6b7086">rate ×'+(u.rate_multiplier||1)+'</div><div class="rowbtn">'
-       + (u.status==='active'
-            ? '<button class="btn btn-ghost" data-u="'+u.id+'" data-a="block">Block</button>'
-            : '<button class="btn btn-primary" data-u="'+u.id+'" data-a="activate">Unblock</button>')
-       + '<button class="btn btn-ghost" data-u="'+u.id+'" data-a="adjust">Balance</button>'
-       + '<button class="btn btn-ghost" data-u="'+u.id+'" data-a="rate">Rate</button>'
-       + '<button class="btn btn-ghost" data-u="'+u.id+'" data-a="resetlink">Reset link</button>'
-       + '<button class="btn btn-ghost" data-u="'+u.id+'" data-a="otp">Show OTP</button>'
-       + '<button class="btn btn-ghost" data-u="'+u.id+'" data-a="flag">Flag</button>'
-       + '</div></td></tr>';
-    });
-    box.innerHTML=h+'</table>';
-    box.querySelectorAll('[data-u]').forEach(function(b){
-      b.addEventListener('click',function(){
-        var id=b.getAttribute('data-u'), act=b.getAttribute('data-a'), body={id:id,action:act};
-        if(act==='adjust'){
-          var amt=prompt('Amount in USD (positive to add, negative to deduct):');
-          if(amt===null)return; body.amount=amt;
-          var note=prompt('Reason (optional):')||''; body.note=note;
-        }
-        if(act==='resetlink'){
-          API('/api/admin/users',{method:'POST',body:JSON.stringify({id:uid,action:'resetlink'})}).then(function(d){
-            if(d && d.link){ prompt('Reset link (1 hour valid) — user ko bhejo:', d.link); }
-            else alert(d && d.error ? d.error : 'Could not create link');
-          });
-          return;
-        }
-        if(act==='otp'){
-          API('/api/admin/otp?user_id='+uid).then(function(d){
-            if(d && d.code) prompt('Latest OTP code (10 min valid):', d.code);
-            else alert('No OTP found for this user. Ask them to tap "Forgot password" first.');
-          });
-          return;
-        }
-        if(act==='rate'){
-          var v=prompt('Earning rate for this user (1 = normal, 0.5 = half, 2 = double):','1');
-          if(v===null)return; body.value=v;
-        }
-        if(act==='flag'){ var fl=prompt('Flag label (e.g. fake traffic):','fake traffic'); if(fl===null)return; body.flag=fl; body.note=fl; }
-        if(act==='block'){ var n=prompt('Reason (optional):')||''; body.note=n; }
-        API('/api/admin/users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
-          .then(function(r){ if(!r.ok) alert(r.error||'Action failed'); loadUsers(); });
-      });
-    });
-  });
-}
-loadUsers();
-
-API('/api/admin/links').then(function(d){
-  if(!d.ok)return;
-  if(!d.links.length){document.getElementById('l-list').innerHTML='<div class="empty">No links yet.</div>';return;}
-  var h='<table><tr><th>Slug</th><th>Owner</th><th>Destination</th><th>Clicks</th><th>Valid</th></tr>';
-  d.links.forEach(function(l){
-    h+='<tr><td>/'+esc(l.slug)+'</td><td>'+esc(l.email)+'</td><td class="td-url">'+esc(l.destination_url)+'</td>'
-      +'<td>'+l.clicks+'</td><td>'+l.valid_views+'</td></tr>';
-  });
-  document.getElementById('l-list').innerHTML=h+'</table>';
-});
-
-function loadPayouts(){
-  API('/api/admin/withdrawals').then(function(d){
-    if(!d.ok)return;
-    var box=document.getElementById('w-list');
-    if(!d.withdrawals.length){box.innerHTML='<div class="empty">No withdrawal requests yet.</div>';return;}
-    var h='<table><tr><th>User</th><th>Amount</th><th>Method</th><th>Payout details</th><th>Status</th><th>Action</th></tr>';
-    d.withdrawals.forEach(function(w){
-      h+='<tr><td>'+esc(w.email)+'</td><td>'+money(w.amount_usd)+'</td><td>'+esc(w.method).toUpperCase()+'</td>'
-       +'<td><div style="max-width:220px;word-break:break-all;font-size:12px;font-weight:600">'+esc(w.payee_enc||'—')+'</div><button class="btn btn-ghost btn-sm" data-pay="'+esc(w.payee_enc||'')+'" style="margin-top:4px">Copy</button></td>'
-       +'<td><span class="st st-'+esc(w.status||'pending')+'">'+esc(w.status)+'</span></td><td><div class="rowbtn">';
-      var can = function(s){ return w.status!==s && w.status!=='paid'; };
-      if(w.status==='pending'){
-        h+='<button class="btn btn-primary btn-sm" data-wd="'+w.id+'" data-act="approve">Approve</button>'
-         +'<button class="btn btn-ghost btn-sm" data-wd="'+w.id+'" data-act="reject">Reject</button>';
-      } else if(w.status==='approved'){
-        h+='<button class="btn btn-primary btn-sm" data-wd="'+w.id+'" data-act="paid">Mark paid</button>'
-         +'<button class="btn btn-ghost btn-sm" data-wd="'+w.id+'" data-set="pending">Back to pending</button>'
-         +'<button class="btn btn-ghost btn-sm" data-wd="'+w.id+'" data-act="reject">Reject</button>';
-      } else if(w.status==='rejected'){
-        h+='<button class="btn btn-primary btn-sm" data-wd="'+w.id+'" data-set="pending">Restore to pending</button>'
-         +'<button class="btn btn-ghost btn-sm" data-wd="'+w.id+'" data-set="approved">Approve</button>';
-      } else { h+='<span style="color:#6b7086">Paid ✓</span>'; }
-      h+='</div></td></tr>';
-    });
-    box.innerHTML=h+'</table>';
-    box.querySelectorAll('[data-pay]').forEach(function(b){
-      b.addEventListener('click',function(){
-        var t=b.getAttribute('data-pay'), old=b.textContent;
-        if(navigator.clipboard && navigator.clipboard.writeText){
-          navigator.clipboard.writeText(t).then(function(){ b.textContent='Copied!'; setTimeout(function(){b.textContent=old;},1200); });
-        } else {
-          var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select();
-          try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta);
-          b.textContent='Copied!'; setTimeout(function(){b.textContent=old;},1200);
-        }
-      });
-    });
-    box.querySelectorAll('[data-set]').forEach(function(b){
-      b.addEventListener('click',function(){
-        var st=b.getAttribute('data-set'), id=b.getAttribute('data-wd');
-        var note=prompt('Note (optional):')||'';
-        API('/api/admin/withdrawals',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:Number(id),action:'setstatus',status:st,note:note})})
-          .then(function(d){ if(d&&d.ok){ loadPayouts(); } else alert((d&&d.error)||'Could not change the status'); });
-      });
-    });
-    box.querySelectorAll('[data-wd]').forEach(function(b){
-      b.addEventListener('click',function(){
-        var act=b.getAttribute('data-act'),id=b.getAttribute('data-wd');
-        var body={id:id,action:act};
-        if(act==='paid'){var ref=prompt('Transaction reference (UTR / UPI ref):');if(ref===null)return;body.txn_ref=ref;}
-        if(act==='reject'){var note=prompt('Reason (optional):')||'';body.note=note;}
-        API('/api/admin/withdrawals',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
-          .then(function(){loadPayouts();});
-      });
-    });
-  });
-}
-loadPayouts();
-
-API('/api/admin/settings').then(function(d){
-  if(!d.ok)return;
-  var m={};d.settings.forEach(function(s){m[s.key]=s.value;});
-  document.getElementById('s-steps').value=m.steps_count||7;
-  document.getElementById('s-count').value=m.countdown_seconds||15;
-  document.getElementById('s-share').value=m.creator_share||0.95;
-  document.getElementById('s-min').value=m.min_withdrawal_usd||5;
-  document.getElementById('s-dest').value=m.show_destination||'0';
-  document.getElementById('s-support').value=m.support_email||'support@eliteofficial.in';
-  document.getElementById('s-payout').value=m.payout_hours||12;
-});
-
-document.getElementById('save-settings').addEventListener('click',function(){
-  var m=document.getElementById('s-msg');m.className='msg';
-  API('/api/admin/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
-    steps_count:document.getElementById('s-steps').value,
-    countdown_seconds:document.getElementById('s-count').value,
-    creator_share:document.getElementById('s-share').value,
-    min_withdrawal_usd:document.getElementById('s-min').value,
-    show_destination:document.getElementById('s-dest').value,
-    support_email:document.getElementById('s-support').value,
-    payout_hours:document.getElementById('s-payout').value
-  })}).then(function(d){
-    m.textContent=d.ok?'Settings saved.':'Could not save.';
-    m.className='msg show '+(d.ok?'ok':'err');
-  });
-});
-
-function loadZones(){
-  API('/api/admin/zones').then(function(d){
-    if(!d.ok)return;
-    if(!d.zones.length){document.getElementById('z-list').innerHTML='<div class="empty">No ad zones yet.</div>';return;}
-    var h='<table><tr><th>Step</th><th>Network</th><th>Format</th><th>Label</th><th>Status</th><th>Code</th></tr>';
-    d.zones.forEach(function(z){
-      var code = z.has_script
-        ? '<span style="color:#12833b;font-weight:800">✓ '+z.len+'</span>'
-        : '<span style="color:#b3261e;font-weight:800">✗ EMPTY</span>';
-      h+='<tr><td>'+z.step_no+'</td><td>'+esc(z.network)+'</td><td>'+esc(z.format)+'</td><td>'+esc(z.label)+'</td><td>'+esc(z.status)+'</td><td>'+code+'</td></tr>';
-    });
-    document.getElementById('z-list').innerHTML=h+'</table>';
-  });
-}
-loadZones();
-API('/api/admin/zones').then(function(d){ var b=document.getElementById('buildtag'); if(b&&d&&d.build) b.textContent='build '+d.build; });
-
-fetch('/api/admin/fraud').then(function(r){return r.json();}).then(function(d){
-  if(!d||!d.ok) return;
-  var st=d.stats||{}, sb=document.getElementById('fraud-stats');
-  if(sb){
-    var items=[['Total',st.total,'#0b0e1c','#eef0f8'],['High',st.high,'#b3261e','#fdecec'],['Medium',st.medium,'#a86b00','#fdf3e0'],['Low',st.low,'#0f7a52','#e9faf2']];
-    sb.innerHTML=items.map(function(x){
-      return '<div style="flex:1 1 70px;min-width:70px;background:'+x[3]+';border-radius:10px;padding:10px 12px"><div style="font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:'+x[2]+';opacity:.75">'+x[0]+'</div><div style="font-size:19px;font-weight:900;color:'+x[2]+';margin-top:2px">'+x[1]+'</div></div>';
-    }).join('');
-  }
-  var box=document.getElementById('fraud-list');
-  if(!box) return;
-  var ev=d.events||[];
-  if(!ev.length){ box.innerHTML='<div class="empty" style="padding:20px 0">No fraud events. Everything looks clean.</div>'; return; }
-  var sevC={high:['#b3261e','#fdecec'],medium:['#a86b00','#fdf3e0'],low:['#0f7a52','#e9faf2']};
-  box.innerHTML=ev.map(function(e){
-    var c=sevC[e.severity]||sevC.low;
-    var when=new Date((e.created_at||0)*1000).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-    return '<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #f2f4fa;align-items:flex-start">'
-      +'<div style="min-width:0"><div><b>'+String(e.rule||'').replace(/_/g,' ')+'</b> '
-      +'<span style="background:'+c[1]+';color:'+c[0]+';border-radius:99px;padding:2px 8px;font-size:9.5px;font-weight:900;text-transform:uppercase">'+e.severity+'</span></div>'
-      +'<div style="color:#8b90a8;font-size:11.5px;margin-top:2px">'+esc(e.user_name||e.user_email||'unknown')+' · '+esc(e.action||'')+'</div></div>'
-      +'<div style="color:#a8adc4;font-size:11px;white-space:nowrap">'+when+'</div></div>';
-  }).join('');
-}).catch(function(){});
-
-fetch('/api/admin/economics').then(function(r){return r.json();}).then(function(d){
-  var box=document.getElementById('econ-body'); if(!box||!d||!d.ok) return;
-  var ok=d.safe;
-  box.innerHTML=''
-   +'<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f2f4fa"><span>Ad impressions per view</span><b>'+d.impressions.total+' <span style="font-weight:500;color:#8b90a6;font-size:11px">('+d.impressions.banners+' banner + '+d.impressions.popunders+' pop)</span></b></div>'
-   +'<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f2f4fa"><span>Revenue per view</span><b style="color:#12833b">$'+d.revenue_per_view_usd.toFixed(5)+'</b></div>'
-   +'<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f2f4fa"><span>Payout per view (rate card)</span><b style="color:#b45309">$'+d.payout_per_view_usd.toFixed(5)+'</b></div>'
-   +'<div style="display:flex;justify-content:space-between;padding:11px 0;font-size:15px"><span><b>Margin</b></span><b style="color:'+(ok?'#12833b':'#b3261e')+'">'+d.margin_percent.toFixed(1)+'%  ($'+d.margin_per_view_usd.toFixed(5)+')</b></div>'
-   +(ok
-      ? '<div style="background:#e8f9ef;border:1px solid #c7eed8;color:#12833b;padding:11px 13px;border-radius:10px;font-size:12.5px;margin-top:8px"><b>✓ Safe.</b> You earn more than you pay out.</div>'
-      : '<div style="background:#fdecec;border:1px solid #f7c9c9;color:#b3261e;padding:11px 13px;border-radius:10px;font-size:12.5px;margin-top:8px"><b>⚠ LOSS!</b> '+d.warning+'</div>');
-});
-
-document.getElementById('confirm-earn-btn').addEventListener('click',function(){
-  var b=this,m=document.getElementById('confirm-earn-msg');
-  b.disabled=true;b.textContent='Confirming…';m.className='msg';
-  API('/api/admin/confirm-earnings',{method:'POST',headers:{'content-type':'application/json'},body:'{}'})
-    .then(function(d){
-      b.disabled=false;b.textContent='Confirm all estimated earnings';
-      if(d&&d.ok){ m.className='msg ok'; m.textContent=d.message||'Done.'; }
-      else { m.className='msg bad'; m.textContent=(d&&d.error)||'Failed'; }
-    })
-    .catch(function(){b.disabled=false;b.textContent='Confirm all estimated earnings';m.className='msg bad';m.textContent='Network error';});
-});
-
-document.getElementById('cleanup-btn').addEventListener('click',function(){
-  var b=this,m=document.getElementById('cleanup-msg');
-  if(!confirm('Delete visit logs older than 60 days?\n\nUsers, links, earnings and withdrawals will NOT be touched.')) return;
-  b.disabled=true;b.textContent='Cleaning…';m.className='msg';
-  API('/api/admin/cleanup',{method:'POST',headers:{'content-type':'application/json'},body:'{}'})
-    .then(function(d){
-      b.disabled=false;b.textContent='Run cleanup now';
-      if(d&&d.ok){
-        m.className='msg ok';
-        m.textContent='Deleted '+d.deleted.sessions+' sessions, '+d.deleted.steps+' step logs, '+d.deleted.limits+' rate limits, '+d.deleted.otp+' OTPs. Your money and accounts are safe.';
-      } else { m.className='msg bad'; m.textContent=(d&&d.error)||'Cleanup failed'; }
-    })
-    .catch(function(){b.disabled=false;b.textContent='Run cleanup now';m.className='msg bad';m.textContent='Network error';});
-});
-
-document.getElementById('add-zone').addEventListener('click',function(){
-  var m=document.getElementById('z-msg');m.className='msg';
-  var body={network:document.getElementById('z-network').value,format:document.getElementById('z-format').value,
-    step_no:document.getElementById('z-step').value,label:document.getElementById('z-label').value,
-    snippet:document.getElementById('z-snippet').value};
-  if(!body.snippet.trim()){m.textContent='Paste the ad code first.';m.className='msg show err';return;}
-  API('/api/admin/zones',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}).then(function(d){
-    m.textContent=d.ok?'Zone added.':'Could not add zone.';
-    m.className='msg show '+(d.ok?'ok':'err');
-    if(d.ok){document.getElementById('z-snippet').value='';loadZones();}
-  });
-});
-
-
-function toCSV(rows, cols){
-  var head=cols.join(','), lines=[head];
-  rows.forEach(function(r){ lines.push(cols.map(function(c){ var v=r[c]; if(v===null||v===undefined)v=''; v=String(v).replace(/"/g,'""'); return '"'+v+'"'; }).join(',')); });
-  return lines.join('\n');
-}
-function download(name, text){
-  var b=new Blob([text],{type:'text/csv;charset=utf-8;'});
-  var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click();
-}
-var CACHE={};
-var _api=API;
-API=function(p,o){ return _api(p,o).then(function(d){ CACHE[p]=d; return d; }); };
-document.getElementById('csvUsers').addEventListener('click',function(){
-  var d=CACHE['/api/admin/users']; if(!d||!d.users)return alert('Load the Users tab first');
-  download('eliteurl-users.csv', toCSV(d.users,['id','name','email','role','status','confirmed_usd','estimated_usd','valid_views','invalid_views','rate_multiplier']));
-});
-document.getElementById('csvLinks').addEventListener('click',function(){
-  var d=CACHE['/api/admin/links']; if(!d||!d.links)return alert('Load the Links tab first');
-  download('eliteurl-links.csv', toCSV(d.links,['slug','email','destination_url','clicks','valid_views','status']));
-});
-document.getElementById('csvWd').addEventListener('click',function(){
-  var d=CACHE['/api/admin/withdrawals']; if(!d||!d.withdrawals)return alert('Load the Payouts tab first');
-  download('eliteurl-payouts.csv', toCSV(d.withdrawals,['id','email','amount_usd','method','status','txn_ref','requested_at']));
-});
-
-var _tmSend=document.getElementById('tm-send');
-if(_tmSend) _tmSend.addEventListener('click',function(){
-  var to=(document.getElementById('tm-to')||{}).value||'', m=document.getElementById('tm-msg');
-  if(!to){ m.className='msg show err'; m.textContent='Enter an email address.'; return; }
-  m.className='msg show'; m.textContent='Sending…';
-  API('/api/admin/testmail',{method:'POST',body:JSON.stringify({to:to})}).then(function(d){
-    if(d && d.ok){ m.className='msg show ok'; m.textContent='Sent from '+(d.from||'?')+' — check the inbox and spam folder.'; }
-    else { m.className='msg show err'; m.textContent=(d&&(d.error||d.response))||'Failed. Check RESEND_API_KEY and MAIL_FROM.'; }
-  });
-});
-
-document.getElementById('logout').addEventListener('click',function(e){
-  e.preventDefault();fetch('/api/auth/logout',{method:'POST'}).then(function(){location.href='/';});
-});
-</script>
-</body></html>
+</section>
+</main></div>
+<div class="scrim" id="scrim"></div>
+</div>
+<script src="/assets/app.js?v=3.0" defer></script>
+<script src="/assets/admin.js?v=3.0" defer></script>
+</body>
+</html>

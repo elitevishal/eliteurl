@@ -1,437 +1,182 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="no-js">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EliteURL — Free URL Shortener That Pays You | Earn Money From Links in India</title>
-<meta name="description" content="EliteURL is a paid URL shortener that pays creators for verified traffic. No withdrawal fee, $5 minimum payout, paid within 12 hours by UPI, PayPal or bank transfer.">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>EliteURL – Paid URL Shortener | Earn Money From Your Links</title>
+<meta name="description" content="EliteURL is a paid URL shortener for creators in India. Shorten links, earn from every verified view and withdraw to UPI, PayPal or bank. Free to join.">
+<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
 <link rel="canonical" href="https://eliteofficial.in/">
+<meta name="theme-color" content="#4f46e5">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="EliteURL">
+<meta property="og:locale" content="en_IN">
 <meta property="og:url" content="https://eliteofficial.in/">
-<meta property="og:title" content="EliteURL — Shorten Links. Get Paid for Every View.">
-<meta property="og:description" content="Free URL shortener that pays you. No withdrawal fee, $5 minimum, paid within 12 hours by UPI, PayPal or bank.">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="EliteURL — Shorten links. Earn from every verified view.">
-<meta name="twitter:description" content="Turn the links you already share into income. Keep almost all of ad revenue and withdraw straight to UPI.">
-<meta name="robots" content="index,follow,max-image-preview:large">
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "Organization",
-      "@id": "https://eliteofficial.in/#org",
-      "name": "EliteURL",
-      "url": "https://eliteofficial.in/",
-      "logo": "https://eliteofficial.in/favicon.svg",
-      "description": "A link shortening platform that pays creators for verified traffic.",
-      "areaServed": "IN"
-    },
-    {
-      "@type": "WebSite",
-      "@id": "https://eliteofficial.in/#site",
-      "url": "https://eliteofficial.in/",
-      "name": "EliteURL",
-      "publisher": { "@id": "https://eliteofficial.in/#org" }
-    },
-    {
-      "@type": "FAQPage",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "How much can I earn with EliteURL?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Your income is your verified views multiplied by the rate for that visitor's country. Creators keep almost all of the advertising revenue. There is no fixed figure and no guaranteed income." }
-        },
-        {
-          "@type": "Question",
-          "name": "When can I withdraw my earnings?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Once your confirmed balance crosses $5. Earnings stay estimated during the day and move to confirmed automatically every night at 12:00 AM IST." }
-        },
-        {
-          "@type": "Question",
-          "name": "Which payment methods does EliteURL support?",
-          "acceptedAnswer": { "@type": "Answer", "text": "PayPal, UPI and direct bank transfer. Every payout carries a transaction reference." }
-        },
-        {
-          "@type": "Question",
-          "name": "What traffic is not allowed?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Automated or incentivised traffic, self-clicks, proxies and VPNs, and links to malware, phishing, adult content, gambling or pirated material." }
-        }
-      ]
-    }
-  ]
-}
-</script>
-<style>
-:root{--ink:#0b0d1a;--body:#41465c;--muted:#6b7086;--accent:#3b3ff2;--accent-2:#7b5cff;--line:#e8eaf3;--bg:#ffffff;--soft:#f7f8fc;--dark:#0b0d1a}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-body{overflow-x:hidden;margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-a{color:inherit;text-decoration:none}
-.wrap{max-width:1140px;margin:0 auto;padding:0 24px}
-
-/* nav */
-header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.82);backdrop-filter:saturate(180%) blur(14px);-webkit-backdrop-filter:saturate(180%) blur(14px);border-bottom:1px solid var(--line)}
-.nav{display:flex;align-items:center;justify-content:space-between;height:66px}
-.brand{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:-.02em;font-size:16px;color:var(--ink)}
-.mark{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:#fff;font-size:13px;font-weight:900}
-.nav-links{display:flex;align-items:center;gap:30px}
-.nav-links a{font-size:14px;color:var(--body);font-weight:500}
-.nav-links a:hover{color:var(--ink)}
-.nav-cta{display:flex;align-items:center;gap:10px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;border-radius:11px;font-size:14px;font-weight:650;border:0;cursor:pointer;font-family:inherit;transition:transform .12s ease,background .15s ease,border-color .15s ease}
-.btn:active{transform:translateY(1px)}
-.btn-primary{background:var(--ink);color:#fff}
-.btn-primary:hover{background:#1c2036}
-.btn-accent{background:var(--accent);color:#fff}
-.btn-accent:hover{background:#2f33d9}
-.btn-outline{background:#fff;color:var(--ink);border:1px solid var(--line)}
-.btn-outline:hover{border-color:#c9cce0;background:#fcfcff}
-.btn-lg{padding:15px 26px;font-size:15px;border-radius:13px}
-
-/* hero */
-.hero{padding:80px 0 0;text-align:center;position:relative;overflow:hidden}
-.hero::before{content:"";position:absolute;inset:-30% 30% auto;height:520px;background:radial-gradient(60% 60% at 50% 40%,rgba(123,92,255,.16),transparent 70%);pointer-events:none}
-.eyebrow{display:inline-flex;align-items:center;gap:9px;padding:7px 15px;border-radius:99px;
-  background:rgba(123,92,255,.10);border:1px solid rgba(123,92,255,.22);
-  font-size:11.5px;font-weight:750;letter-spacing:.055em;text-transform:uppercase;
-  color:#8b7bff;margin-bottom:22px}
-.dot{width:6px;height:6px;border-radius:50%;background:#3b3ff2;box-shadow:0 0 0 3px rgba(59,63,242,.15)}
-h1{font-size:clamp(34px,6.1vw,62px);line-height:1.09;letter-spacing:-.031em;margin:0 0 20px;
-  font-weight:800;text-wrap:balance;font-optical-sizing:auto;
-  font-feature-settings:"ss01","cv11","kern" 1;
-  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
-  text-rendering:optimizeLegibility}
-h1 br{line-height:0}
-h1 .grad{background:linear-gradient(97deg,#4f46e5 0%,#7c3aed 48%,#a855f7 100%);
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-  font-weight:900;letter-spacing:-.034em;
-  display:inline-block;padding-bottom:.06em;
-  -webkit-text-fill-color:transparent;
-  filter:saturate(1.06)}
-.lead{max-width:56ch;margin:0 auto 30px;color:var(--body);font-size:clamp(15px,1.9vw,17.5px);
-  line-height:1.72;letter-spacing:-.008em;font-weight:450;text-wrap:pretty}
-.cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-.fine{font-size:12.5px;color:var(--muted);margin:22px 0 0;letter-spacing:.005em;
-  display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
-
-/* product mockup */
-.mock{margin:56px auto 0;max-width:940px;border-radius:20px;border:1px solid var(--line);background:#fff;box-shadow:0 40px 90px -50px rgba(15,18,50,.5),0 2px 8px rgba(15,18,50,.05);overflow:hidden;text-align:left}
-.mock-bar{height:38px;display:flex;align-items:center;gap:7px;padding:0 16px;border-bottom:1px solid var(--line);background:#fbfbfe}
-.mock-bar i{width:9px;height:9px;border-radius:50%;background:#e0e2ee;display:block}
-.mock-bar i:nth-child(1){background:#ffd1d1}.mock-bar i:nth-child(2){background:#ffe9b8}.mock-bar i:nth-child(3){background:#c9f0d8}
-.mock-body{display:grid;grid-template-columns:190px 1fr;min-height:330px}
-.mock-side{border-right:1px solid var(--line);padding:18px 14px;background:#fcfcff}
-.ms-item{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:9px;font-size:12.5px;color:var(--muted);font-weight:550}
-.ms-item.on{background:#eef0ff;color:#3b3ff2;font-weight:700}
-.ms-dot{width:14px;height:14px;border-radius:4px;background:#e6e8f2}
-.ms-item.on .ms-dot{background:#3b3ff2}
-.mock-main{padding:22px}
-.mk-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
-.mk-kpi{border:1px solid var(--line);border-radius:11px;padding:12px}
-.mk-kpi span{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
-.mk-kpi b{display:block;font-size:19px;letter-spacing:-.02em;margin-top:5px}
-.mk-kpi b.acc{color:#3b3ff2}
-.mk-row{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:11px;padding:11px 13px;margin-bottom:9px;font-size:12.5px}
-.mk-slug{font-weight:700;color:#3b3ff2}
-.mk-url{color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mk-pill{font-size:10px;font-weight:800;background:#eafaf2;color:#0d6b47;padding:3px 8px;border-radius:99px}
-.mk-chart{display:flex;align-items:flex-end;gap:5px;height:64px;margin-top:14px}
-.mk-chart i{flex:1;background:linear-gradient(180deg,#7b5cff,#3b3ff2);border-radius:4px 4px 2px 2px;opacity:.85}
-
-/* strip */
-.strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--soft);margin-top:70px}
-.strip-in{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--line)}
-.stat{background:var(--soft);padding:30px 18px;text-align:center}
-.stat b{display:block;font-size:26px;letter-spacing:-.03em;font-weight:800}
-.stat span{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;font-weight:650;margin-top:6px;display:block}
-
-/* sections */
-section{padding:86px 0}
-.sec-head{max-width:640px;margin-bottom:48px}
-.kicker{font-size:12px;font-weight:750;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
-h2{font-size:clamp(26px,3.6vw,38px);letter-spacing:-.035em;margin:0 0 14px;font-weight:800;line-height:1.12}
-.sub{color:var(--body);font-size:16px;margin:0;line-height:1.65}
-
-.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(270px,1fr))}
-.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px;transition:border-color .18s,transform .18s,box-shadow .18s}
-.card:hover{border-color:#d6d9ec;transform:translateY(-3px);box-shadow:0 20px 40px -30px rgba(15,18,50,.4)}
-.ico{width:40px;height:40px;border-radius:11px;background:#f0f1ff;display:grid;place-items:center;margin-bottom:18px}
-.ico svg{width:20px;height:20px;stroke:#3b3ff2;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-.card h3{margin:0 0 9px;font-size:16px;letter-spacing:-.015em;font-weight:700}
-.card p{margin:0;color:var(--body);font-size:14px;line-height:1.62}
-
-.steps{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
-.step{background:#fff;border:1px solid var(--line);border-radius:18px;padding:28px;position:relative}
-.num{width:30px;height:30px;border-radius:9px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:800;margin-bottom:16px}
-.step h3{margin:0 0 9px;font-size:16px;font-weight:700;letter-spacing:-.015em}
-.step p{margin:0;color:var(--body);font-size:14px;line-height:1.62}
-
-/* rates */
-.rates{background:var(--soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.rtable{width:100%;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden;border:1px solid var(--line);font-size:14px}
-.rtable th{background:var(--dark);color:#fff;text-align:left;padding:15px 20px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
-.rtable td{padding:15px 20px;border-top:1px solid var(--line);color:var(--body)}
-.rtable td:last-child{font-weight:750;color:var(--accent);white-space:nowrap}
-.rtable tr:hover td{background:#fcfcff}
-
-/* faq */
-details{border-bottom:1px solid var(--line);padding:20px 0}
-details summary{cursor:pointer;font-weight:650;font-size:15.5px;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:16px}
-details summary::-webkit-details-marker{display:none}
-details summary::after{content:"+";font-size:20px;color:var(--muted);font-weight:400}
-details[open] summary::after{content:"–"}
-details p{margin:14px 0 0;color:var(--body);font-size:14.5px;line-height:1.7;max-width:720px}
-
-/* cta */
-.band{background:var(--dark);color:#fff;text-align:center;padding:88px 0;position:relative;overflow:hidden}
-.band::before{content:"";position:absolute;inset:auto 20% -40% ;height:400px;background:radial-gradient(50% 50% at 50% 50%,rgba(123,92,255,.35),transparent 70%);pointer-events:none}
-.band h2{color:#fff;margin-bottom:16px;position:relative}
-.band p{color:#9ea3bb;max-width:520px;margin:0 auto 32px;font-size:16px;line-height:1.65;position:relative}
-.band .btn{position:relative}
-
-footer{border-top:1px solid var(--line);padding:56px 0 40px;color:var(--muted);font-size:13.5px;background:#fff}
-.fgrid{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:36px;margin-bottom:40px}
-.fgrid h4{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink);margin:0 0 14px;font-weight:750}
-.fgrid a{display:block;color:var(--muted);margin-bottom:10px}
-.fgrid a:hover{color:var(--ink)}
-.fbot{border-top:1px solid var(--line);padding-top:24px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:12.5px}
-@media(max-width:860px){ .mock-body{grid-template-columns:1fr} .mock-side{display:none} .nav-links{display:none} .fgrid{grid-template-columns:1fr 1fr} }
-@media(max-width:520px){ .fgrid{grid-template-columns:1fr} .hero{padding-top:56px} section{padding:64px 0} }
-
-/* ---- visual punch ---- */
-.hero{position:relative;overflow:visible}
-.hero::before{content:"";position:absolute;inset:-140px -60px auto -60px;height:520px;
-  background:radial-gradient(60% 60% at 50% 0%,rgba(59,63,242,.16),transparent 70%),
-             radial-gradient(40% 50% at 85% 10%,rgba(123,92,255,.14),transparent 70%);
-  z-index:-1;pointer-events:none}
-.grad{background:linear-gradient(100deg,#3b3ff2,#7b5cff,#3b3ff2);background-size:200% auto;
-  -webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 6s linear infinite}
-@keyframes shine{to{background-position:200% center}}
-.eyebrow .dot{box-shadow:0 0 0 0 rgba(22,163,74,.6);animation:pulse 2.2s infinite}
-@keyframes pulse{70%{box-shadow:0 0 0 8px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
-.band{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:44px 0 8px}
-.band .b{background:linear-gradient(180deg,#fff,#fbfbff);border:1px solid var(--line);border-radius:16px;padding:20px 16px;text-align:center;transition:.25s}
-.band .b:hover{transform:translateY(-3px);box-shadow:0 18px 36px -26px rgba(20,24,80,.55);border-color:#cfd3ee}
-.band b{display:block;font-size:26px;letter-spacing:-.03em;background:linear-gradient(100deg,#3b3ff2,#7b5cff);-webkit-background-clip:text;background-clip:text;color:transparent}
-.band span{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
-.card{transition:.25s}
-.card:hover{transform:translateY(-3px);box-shadow:0 20px 40px -30px rgba(20,24,80,.6);border-color:#cfd3ee}
-.card .ico{transition:.25s}
-.card:hover .ico{transform:scale(1.08) rotate(-4deg)}
-.reveal{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
-.reveal.in{opacity:1;transform:none}
-@media(max-width:760px){.band{grid-template-columns:repeat(2,1fr)}}
-@media(prefers-reduced-motion:reduce){.grad,.eyebrow .dot{animation:none}.reveal{opacity:1;transform:none}}
-
-</style>
-<style>
-.shorten{margin:34px auto 0;max-width:640px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 24px 50px -34px rgba(15,18,50,.45)}
-.shorten form{display:flex;gap:10px;flex-wrap:wrap}
-.shorten input{flex:1 1 260px;min-width:0;padding:15px 16px;font-size:15px;font-family:inherit;border:1px solid var(--line);border-radius:12px;background:#fbfbfe;outline:none;color:var(--ink)}
-.shorten input:focus{border-color:#a9abff;box-shadow:0 0 0 4px #eeeefe;background:#fff}
-.shorten button{padding:15px 24px;font-size:15px;font-weight:700;border:0;border-radius:12px;background:var(--accent);color:#fff;cursor:pointer;font-family:inherit}
-.shorten button:disabled{background:#c8cbe0}
-.sh-result{margin-top:14px;display:none}
-.sh-result.show{display:block}
-.sh-result a{display:block;background:#eafaf2;border:1px solid #c9ecd9;color:#0d6b47;font-weight:750;padding:14px;border-radius:12px;text-decoration:none;word-break:break-all;text-align:center;font-size:15px}
-.sh-note{font-size:12.5px;color:var(--muted);margin-top:10px;text-align:center}
-.sh-note a{color:var(--accent);font-weight:650}
-.sh-err{color:#b3261e;font-size:13px;margin-top:10px;text-align:center}
-</style>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<meta property="og:image" content="https://eliteofficial.in/og.png">
+<meta property="og:title" content="EliteURL – Shorten links. Get paid for every verified view.">
+<meta property="og:description" content="EliteURL is a paid URL shortener for creators in India. Shorten links, earn from every verified view and withdraw to UPI, PayPal or bank. Free to join.">
+<meta property="og:image" content="https://eliteofficial.in/assets/og-image.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="EliteURL — Shorten Links. Get Paid for Every View.">
+<meta property="og:image:alt" content="EliteURL — shorten links and get paid for every verified view">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://eliteofficial.in/og.png">
-<noscript><style>.reveal{opacity:1!important;transform:none!important}</style></noscript>
-<link rel="icon" href="/favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
-<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
-<link rel="icon" type="image/png" sizes="96x96" href="/icon-96.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link rel="manifest" href="/site.webmanifest">
-<meta name="theme-color" content="#3b3ff2">
+<meta name="twitter:title" content="EliteURL – Shorten links. Get paid for every verified view.">
+<meta name="twitter:description" content="EliteURL is a paid URL shortener for creators in India. Shorten links, earn from every verified view and withdraw to UPI, PayPal or bank. Free to join.">
+<meta name="twitter:image" content="https://eliteofficial.in/assets/og-image.jpg">
+<script>try{var t=localStorage.getItem("eu-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="/assets/app.css?v=3.0">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","@id":"https://eliteofficial.in/#org","name":"EliteURL","url":"https://eliteofficial.in/","logo":"https://eliteofficial.in/assets/icon-512.png","email":"support@eliteofficial.in","areaServed":"IN","description":"A paid URL shortener that lets creators earn from verified traffic and withdraw to UPI, PayPal or bank."}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","@id":"https://eliteofficial.in/#site","url":"https://eliteofficial.in/","name":"EliteURL","inLanguage":"en-IN","publisher":{"@id":"https://eliteofficial.in/#org"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"EliteURL","url":"https://eliteofficial.in/","applicationCategory":"BusinessApplication","operatingSystem":"Any (web)","description":"Shorten links, track verified views and earn from your traffic.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"publisher":{"@id":"https://eliteofficial.in/#org"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is EliteURL free to use?","acceptedAnswer":{"@type":"Answer","text":"Yes. Creating an account, shortening links and withdrawing your earnings are free. There is no withdrawal fee. You only need a valid email address to sign up."}},{"@type":"Question","name":"How much can I earn?","acceptedAnswer":{"@type":"Answer","text":"Your income is your verified views multiplied by the rate for each visitor’s country, so it depends entirely on your audience. Traffic from higher-paying countries earns more than traffic from lower-paying ones. The live rate card on this page shows what is paid per 1,000 verified views. We never promise a fixed income."}},{"@type":"Question","name":"When can I withdraw my earnings?","acceptedAnswer":{"@type":"Answer","text":"New earnings first appear as Estimated and move to Confirmed after review. Only your Confirmed balance can be withdrawn, once it reaches the minimum payout shown in your dashboard. Withdrawal requests are reviewed and paid within the payout window shown on the rate card."}},{"@type":"Question","name":"Which payment methods do you support?","acceptedAnswer":{"@type":"Answer","text":"You can withdraw to UPI, PayPal or a bank account. Every completed payout carries a transaction reference that you can see in your dashboard."}},{"@type":"Question","name":"Why do rates differ by country?","acceptedAnswer":{"@type":"Answer","text":"Advertisers pay different amounts depending on where a visitor is located. That is why traffic from some countries earns several times more than others. Rates are set per country and shown openly on the rate card."}},{"@type":"Question","name":"Do my visitors see advertising?","acceptedAnswer":{"@type":"Answer","text":"Yes. Before reaching the destination, visitors complete a few short steps that include advertising. That advertising is what pays for creator earnings. If you prefer, you can also create password-protected or expiring links."}},{"@type":"Question","name":"What kind of traffic is not allowed?","acceptedAnswer":{"@type":"Answer","text":"Automated or incentivised traffic, clicking your own links, proxies and VPNs, and links to malware, phishing, adult content, gambling or pirated material. Such views are not counted and repeat violations can lead to account suspension."}},{"@type":"Question","name":"Can I protect or schedule my links?","acceptedAnswer":{"@type":"Answer","text":"Yes. From your dashboard you can add a custom alias, protect a link with a password, set an expiry date and generate a QR code for any short link."}}]}</script>
 </head>
-<body>
+<body data-public>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header"><div class="container nav"><a class="brand" href="/" aria-label="EliteURL home"><span class="mark"><svg viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg></span><span>Elite<b>URL</b></span></a><nav class="nav-links" aria-label="Main"><a href="/how-it-works">How it works</a><a href="/rates">Rates</a><a href="/payouts">Payout proof</a><a href="/blog">Blog</a><a href="/help">Help</a></nav><div class="nav-actions"><button class="icon-btn theme-btn" type="button" aria-label="Toggle dark mode"><svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button><a class="btn btn-ghost hide-m" href="/login" data-auth="out">Sign in</a><a class="btn btn-primary hide-m js-cta" href="/register" data-auth="out">Get started free</a><a class="btn btn-primary hide hide-m" href="/dashboard" data-auth="in">Dashboard</a><button class="icon-btn burger" type="button" aria-label="Open menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></div></div></header>
+<div class="mobile-menu" id="mobile-menu"><a class="ml" href="/how-it-works">How it works</a><a class="ml" href="/rates">Rates</a><a class="ml" href="/payouts">Payout proof</a><a class="ml" href="/blog">Blog</a><a class="ml" href="/help">Help</a><div class="mm-cta"><a class="btn btn-secondary btn-lg" href="/login" data-auth="out">Sign in</a><a class="btn btn-primary btn-lg js-cta" href="/register" data-auth="out">Get started free</a><a class="btn btn-primary btn-lg hide" href="/dashboard" data-auth="in">Open dashboard</a></div></div>
+<main id="main">
+<section class="hero">
+  <div class="container">
+    <div class="eyebrow reveal"><span class="tag">India</span><span>Paid URL shortener for creators</span></div>
+    <h1 class="display reveal d1">Shorten links.<br><span class="grad">Get paid for every verified view.</span></h1>
+    <p class="lead reveal d2">EliteURL turns the links you already share into income. Paste a link, share it anywhere, and withdraw your earnings to UPI, PayPal or your bank account.</p>
 
-<header><div class="wrap nav">
-  <a class="brand" href="/"><span class="mark">E</span>EliteURL</a>
-  <nav class="nav-links">
-    <a href="#how">How it works</a>
-    <a href="#features">Features</a>
-    <a href="#rates">Rates</a>
-    <a href="#faq">FAQ</a>
-  </nav>
-  <div class="nav-cta">
-    <a class="btn btn-outline" href="/login">Sign in</a>
-    <a class="btn btn-primary" href="/register">Get started</a>
-  </div>
-</div></header>
-
-<div class="wrap hero">
-  <div class="eyebrow"><span class="dot"></span>Creators keep almost all of ad revenue</div>
-  <h1>Shorten links.<br><span class="grad">Get paid for every view.</span></h1>
-  <p class="lead">EliteURL turns the links you already share into income. Every verified visit earns you a share of the advertising revenue — paid out to PayPal, UPI or your bank account.</p>
-  <div class="cta">
-    <a class="btn btn-accent btn-lg" href="/register">Create a free account</a>
-    <a class="btn btn-outline btn-lg" href="#how">See how it works</a>
-  </div>
-  <div class="shorten" style="display:none"></div>
-  </div>
-  <p class="fine">No approvals · No minimum traffic · Withdraw from $5</p>
-
-  <div class="mock">
-    <div class="mock-bar"><i></i><i></i><i></i></div>
-    <div class="mock-body">
-      <div class="mock-side">
-        <div class="ms-item on"><span class="ms-dot"></span>Overview</div>
-        <div class="ms-item"><span class="ms-dot"></span>My links</div>
-        <div class="ms-item"><span class="ms-dot"></span>Earnings</div>
-        <div class="ms-item"><span class="ms-dot"></span>PayPal · UPI · Bank</div>
-        <div class="ms-item"><span class="ms-dot"></span>Settings</div>
+    <div class="shorten reveal d3" id="shorten-box">
+      <form id="hero-form" novalidate autocomplete="off">
+        <label class="in" for="hero-url">
+          <svg viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg>
+          <input id="hero-url" name="url" type="url" inputmode="url" placeholder="Paste your long link here…" aria-label="Long URL to shorten" autocapitalize="off" spellcheck="false">
+        </label>
+        <button class="btn btn-primary btn-lg" id="hero-btn" type="submit">Shorten &amp; earn</button>
+      </form>
+      <div class="shorten-err" id="hero-err" role="alert"></div>
+      <div class="shorten-res" id="hero-res">
+        <a id="hero-short" href="#" target="_blank" rel="noopener"></a>
+        <div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm" id="hero-copy" type="button">Copy</button><a class="btn btn-primary btn-sm" href="/dashboard">Open dashboard</a></div>
       </div>
-      <div class="mock-main">
-        <div class="mk-kpis">
-          <div class="mk-kpi"><span>Valid views</span><b>12,480</b></div>
-          <div class="mk-kpi"><span>Today</span><b class="acc">$1.84</b></div>
-          <div class="mk-kpi"><span>Available</span><b>$29.40</b></div>
-        </div>
-        <div class="mk-row"><span class="mk-slug">/Ab123X</span><span class="mk-url">youtube.com/watch?v=…</span><span class="mk-pill">active</span></div>
-        <div class="mk-row"><span class="mk-slug">/Xy789K</span><span class="mk-url">drive.google.com/file/…</span><span class="mk-pill">active</span></div>
-        <div class="mk-row"><span class="mk-slug">/Qm44Rt</span><span class="mk-url">instagram.com/reel/…</span><span class="mk-pill">active</span></div>
-        <div class="mk-chart">
-          <i style="height:38%"></i><i style="height:52%"></i><i style="height:44%"></i><i style="height:68%"></i>
-          <i style="height:58%"></i><i style="height:82%"></i><i style="height:72%"></i><i style="height:96%"></i>
+    </div>
+    <div class="trust-row reveal d3">
+      <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> Free to join</span>
+      <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> No minimum traffic</span>
+      <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> Withdraw to UPI, PayPal or bank</span>
+    </div>
+
+    <div class="preview reveal" aria-hidden="true">
+      <div class="preview-frame">
+        <div class="pv-bar"><i></i><i></i><i></i><span class="url">eliteofficial.in/dashboard</span><span class="sample">Sample data</span></div>
+        <div class="pv-body">
+          <div class="pv-side"><div class="on">Overview</div><div>My links</div><div>Earnings</div><div>Referrals</div><div>Account</div></div>
+          <div class="pv-main">
+            <div class="pv-kpis">
+              <div class="pv-kpi"><span>Valid views</span><b>12,480</b></div>
+              <div class="pv-kpi"><span>Estimated</span><b>$18.60</b></div>
+              <div class="pv-kpi"><span>Withdrawable</span><b class="m">$42.15</b></div>
+            </div>
+            <div class="pv-chart">
+              <i style="height:34%"></i><i style="height:52%;animation-delay:.05s"></i><i style="height:44%;animation-delay:.1s"></i><i style="height:70%;animation-delay:.15s"></i><i style="height:58%;animation-delay:.2s"></i><i style="height:84%;animation-delay:.25s"></i><i style="height:96%;animation-delay:.3s"></i>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
-</div>
+</section>
 
-<div class="strip"><div class="wrap"><div class="strip-in">
-  <div class="stat"><b>almost all</b><span>Creator share</span></div>
-  <div class="stat"><b>$5</b><span>Minimum payout</span></div>
+<div class="strip"><div class="container"><div class="strip-in" id="stats">
+  <div class="stat"><b data-k="min">$5</b><span>Minimum payout</span></div>
+  <div class="stat"><b data-k="hrs">12h</b><span>Payout review window</span></div>
+  <div class="stat"><b>$0</b><span>Withdrawal fee</span></div>
   <div class="stat"><b>3</b><span>Payout methods</span></div>
-  <div class="stat"><b>&lt;50ms</b><span>Edge redirect</span></div>
 </div></div></div>
 
-
- </div>
-<section id="how" class="reveal"><div class="wrap">
-  <div class="sec-head">
-    <div class="kicker">How it works</div>
-    <h2>Three steps to your first payout</h2>
-    <p class="sub">Create an account and start sharing in under a minute. No applications, no waiting lists.</p>
-  </div>
-  <div class="steps">
-    <div class="step"><div class="num">1</div><h3>Paste your link</h3><p>Drop any long URL into your dashboard. We generate a clean, memorable short link instantly.</p></div>
-    <div class="step"><div class="num">2</div><h3>Share it anywhere</h3><p>WhatsApp, Telegram, YouTube, Instagram — wherever your audience already follows you.</p></div>
-    <div class="step"><div class="num">3</div><h3>Withdraw by PayPal, UPI or bank</h3><p>Watch verified views accumulate in real time and withdraw to PayPal, UPI or your bank once you cross $5.</p></div>
-  </div>
-</div></section>
-
-<section id="features" class="reveal" style="padding-top:0"><div class="wrap">
-  <div class="sec-head">
-    <div class="kicker">Built properly</div>
-    <h2>Everything a link platform should be</h2>
-    <p class="sub">Fast redirects, honest numbers and payouts that actually arrive.</p>
-  </div>
-  <div class="grid">
-    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></div>
-      <h3>Edge-served redirects</h3><p>Links resolve from 300+ locations worldwide, so your audience never waits.</p></div>
-    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
-      <h3>Only verified views count</h3><p>Bots, VPNs, duplicate refreshes and self-clicks are filtered out before they reach your stats.</p></div>
-    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-      <h3>Append-only ledger</h3><p>Every payout is written to a ledger that can never be edited or deleted. Fully auditable.</p></div>
-    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
-      <h3>Payouts on schedule</h3><p>Withdrawals are reviewed and processed with a transaction reference every single time.</p></div>
-    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg></div>
-      <h3>Country-level reporting</h3><p>See exactly where your traffic comes from and what each region is worth.</p></div>
-    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-      <h3>Built for clean traffic</h3><p>No forced clicks, no misleading buttons. Advertisers keep coming back, so rates stay healthy.</p></div>
-  </div>
-</div></section>
-
-<section id="rates" class="rates reveal"><div class="wrap">
-  <div class="sec-head">
-    <div class="kicker">Rates</div>
-    <h2>What a verified view is worth</h2>
-    <p class="sub">Revenue depends on where your visitor is and current advertiser demand. Figures are indicative, not guaranteed.</p>
-  </div>
-  <table class="rtable">
-    <tr><th>Traffic tier</th><th>Countries</th><th>Maximum per 1,000 views</th></tr>
-    <tr><td><strong>Tier 1</strong></td><td>United States</td><td>$18</td></tr>
-    <tr><td><strong>Tier 1</strong></td><td>United Kingdom, Canada</td><td>$8</td></tr>
-    <tr><td><strong>Tier 2</strong></td><td>Australia</td><td>$6</td></tr>
-    <tr><td><strong>Tier 2</strong></td><td>India</td><td>$8</td></tr>
-    <tr><td><strong>Tier 3</strong></td><td>Pakistan, Bangladesh</td><td>$1 – $1.20</td></tr>
-    <tr><td><strong>Tier 3</strong></td><td>All other countries</td><td>$4</td></tr>
-  </table>
-  <p class="fine">We do not guarantee earnings. What you make depends entirely on your traffic, its geography and network demand.</p>
-</div></section>
-
-<section id="faq" class="reveal"><div class="wrap" style="max-width:820px">
-  <div class="sec-head"><div class="kicker">FAQ</div><h2>Questions creators ask</h2></div>
-  <details open><summary>How much can I earn?</summary>
-    <p>Your income is your verified views multiplied by the rate for that visitor's country, and creators keep almost all of it. Indian traffic typically earns a fraction of US traffic. There is no fixed figure and no guarantee.</p></details>
-  <details><summary>When can I withdraw?</summary>
-    <p>Once your confirmed balance crosses $5. Earnings stay in an estimated state during the day and move to confirmed automatically every night at 12:00 AM IST.</p></details>
-  <details><summary>Which payment methods do you support?</summary>
-    <p>PayPal, UPI and direct bank transfer. Every payout carries a transaction reference you can verify.</p></details>
-  <details><summary>What traffic is not allowed?</summary>
-    <p>Automated or incentivised traffic, self-clicks, proxies and VPNs, and links to malware, phishing, adult content, gambling or pirated material. Violations result in suspension and forfeiture of unpaid balances.</p></details>
-  <details><summary>Do you show ads to my audience?</summary>
-    <p>Yes. Visitors see a short sponsored step before reaching the destination, with a visible countdown and a clearly labelled continue button. This is what generates the revenue you earn from.</p></details>
-</div></section>
-
-<div class="band reveal"><div class="wrap">
-  <h2>Start earning from your links today</h2>
-  <p>Free to join, no minimum traffic, and withdrawals straight to your UPI.</p>
-  <a class="btn btn-accent btn-lg" href="/register">Create a free account</a>
-</div></div>
-
-<footer><div class="wrap">
-  <div class="fgrid">
-    <div>
-      <a class="brand" href="/" style="margin-bottom:14px"><span class="mark">E</span>EliteURL</a>
-      <p style="margin:0;max-width:300px;line-height:1.7">A link shortening platform that pays creators for verified traffic. Operated from India.</p>
+<section class="section" id="how">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="kicker">How it works</span>
+      <h2 class="h2">From paste to payout in three steps</h2>
+      <p class="sub">Create an account and start sharing in under a minute. No applications and no waiting list.</p>
     </div>
-    <div><h4>Product</h4>
-      <a href="/how-it-works">How it works</a><a href="/earnings">Earnings</a><a href="/register">Create account</a><a href="/login">Sign in</a></div>
-    <div><h4>Company</h4>
-      <a href="/about">About</a><a href="/contact">Contact</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></div>
+    <div class="grid c3">
+      <div class="card step reveal"><div class="n">1</div><h3>Paste your link</h3><p>Add any long URL in your dashboard. You get a short link instantly — with a custom alias if you want one.</p></div>
+      <div class="card step reveal d1"><div class="n">2</div><h3>Share it anywhere</h3><p>WhatsApp, Telegram, YouTube, Instagram or your own website. Wherever your audience already follows you.</p></div>
+      <div class="card step reveal d2"><div class="n">3</div><h3>Get paid</h3><p>Watch verified views add up in real time, then withdraw to UPI, PayPal or your bank account.</p></div>
+    </div>
   </div>
-  <div class="fbot"><span>© 2026 EliteURL · eliteofficial.in</span><span>Made for creators</span></div>
-</div><div class="wrap"><p style="text-align:center;font-size:12px;padding-bottom:20px"><a href="/blog" style="color:#5b6076">Read our blog</a></p></div></footer>
+</section>
 
+<section class="section tint" id="features">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="kicker">Features</span>
+      <h2 class="h2">Everything you need, nothing you don’t</h2>
+      <p class="sub">A focused toolkit for creators who want clear numbers and dependable payouts.</p>
+    </div>
+    <div class="grid c3">
+      <div class="card feat hover reveal"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></div><h3>Verified views only</h3><p>Bots, repeat refreshes, proxies and self-clicks are filtered out, so the numbers you see are numbers you can trust.</p></div>
+      <div class="card feat hover reveal d1"><div class="ico g"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></div><h3>Country-wise rates</h3><p>See exactly what each country pays per 1,000 views. The full rate card is public — no hidden formulas.</p></div>
+      <div class="card feat hover reveal d2"><div class="ico a"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div><h3>Password &amp; expiry</h3><p>Lock a link behind a password, add a hint, or set it to expire after a number of days.</p></div>
+      <div class="card feat hover reveal"><div class="ico b"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v.01M14 21h3M21 17v4"/></svg></div><h3>Aliases &amp; QR codes</h3><p>Choose a memorable alias for each link and generate a QR code in one click for print or posters.</p></div>
+      <div class="card feat hover reveal d1"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg></div><h3>Referral program</h3><p>Invite other creators with your personal link and earn a commission on what they make.</p></div>
+      <div class="card feat hover reveal d2"><div class="ico g"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-3 2-3-2-3 2V4a1 1 0 0 1 1-1z"/><path d="M9 8h6M9 12h6"/></svg></div><h3>Transparent ledger</h3><p>Every credit and payout is recorded, and every completed withdrawal carries a transaction reference.</p></div>
+    </div>
+  </div>
+</section>
 
-<script>
-fetch('/api/me').then(function(r){return r.json();}).then(function(d){
-  if(!d.ok) return;
-  var btns=document.querySelectorAll('a[href="/login"], a[href="/register"]');
-  btns.forEach(function(b){ if(/sign in|log in/i.test(b.textContent)){ b.textContent='Dashboard'; b.href='/dashboard'; } });
-  var cta=document.querySelectorAll('a[href="/register"]');
-  cta.forEach(function(b){ b.textContent='Go to dashboard'; b.href='/dashboard'; });
-}).catch(function(){});
-</script>
-<script>
-(function(){
-  var els=document.querySelectorAll('.reveal');
-  function showAll(){ els.forEach(function(e){ e.classList.add('in'); }); }
-  if(!els.length) return;
-  if(!('IntersectionObserver' in window)){ showAll(); return; }
-  try{
-    var io=new IntersectionObserver(function(en){en.forEach(function(x){if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target);}});},{threshold:.12});
-    els.forEach(function(e){io.observe(e);});
-    // safety: agar 2.5s tak kuch na dikhe to sab dikha do
-    setTimeout(function(){ els.forEach(function(e){ if(!e.classList.contains('in')) e.classList.add('in'); }); }, 2500);
-  }catch(e){ showAll(); }
-})();
-</script>
+<section class="section" id="rates">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="kicker">Rates &amp; calculator</span>
+      <h2 class="h2">See what your traffic could earn</h2>
+      <p class="sub">Live rates per 1,000 verified views. Try the calculator with your own numbers — it is an estimate, never a guarantee.</p>
+    </div>
+    <div class="split">
+      <div class="panel reveal">
+        <div class="panel-h"><div><h3>Rate card</h3><p>You earn this per 1,000 verified views</p></div><a class="btn btn-secondary btn-sm" href="/rates">Full rate card</a></div>
+        <ul class="rate-list" id="rate-list"><li><span class="muted">Loading live rates…</span></li></ul>
+      </div>
+      <div class="panel reveal d1">
+        <div class="panel-h"><div><h3>Earnings calculator</h3><p>Estimate your monthly income</p></div></div>
+        <div class="panel-b">
+          <div class="field"><label for="c-country">Where is your audience?</label><select class="select" id="c-country"><option value="1">Loading…</option></select></div>
+          <div class="field"><label for="c-views">Views per day: <b id="c-views-n">1,000</b></label><input id="c-views" type="range" min="100" max="50000" step="100" value="1000" aria-label="Views per day"></div>
+          <div class="calc-out"><div><span>Estimated per month</span><div class="muted" style="font-size:13px;margin-top:4px" id="c-day">≈ $0.00 per day</div></div><b id="c-out">$0.00</b></div>
+          <p class="muted" style="font-size:12.5px;margin-top:12px;line-height:1.6">Estimate only. Real earnings depend on valid views, the country mix of your visitors and advertiser demand.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section tint" id="faq">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="kicker">FAQ</span>
+      <h2 class="h2">Questions creators ask</h2>
+      <p class="sub">Still unsure? Visit the <a href="/help">Help Center</a> or <a href="/contact">contact us</a>.</p>
+    </div>
+    <div class="faq reveal"><details open><summary>Is EliteURL free to use?</summary><p>Yes. Creating an account, shortening links and withdrawing your earnings are free. There is no withdrawal fee. You only need a valid email address to sign up.</p></details><details><summary>How much can I earn?</summary><p>Your income is your verified views multiplied by the rate for each visitor’s country, so it depends entirely on your audience. Traffic from higher-paying countries earns more than traffic from lower-paying ones. The live rate card on this page shows what is paid per 1,000 verified views. We never promise a fixed income.</p></details><details><summary>When can I withdraw my earnings?</summary><p>New earnings first appear as Estimated and move to Confirmed after review. Only your Confirmed balance can be withdrawn, once it reaches the minimum payout shown in your dashboard. Withdrawal requests are reviewed and paid within the payout window shown on the rate card.</p></details><details><summary>Which payment methods do you support?</summary><p>You can withdraw to UPI, PayPal or a bank account. Every completed payout carries a transaction reference that you can see in your dashboard.</p></details><details><summary>Why do rates differ by country?</summary><p>Advertisers pay different amounts depending on where a visitor is located. That is why traffic from some countries earns several times more than others. Rates are set per country and shown openly on the rate card.</p></details><details><summary>Do my visitors see advertising?</summary><p>Yes. Before reaching the destination, visitors complete a few short steps that include advertising. That advertising is what pays for creator earnings. If you prefer, you can also create password-protected or expiring links.</p></details><details><summary>What kind of traffic is not allowed?</summary><p>Automated or incentivised traffic, clicking your own links, proxies and VPNs, and links to malware, phishing, adult content, gambling or pirated material. Such views are not counted and repeat violations can lead to account suspension.</p></details><details><summary>Can I protect or schedule my links?</summary><p>Yes. From your dashboard you can add a custom alias, protect a link with a password, set an expiry date and generate a QR code for any short link.</p></details></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="cta-band reveal">
+      <h2>Start earning from your links today</h2>
+      <p>Free to join, no minimum traffic, and withdrawals straight to your UPI.</p>
+      <a class="btn btn-primary btn-lg js-cta" href="/register">Create a free account</a>
+    </div>
+  </div>
+</section>
+</main>
+<footer class="site-footer"><div class="container"><div class="f-grid"><div><a class="brand" href="/" aria-label="EliteURL home"><span class="mark"><svg viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg></span><span>Elite<b>URL</b></span></a><p class="f-about">A link shortener built for creators in India. Share a short link, earn from every verified view, and withdraw to UPI, PayPal or your bank.</p></div><div><h4>Product</h4><a href="/how-it-works">How it works</a><a href="/earnings">Earnings</a><a href="/rates">Rate card</a><a href="/earn">Earnings calculator</a><a href="/payouts">Payout proof</a></div><div><h4>Resources</h4><a href="/blog">Blog</a><a href="/help">Help Center</a><a href="/report-abuse">Report abuse</a><a href="/contact">Contact</a></div><div><h4>Company</h4><a href="/about">About</a><a href="/terms">Terms of Service</a><a href="/privacy">Privacy Policy</a><a href="/login">Sign in</a><a href="/register">Create account</a></div></div><div class="f-bot"><span>© 2026 EliteURL · eliteofficial.in</span><span>Made in India for creators</span></div></div></footer>
+<script src="/assets/app.js?v=3.0" defer></script>
+<script src="/assets/home.js?v=3.0" defer></script>
 </body>
 </html>

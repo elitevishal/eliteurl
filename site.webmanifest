@@ -1,1 +1,16 @@
-{"name":"EliteURL — URL Shortener","short_name":"EliteURL","description":"Shorten links and earn from every verified view.","start_url":"/","display":"standalone","background_color":"#ffffff","theme_color":"#3b3ff2","icons":[{"src":"/favicon-32.png","sizes":"32x32","type":"image/png"},{"src":"/icon-96.png","sizes":"96x96","type":"image/png"},{"src":"/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},{"src":"/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},{"src":"/icon-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"},{"src":"/favicon.svg","sizes":"any","type":"image/svg+xml"}]}
+{
+  "name": "EliteURL",
+  "short_name": "EliteURL",
+  "description": "Paid URL shortener for creators. Shorten links, earn from verified views and withdraw to UPI, PayPal or bank.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f7fb",
+  "theme_color": "#4f46e5",
+  "lang": "en-IN",
+  "icons": [
+    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

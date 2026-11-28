@@ -3,6 +3,10 @@ Allow: /
 Disallow: /api/
 Disallow: /s/
 Disallow: /go/
+Disallow: /d/
+Disallow: /v/
+Disallow: /access/
+Disallow: /adz/
 Disallow: /dashboard
 Disallow: /admin
 
