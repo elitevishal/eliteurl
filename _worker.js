@@ -870,7 +870,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v72-vigfix', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v73-econ', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -1476,16 +1476,20 @@ async function api(request, env, url) {
     }
 
     if (p === '/api/admin/economics' && m === 'GET') {
-      // 1 valid view = 7 steps x 6 visible banners + popunders
+      // 1 valid view = 7 steps x (6 banner + 1 popunder + 1 vignette)
       const steps = await numSetting(env, 'steps_count', 7);
       const bannerPerPage = 6;
-      const popPerPage = (adNetworkForStep(1) === 'adsterra') ? 4 : 1;
       const bannerImpr = steps * bannerPerPage;
-      const popImpr = 4 * 4 + 1 * 3;   // adsterra 4 pop x 4 pages + monetag 1 pop x 3 pages
+      const popImpr = steps;        // 1 popunder per page
+      const vigImpr = steps;        // 1 vignette per page
       // network CPM (admin badal sakta hai)
       const cpmBanner = await numSetting(env, 'est_cpm_banner', 0.35);
       const cpmPop = await numSetting(env, 'est_cpm_popunder', 1.50);
-      const revenuePerView = (bannerImpr / 1000) * cpmBanner + (popImpr / 1000) * cpmPop;
+      const cpmVig = await numSetting(env, 'est_cpm_vignette', 2.00);
+      const revBanner = (bannerImpr / 1000) * cpmBanner;
+      const revPop = (popImpr / 1000) * cpmPop;
+      const revVig = (vigImpr / 1000) * cpmVig;
+      const revenuePerView = revBanner + revPop + revVig;
       // payout per view (rate card se, India default)
       let rc = 0;
       try { const r = await env.DB.prepare("SELECT cpm_usd FROM rate_card WHERE country_code='IN' LIMIT 1").first(); rc = r ? Number(r.cpm_usd) : 2; } catch (e) { rc = 2; }
@@ -1495,8 +1499,9 @@ async function api(request, env, url) {
       return json({
         ok: true,
         steps,
-        impressions: { banners: bannerImpr, popunders: popImpr, total: bannerImpr + popImpr },
-        cpm: { banner: cpmBanner, popunder: cpmPop },
+        impressions: { banners: bannerImpr, popunders: popImpr, vignettes: vigImpr, total: bannerImpr + popImpr + vigImpr },
+        cpm: { banner: cpmBanner, popunder: cpmPop, vignette: cpmVig },
+        revenue_breakdown_usd: { banners: Number(revBanner.toFixed(5)), popunders: Number(revPop.toFixed(5)), vignettes: Number(revVig.toFixed(5)) },
         revenue_per_view_usd: Number(revenuePerView.toFixed(5)),
         payout_per_view_usd: Number(payoutPerView.toFixed(5)),
         margin_per_view_usd: Number(margin.toFixed(5)),
@@ -1533,7 +1538,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v72-vigfix',
+        build: '2026-11-30-v73-econ',
         total: zones.length,
         active: active.length,
         zones,
@@ -1600,7 +1605,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v72-vigfix', zones });
+      return json({ ok: true, build: '2026-11-30-v73-econ', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
