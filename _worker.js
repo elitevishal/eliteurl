@@ -870,7 +870,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v71-ads10', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v72-vigfix', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -1533,7 +1533,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v71-ads10',
+        build: '2026-11-30-v72-vigfix',
         total: zones.length,
         active: active.length,
         zones,
@@ -1600,7 +1600,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v71-ads10', zones });
+      return json({ ok: true, build: '2026-11-30-v72-vigfix', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -2231,7 +2231,8 @@ function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLa
     return `<div class="ad${small ? ' small' : ''}"><span class="adlabel">@d</span>${z.snippet}</div>`;
   };
   const vigZ = pool.find((z) => inGroup(z.format, VIG_GROUP));
-  const VIG = vigZ ? ('<div aria-hidden="true" style="height:0;overflow:hidden">' + vigZ.snippet + '</div>') : '';
+  // vignette script seedha render hota hai (koi wrapper nahi — network aisa hi expect karta hai)
+  const VIG = vigZ ? vigZ.snippet : '';
   const B1 = adSlot(BAN_GROUP), B2 = adSlot(BAN_GROUP);
   const P1 = adSlot(POP_GROUP), P2 = adSlot(POP_GROUP);
   const B3 = adSlot(BAN_GROUP), B4 = adSlot(BAN_GROUP);
