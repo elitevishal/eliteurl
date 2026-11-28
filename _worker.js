@@ -6,14 +6,6 @@
 const enc = new TextEncoder();
 // ---- built-in ad codes (admin panel se independent) ----
 const BUILTIN_ADS = [
-  { id: 'p1', network: 'adsterra', format: 'popunder', label: 'Popunder 1', step: 1,
-    snippet: '<script data-cfasync="false" src="https://abscloud.org/1/fa75f132cba6bcce98edce33150aba84"></script>' },
-  { id: 'p2', network: 'adsterra', format: 'popunder', label: 'Popunder 2', step: 1,
-    snippet: '<script data-cfasync="false" src="https://abscloud.org/1/e981e7b340efb153879eef22c697e44d"></script>' },
-  { id: 'p3', network: 'adsterra', format: 'popunder', label: 'Popunder 3', step: 1,
-    snippet: '<script data-cfasync="false" src="https://abscloud.org/1/1d1e7a2fdb812eccc8b85b69f9a019c5"></script>' },
-  { id: 'p4', network: 'adsterra', format: 'popunder', label: 'Popunder 4', step: 1,
-    snippet: '<script data-cfasync="false" src="https://abscloud.org/1/e5eccf81a60b3390f3aaf5d8b34ac590"></script>' },
   { id: 'm1', network: 'monetag', format: 'popunder', label: 'Monetag 1', step: 1,
     snippet: '<script>(function(s){s.dataset.zone="12360995",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
   { id: 'm2', network: 'monetag', format: 'popunder', label: 'Monetag 2', step: 1,
@@ -22,6 +14,26 @@ const BUILTIN_ADS = [
     snippet: '<script>(function(s){s.dataset.zone="12361015",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
   { id: 'm4', network: 'monetag', format: 'popunder', label: 'Monetag 4', step: 1,
     snippet: '<script>(function(s){s.dataset.zone="12361023",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
+  { id: 'm5', network: 'monetag', format: 'popunder', label: 'Monetag 5', step: 1,
+    snippet: '<script>(function(s){s.dataset.zone="12371709",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
+  { id: 'm6', network: 'monetag', format: 'popunder', label: 'Monetag 6', step: 1,
+    snippet: '<script>(function(s){s.dataset.zone="12371710",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
+  { id: 'm7', network: 'monetag', format: 'popunder', label: 'Monetag 7', step: 1,
+    snippet: '<script>(function(s){s.dataset.zone="12371712",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
+  { id: 'v1', network: 'monetag', format: 'vignette', label: 'Vignette 1', step: 1,
+    snippet: '<script>(function(s){s.dataset.zone="12371631",s.src="https://n6wxm.com/vignette.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
+  { id: 'v2', network: 'monetag', format: 'vignette', label: 'Vignette 2', step: 1,
+    snippet: '<script>(function(s){s.dataset.zone="12371642",s.src="https://n6wxm.com/vignette.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
+  { id: 'v3', network: 'monetag', format: 'vignette', label: 'Vignette 3', step: 1,
+    snippet: '<script>(function(s){s.dataset.zone="12371688",s.src="https://n6wxm.com/vignette.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
+  { id: 'v4', network: 'monetag', format: 'vignette', label: 'Vignette 4', step: 1,
+    snippet: '<script>(function(s){s.dataset.zone="12371699",s.src="https://n6wxm.com/vignette.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
+  { id: 'v5', network: 'monetag', format: 'vignette', label: 'Vignette 5', step: 1,
+    snippet: '<script>(function(s){s.dataset.zone="12371701",s.src="https://n6wxm.com/vignette.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
+  { id: 'v6', network: 'monetag', format: 'vignette', label: 'Vignette 6', step: 1,
+    snippet: '<script>(function(s){s.dataset.zone="12371704",s.src="https://n6wxm.com/vignette.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
+  { id: 'v7', network: 'monetag', format: 'vignette', label: 'Vignette 7', step: 1,
+    snippet: '<script>(function(s){s.dataset.zone="12371706",s.src="https://n6wxm.com/vignette.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>' },
   { id: 'b1', network: 'adsterra', format: 'banner', label: 'Banner 300x250', step: 1,
     snippet: `<script type="text/javascript">
   atOptions = {
@@ -130,6 +142,23 @@ function b64ToBytes(s) {
 }
 
 function adNetworkForStep(n) { return (n % 2 === 1) ? 'adsterra' : 'monetag'; }
+
+// step -> preferred network (agar configured na ho to builtin par fallback)
+const STEP_NETWORK = { 1: 'adsterra', 2: 'monetag', 3: 'propellerads', 4: 'hilltopads', 5: 'clickadu', 6: 'monetag', 7: 'adsterra', 8: 'propellerads' };
+const EXTRA_NETWORKS = ['propellerads', 'hilltopads', 'clickadu', 'admaven', 'popads', 'clickadilla'];
+
+async function zonesForStep(env, n) {
+  const want = STEP_NETWORK[n] || adNetworkForStep(n);
+  const base = BUILTIN_ADS.filter((z) => z.network === want);
+  if (base.length) return base;                       // builtin mil gaya (adsterra/monetag)
+  // DB se dekho — extra network configured hai?
+  try {
+    const r = await env.DB.prepare("SELECT network,label,format,snippet,step_no FROM ad_zones WHERE network=? AND status='active' ORDER BY id").bind(want).all();
+    const rows = (r.results || []).map((z) => ({ id: 'db' + z.step_no + z.label, network: z.network, format: z.format, label: z.label, snippet: z.snippet }));
+    if (rows.length) return rows;
+  } catch (e) {}
+  return null;                                        // configured nahi
+}
 
 function fixSiteUrl(u, origin) {
   const v = String(u || '').trim();
@@ -841,7 +870,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v67-bioicon', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v71-ads10', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -1504,7 +1533,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v67-bioicon',
+        build: '2026-11-30-v71-ads10',
         total: zones.length,
         active: active.length,
         zones,
@@ -1571,7 +1600,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v67-bioicon', zones });
+      return json({ ok: true, build: '2026-11-30-v71-ads10', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
@@ -1852,32 +1881,29 @@ async function stepPage(request, env, url) {
     const lk = await env.DB.prepare('SELECT slug FROM links WHERE id=?').bind(sess.link_id).first();
     if (lk) return Response.redirect(`${new URL(request.url).origin}/d/${lk.slug}`, 302);
   }
-  // ads: step ke hisaab se network alternate hota hai (odd=adsterra, even=monetag)
-  const adNetwork = (n % 2 === 1) ? 'adsterra' : 'monetag';
-  let zoneRows = BUILTIN_ADS.filter((z) => z.network === adNetwork);
-  // Monetag OnClick click hijack karta hai — ek page par sirf 1 zone
-  if (adNetwork === 'monetag') {
-    const mons = zoneRows.filter((z) => z.format === 'popunder');
-    const others = zoneRows.filter((z) => z.format !== 'popunder');
-    const pickM = mons[(n / 2 - 1) % (mons.length || 1)];
-    zoneRows = (pickM ? [pickM] : []).concat(others);
-  }
-  // page bhara rahe — dusre network ke banner fillers ke roop mein
-  const fillers = BUILTIN_ADS.filter((z) => z.network !== adNetwork && z.format === 'banner');
-  zoneRows = zoneRows.concat(fillers);
-  if (!zoneRows.length) zoneRows = BUILTIN_ADS.slice();
+  // ads: step ke hisaab se network — extra networks (Propeller/Hilltop/Clickadu) bhi
+  // per-step: 1 Monetag popunder + 1 Monetag vignette + Adsterra banner
+  const POPS = BUILTIN_ADS.filter((z) => z.network === 'monetag' && z.format === 'popunder');
+  const VIGS = BUILTIN_ADS.filter((z) => z.network === 'monetag' && z.format === 'vignette');
+  const BANS = BUILTIN_ADS.filter((z) => z.network === 'adsterra' && z.format === 'banner');
+  const adNetwork = 'monetag';
+  const wantNet = 'monetag';
+  let zoneRows = [];
+  if (POPS.length) zoneRows.push(POPS[(n - 1) % POPS.length]);
+  if (VIGS.length) zoneRows.push(VIGS[(n - 1) % VIGS.length]);
+  zoneRows = zoneRows.concat(BANS);
+  // DB zones (agar admin ne extra add kiye hain)
   try {
     const src = await setting(env, 'ads_source', 'builtin');
     if (src === 'db') {
-      let zres = await env.DB.prepare("SELECT * FROM ad_zones WHERE step_no=? AND status='active' ORDER BY id").bind(n).all();
-      let dbRows = zres.results || [];
-      if (!dbRows.length) {
-        zres = await env.DB.prepare("SELECT * FROM ad_zones WHERE status='active' ORDER BY id").all();
-        dbRows = zres.results || [];
-      }
+      const zres = await env.DB.prepare("SELECT network,label,format,snippet,step_no FROM ad_zones WHERE step_no=? AND status='active' ORDER BY id").bind(n).all();
+      const dbRows = (zres.results || []).map((z) => ({ id: 'db' + z.step_no + z.label, network: z.network, format: z.format, label: z.label, snippet: z.snippet }));
       if (dbRows.length) zoneRows = dbRows;
     }
   } catch (e) {}
+  if (!zoneRows.length) zoneRows = BUILTIN_ADS.slice();
+  if (!zoneRows.length) zoneRows = BUILTIN_ADS.slice();
+
   const zones = { results: zoneRows };
   const countdown = Math.max(3, Math.min(60, await numSetting(env, 'countdown_seconds', 15)));
   const showDest = (await setting(env, 'show_destination', '0')) === '1';
@@ -2178,33 +2204,39 @@ const STEP_CONTENT = [
 
 function renderStep({ sid, n, total, countdown, destHost, zones, stepToken, isLast, nextUrl }) {
   const VISIBLE = ['banner', 'inpage', 'native'];
-  const inline = zones.filter((z) => z.format !== 'interstitial' && z.format !== 'vignette' && z.network !== 'house');
+  const inline = zones.filter((z) => z.network !== 'house');
   const house = zones.filter((z) => z.network === 'house');
   const sorted = inline.slice().sort((a, b) => (VISIBLE.includes(a.format) ? 0 : 1) - (VISIBLE.includes(b.format) ? 0 : 1));
   const pool = sorted.length ? sorted : house;
   const counts = {};
-  const CAPS = { popunder: 1, socialbar: 1, banner: 6, inpage: 6, native: 6 };
-  const pick = (fmt) => {
-    // format diya hai to sirf wahi format — fallback nahi (warna slot badal jata hai)
-    const cands = fmt ? pool.filter((z) => z.format === fmt) : pool;
+  // format groups — har network ke apne naam hote hain
+  const POP_GROUP = ['popunder', 'socialbar', 'onclick', 'push', 'popup'];
+  const BAN_GROUP = ['banner', 'native', 'inpage', 'display'];
+  const VIG_GROUP = ['vignette', 'interstitial'];
+  const inGroup = (fmt, group) => group.indexOf(String(fmt || '').toLowerCase()) !== -1;
+  const CAPS = { banner: 6, native: 6, inpage: 6, interstitial: 6, display: 6, vignette: 6, popunder: 1, socialbar: 1, onclick: 1, push: 1, popup: 1 };
+  const pick = (group) => {
+    const cands = pool.filter((z) => inGroup(z.format, group));
     for (const c of cands) {
-      const cap = c.cap || CAPS[c.format] || 1;
+      const cap = c.cap || CAPS[String(c.format || '').toLowerCase()] || 1;
       if ((counts[c.id] || 0) < cap) return c;
     }
     return null;
   };
-  const adSlot = (fmt) => {
-    const z = pick(fmt);
+  const adSlot = (group) => {
+    const z = pick(group);
     if (!z) return '';
     counts[z.id] = (counts[z.id] || 0) + 1;
-    const small = (z.format === 'popunder' || z.format === 'socialbar');
+    const small = inGroup(z.format, POP_GROUP);
     return `<div class="ad${small ? ' small' : ''}"><span class="adlabel">@d</span>${z.snippet}</div>`;
   };
-  const B1 = adSlot('banner'), B2 = adSlot('banner');
-  const P1 = adSlot('popunder'), P2 = adSlot('popunder');
-  const B3 = adSlot('banner'), B4 = adSlot('banner');
-  const P3 = adSlot('popunder'), P4 = adSlot('popunder');
-  const S1 = adSlot('banner'), S2 = adSlot('banner');
+  const vigZ = pool.find((z) => inGroup(z.format, VIG_GROUP));
+  const VIG = vigZ ? ('<div aria-hidden="true" style="height:0;overflow:hidden">' + vigZ.snippet + '</div>') : '';
+  const B1 = adSlot(BAN_GROUP), B2 = adSlot(BAN_GROUP);
+  const P1 = adSlot(POP_GROUP), P2 = adSlot(POP_GROUP);
+  const B3 = adSlot(BAN_GROUP), B4 = adSlot(BAN_GROUP);
+  const P3 = adSlot(POP_GROUP), P4 = adSlot(POP_GROUP);
+  const S1 = adSlot(BAN_GROUP), S2 = adSlot(BAN_GROUP);
 
   const maskAd = (s) => String(s)
     .replace(/\bAds\b/g, '@ds').replace(/\bads\b/g, '@ds')
@@ -2277,11 +2309,41 @@ body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Robo
 .blocked .steps{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:14px 16px;margin-top:14px;text-align:left;font-size:12.5px;color:#c7cbe4;line-height:1.8;max-width:340px}
 .blocked b{color:#fff}
 </style></head><body>
+<script>
+/* ad-hijack guard: Next/Continue par koi ad ya redirect nahi.
+   Button ka apna kaam yahin se chalta hai (ad ki listener block ho jati hai). */
+(function(){
+  var IDS = { go:1, nextbtn:1 };
+  function btnOf(e){
+    var t = e.target;
+    if (!t) return null;
+    if (IDS[t.id]) return t;
+    if (t.closest) return t.closest('#go') || t.closest('#nextbtn');
+    return null;
+  }
+  function fire(b){
+    if (!b || typeof b.__act !== 'function') return;
+    if (b.__lock) return;
+    b.__lock = true;
+    setTimeout(function(){ b.__lock = false; }, 150);
+    try { b.__act(); } catch (err) {}
+  }
+  ['pointerdown','touchstart','mousedown','pointerup','mouseup','touchend','click','auxclick','contextmenu'].forEach(function(ev){
+    document.addEventListener(ev, function(e){
+      var b = btnOf(e);
+      if (!b) return;
+      try { e.stopImmediatePropagation(); } catch (x) {}
+      try { e.preventDefault(); } catch (x) {}
+      if (ev === 'pointerdown' || ev === 'touchstart' || ev === 'click') fire(b);
+    }, true);
+  });
+})();
+</script>
 
 ${B1}
 ${B2}
 ${P1}
-${P2}
+${VIG}
 
 <div class="line" id="adline">
   Click the @d above 👆 and wait ${countdown} seconds
@@ -2294,8 +2356,6 @@ ${P2}
 
 ${B3}
 ${B4}
-${P3}
-${P4}
 
 <div class="wrap"><div class="sec"><h2>${c1.h}</h2>${c1.b}</div></div>
 
@@ -2417,6 +2477,7 @@ ${P4}
       if (th2) th2.style.display = 'block';
     }, 700);
   }
+  nextBtn.__act = function(){ doScroll(); };
   nextBtn.addEventListener('pointerdown', doScroll, { passive:false });
   nextBtn.addEventListener('touchstart', doScroll, { passive:false });
   nextBtn.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); doScroll(e); });
@@ -2442,6 +2503,7 @@ ${P4}
       btn.textContent = ${JSON.stringify(label)};
     });
   }
+  btn.__act = function(){ goNext(); };
   btn.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); goNext(); });
   btn.addEventListener('pointerup', function(e){ e.stopPropagation(); goNext(); }, { passive:true });
   btn.addEventListener('touchend', function(e){ e.preventDefault(); e.stopPropagation(); goNext(); }, { passive:false });
