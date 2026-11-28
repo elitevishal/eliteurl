@@ -841,7 +841,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v63-chart', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v64-balance', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -1297,9 +1297,30 @@ async function api(request, env, url) {
       } catch (e2) { rows = []; }
     }
     const min = await numSetting(env, 'min_withdrawal_usd', 5);
-    let avail = 0;
-    try { const bal = await env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id=?').bind(user.id).first(); avail = bal ? (bal.confirmed_usd || 0) : 0; } catch (e) {}
-    return json({ ok: true, withdrawals: rows, min_withdrawal_usd: min, available_usd: avail });
+    let avail = 0, pend = 0;
+    const readBal = async () => {
+      try {
+        const bal = await env.DB.prepare('SELECT * FROM v_user_balances WHERE user_id=?').bind(user.id).first();
+        avail = bal ? Number(bal.confirmed_usd || 0) : 0;
+        pend = bal ? Number(bal.estimated_usd || 0) : 0;
+      } catch (e) {}
+    };
+    await readBal();
+    // self-heal: purane din ki estimated earnings ko confirmed kar do
+    try {
+      if (pend > 0) {
+        const istMs = Date.now() + 5.5 * 3600 * 1000;
+        const todayStartIst = Math.floor((Date.now() - ((istMs % 86400000))) / 1000);
+        const old = await env.DB.prepare(
+          "SELECT MIN(created_at) AS m FROM ledger WHERE user_id=? AND bucket='estimated' AND type='earning'"
+        ).bind(user.id).first();
+        if (old && old.m && Number(old.m) < todayStartIst) {
+          await confirmEarnings(env, 0, 'catchup-' + user.id + '-' + new Date(istMs).toISOString().slice(0, 10));
+          await readBal();
+        }
+      }
+    } catch (e) {}
+    return json({ ok: true, withdrawals: rows, min_withdrawal_usd: min, available_usd: avail, pending_usd: pend });
   }
 
   if (p === '/api/withdrawals' && m === 'POST') {
@@ -1469,7 +1490,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v63-chart',
+        build: '2026-11-30-v64-balance',
         total: zones.length,
         active: active.length,
         zones,
@@ -1536,7 +1557,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v63-chart', zones });
+      return json({ ok: true, build: '2026-11-30-v64-balance', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));

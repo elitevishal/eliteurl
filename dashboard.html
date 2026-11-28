@@ -792,7 +792,24 @@ function loadWithdrawals(){
   var box0=document.getElementById('wd-list');
   fetch('/api/withdrawals').then(function(r){return r.json();}).then(function(d){
     if(!d||!d.ok){ if(box0) box0.innerHTML='<div class="empty">No withdrawal requests yet.</div>'; return; }
-    document.getElementById('w-hint').textContent='Available to withdraw: '+money(d.available_usd)+' · Minimum '+money(d.min_withdrawal_usd)+' · Paid within 12 hours to PayPal, UPI or bank account.';
+    var hint='Available to withdraw: '+money(d.available_usd)+' · Minimum '+money(d.min_withdrawal_usd)+' · Paid within 12 hours.';
+    if(Number(d.pending_usd||0) > 0){
+      hint += ' Pending (moves to withdrawable at 12:00 AM IST): '+money(d.pending_usd)+'.';
+    }
+    document.getElementById('w-hint').textContent=hint;
+    // pending balance ka alag box
+    var pb=document.getElementById('w-pend-box');
+    if(!pb){
+      pb=document.createElement('div');
+      pb.id='w-pend-box';
+      pb.style.cssText='background:#eef1ff;border:1px solid #d6dbff;color:#3f4459;font-size:12.5px;padding:11px 13px;border-radius:10px;margin-bottom:12px;line-height:1.65';
+      var hintEl=document.getElementById('w-hint');
+      hintEl.parentNode.insertBefore(pb, hintEl.nextSibling);
+    }
+    if(Number(d.pending_usd||0) > 0){
+      pb.style.display='block';
+      pb.innerHTML='<b>Pending balance: '+money(d.pending_usd)+'</b><br>This is your estimated earning. It moves to your withdrawable balance automatically every night at <b>12:00 AM IST</b>.';
+    } else { pb.style.display='none'; }
     var box=document.getElementById('wd-list');
     var hasPending = (d.withdrawals||[]).some(function(x){return x.status==='pending';});
     var note=document.getElementById('w-pending-note');
