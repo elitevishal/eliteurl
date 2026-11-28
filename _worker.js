@@ -841,7 +841,7 @@ async function api(request, env, url) {
   }
 
   if (p === '/api/health') {
-    const out = { ok: true, build: '2026-11-30-v64-balance', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
+    const out = { ok: true, build: '2026-11-30-v65-match', db: false, tables: 0, resend: !!env.RESEND_API_KEY, owner_email: !!env.OWNER_EMAIL, api_key: !!env.API_KEY, mail_from: env.MAIL_FROM || null };
     try {
       const t = await env.DB.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table'").first();
       out.db = true; out.tables = t ? t.c : 0;
@@ -1121,18 +1121,18 @@ async function api(request, env, url) {
 
   if (p === '/api/leaderboard' && m === 'GET') {
     let rows = [];
+    // confirmed balance (dashboard ke "CONFIRMED" se exactly match karta hai)
     try {
-      const r = await env.DB.prepare(`SELECT u.name, COALESCE(SUM(l.amount_usd),0) AS total
-        FROM ledger l JOIN users u ON u.id = l.user_id
-        WHERE l.type='earning' AND l.created_at >= ?
-        GROUP BY l.user_id ORDER BY total DESC LIMIT 10`).bind(Math.floor(Date.now()/1000) - 30*86400).all();
+      const r = await env.DB.prepare(`SELECT u.name, COALESCE(v.confirmed_usd,0) AS total
+        FROM users u LEFT JOIN v_user_balances v ON v.user_id = u.id
+        WHERE COALESCE(v.confirmed_usd,0) > 0
+        ORDER BY total DESC LIMIT 10`).all();
       rows = r.results || [];
     } catch (e) {
       try {
-        const r = await env.DB.prepare(`SELECT u.name, COALESCE(SUM(l.amount_inr),0) AS total
-          FROM ledger l JOIN users u ON u.id = l.user_id
-          WHERE l.type='earning' AND l.created_at >= ?
-          GROUP BY l.user_id ORDER BY total DESC LIMIT 10`).bind(Math.floor(Date.now()/1000) - 30*86400).all();
+        const r = await env.DB.prepare(`SELECT u.name, COALESCE(u.balance_conf_usd,0) AS total
+          FROM users u WHERE COALESCE(u.balance_conf_usd,0) > 0
+          ORDER BY total DESC LIMIT 10`).all();
         rows = r.results || [];
       } catch (e2) {}
     }
@@ -1141,7 +1141,7 @@ async function api(request, env, url) {
       name: String(r.name || 'Creator').split(' ')[0],
       amount: Number(r.total || 0).toFixed(2)
     }));
-    return json({ ok: true, leaders: out, period: '30 days' });
+    return json({ ok: true, leaders: out, period: 'all time' });
   }
 
   if (p === '/api/analytics/countries' && m === 'GET') {
@@ -1160,8 +1160,22 @@ async function api(request, env, url) {
     } catch (e) {}
     try {
       const r = await env.DB.prepare(`SELECT COALESCE(NULLIF(referrer,''),'direct') AS r, COUNT(*) AS n
-        FROM click_sessions WHERE user_id=? GROUP BY r ORDER BY n DESC LIMIT 6`).bind(user.id).all();
-      ref = r.results || [];
+        FROM click_sessions WHERE user_id=? GROUP BY r ORDER BY n DESC LIMIT 12`).bind(user.id).all();
+      const seen = {};
+      ref = [];
+      for (const row of (r.results || [])) {
+        let label = 'direct';
+        const raw = String(row.r || '').trim();
+        if (raw && raw.toLowerCase() !== 'direct') {
+          try {
+            const u = new URL(raw.indexOf('://') === -1 ? ('https://' + raw) : raw);
+            label = u.hostname.replace(/^www\./, '');
+          } catch (e) { label = raw.slice(0, 30); }
+        }
+        if (!label) label = 'direct';
+        seen[label] = (seen[label] || 0) + Number(row.n || 0);
+      }
+      ref = Object.keys(seen).map((k) => ({ r: k, n: seen[k] })).sort((a, b) => b.n - a.n).slice(0, 6);
     } catch (e) {}
     return json({ ok: true, countries: rows, devices: dev, referrers: ref });
   }
@@ -1490,7 +1504,7 @@ async function api(request, env, url) {
       const sample = active.length ? active[0] : null;
       return json({
         ok: true,
-        build: '2026-11-30-v64-balance',
+        build: '2026-11-30-v65-match',
         total: zones.length,
         active: active.length,
         zones,
@@ -1557,7 +1571,7 @@ async function api(request, env, url) {
         len: (z.snippet || '').length,
         head: String(z.snippet || '').slice(0, 45)
       }));
-      return json({ ok: true, build: '2026-11-30-v64-balance', zones });
+      return json({ ok: true, build: '2026-11-30-v65-match', zones });
     }
     if (p === '/api/admin/zones' && m === 'POST') {
       const b = await request.json().catch(() => ({}));
